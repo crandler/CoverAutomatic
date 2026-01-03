@@ -1,6 +1,6 @@
 # CoverAutomatic
 
-**Home Assistant custom integration for intelligent, automated control of covers (shutters, blinds, roller blinds).**
+**Custom HACS integration for Home Assistant - intelligent, automated control of covers (shutters, blinds, roller blinds).**
 
 ---
 
