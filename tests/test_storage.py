@@ -423,6 +423,7 @@ class TestDebouncedSave:
     def test_schedule_save_creates_task(self, storage, mock_hass) -> None:
         """Test _schedule_save creates a task."""
         storage._save_task = None
+        mock_hass.async_create_task = MagicMock(return_value=MagicMock())
         storage._schedule_save()
 
         assert storage._save_task is not None
@@ -432,6 +433,7 @@ class TestDebouncedSave:
         """Test _schedule_save cancels previous task."""
         mock_task = MagicMock()
         storage._save_task = mock_task
+        mock_hass.async_create_task = MagicMock(return_value=MagicMock())
         storage._schedule_save()
 
         mock_task.cancel.assert_called_once()
