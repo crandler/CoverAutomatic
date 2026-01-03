@@ -10,6 +10,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
 from .coordinator import CoverAutomaticCoordinator
+from .services import async_setup_services, async_unload_services
 from .storage import CoverAutomaticStorage
 
 if TYPE_CHECKING:
@@ -48,6 +49,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS_LIST)
 
+    await async_setup_services(hass)
+
     entry.async_on_unload(coordinator.async_shutdown)
 
     return True
@@ -61,5 +64,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         data = hass.data[DOMAIN].pop(entry.entry_id)
         coordinator = data["coordinator"]
         coordinator.async_shutdown()
+
+    if not hass.data[DOMAIN]:
+        await async_unload_services(hass)
 
     return unload_ok

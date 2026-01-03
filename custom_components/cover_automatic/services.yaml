@@ -1,0 +1,64 @@
+pause:
+  name: Pause Automation
+  description: Pause automation for a cover.
+  fields:
+    entity_id:
+      name: Entity
+      description: Cover entity to pause.
+      required: true
+      selector:
+        entity:
+          domain: cover
+
+resume:
+  name: Resume Automation
+  description: Resume automation for a cover.
+  fields:
+    entity_id:
+      name: Entity
+      description: Cover entity to resume.
+      required: true
+      selector:
+        entity:
+          domain: cover
+
+pause_all:
+  name: Pause All
+  description: Pause automation for all covers.
+
+resume_all:
+  name: Resume All
+  description: Resume automation for all covers.
+
+set_scenario:
+  name: Set Scenario
+  description: Set the active scenario.
+  fields:
+    scenario:
+      name: Scenario
+      description: Scenario to activate.
+      required: true
+      selector:
+        text:
+
+export_config:
+  name: Export Configuration
+  description: Export configuration to YAML file.
+  fields:
+    path:
+      name: Path
+      description: File path for export.
+      default: "/config/cover_automatic_backup.yaml"
+      selector:
+        text:
+
+import_config:
+  name: Import Configuration
+  description: Import configuration from YAML file.
+  fields:
+    path:
+      name: Path
+      description: File path to import from.
+      required: true
+      selector:
+        text:
