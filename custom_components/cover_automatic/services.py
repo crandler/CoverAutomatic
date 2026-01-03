@@ -96,6 +96,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     async def handle_set_scenario(call: ServiceCall) -> None:
         """Handle set_scenario service call."""
         scenario = call.data.get("scenario")
+        if not scenario:
+            _LOGGER.error("set_scenario: No scenario provided")
+            return
+
         for entry_data in hass.data[DOMAIN].values():
             storage = entry_data["storage"]
             coordinator = entry_data["coordinator"]
@@ -103,6 +107,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 storage.active_scenario = scenario
                 await storage.async_save()
                 await coordinator.async_request_refresh()
+                _LOGGER.info("Scenario changed to: %s", scenario)
+            else:
+                available = list(storage.scenarios.keys())
+                _LOGGER.error(
+                    "Unknown scenario '%s'. Available: %s",
+                    scenario,
+                    ", ".join(available),
+                )
 
     async def handle_export_config(call: ServiceCall) -> None:
         """Handle export_config service call."""

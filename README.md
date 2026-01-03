@@ -139,9 +139,13 @@ Additionally:
 
 ## Version
 
-1.0.7-dev
+1.0.8-dev
 
 ## Changelog
+
+### 1.0.8-dev (2026-01-03)
+- Fixed: set_scenario service now supports custom scenarios (no longer hardcoded)
+- Improved: Better error messages when invalid scenario is provided
 
 ### 1.0.7-dev (2026-01-03)
 - Added: Full UI configuration for covers (facade, lock/vent sensors, hysteresis, inverted)

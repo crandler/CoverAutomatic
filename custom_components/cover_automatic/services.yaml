@@ -32,21 +32,15 @@ resume_all:
 
 set_scenario:
   name: Set scenario
-  description: Set the active automation scenario.
+  description: Set the active automation scenario. Use scenario IDs from your configuration.
   fields:
     scenario:
       name: Scenario
-      description: The scenario to activate.
+      description: The scenario ID to activate (e.g., everyday, summer, winter, or custom scenarios).
       required: true
+      example: "everyday"
       selector:
-        select:
-          options:
-            - everyday
-            - summer
-            - winter
-            - vacation
-            - cinema
-            - manual
+        text:
 
 export_config:
   name: Export configuration
