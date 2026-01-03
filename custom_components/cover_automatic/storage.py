@@ -1,6 +1,7 @@
 """Storage manager for CoverAutomatic."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -14,6 +15,9 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+# Debounce delay for runtime saves (seconds)
+SAVE_DEBOUNCE_DELAY = 2.0
+
 
 class CoverAutomaticStorage:
     """Manage persistent storage for CoverAutomatic."""
@@ -25,6 +29,8 @@ class CoverAutomaticStorage:
             hass, STORAGE_VERSION, STORAGE_KEY
         )
         self._data: dict[str, Any] = {}
+        self._save_task: asyncio.Task | None = None
+        self._save_lock = asyncio.Lock()
 
     async def async_load(self) -> None:
         """Load data from storage."""
@@ -201,16 +207,47 @@ class CoverAutomaticStorage:
     def update_cover_status(
         self, entity_id: str, status: str, pause_until: float | None = None
     ) -> None:
-        """Update cover status directly in storage data."""
+        """Update cover status directly in storage data.
+
+        Triggers a debounced save to persist changes.
+        """
         if entity_id in self._data.get("covers", {}):
             self._data["covers"][entity_id]["status"] = status
             self._data["covers"][entity_id]["pause_until"] = pause_until
+            self._schedule_save()
 
     def get_cover_raw(self, entity_id: str) -> dict[str, Any] | None:
         """Get raw cover data dict (not a copy)."""
         return self._data.get("covers", {}).get(entity_id)
 
     def update_cover_last_change(self, entity_id: str, timestamp: float) -> None:
-        """Update cover's last position change timestamp."""
+        """Update cover's last position change timestamp.
+
+        Triggers a debounced save to persist changes.
+        """
         if entity_id in self._data.get("covers", {}):
             self._data["covers"][entity_id]["last_position_change"] = timestamp
+            self._schedule_save()
+
+    def _schedule_save(self) -> None:
+        """Schedule a debounced save operation.
+
+        Multiple rapid updates will be batched into a single save
+        after SAVE_DEBOUNCE_DELAY seconds of inactivity.
+        """
+        if self._save_task is not None:
+            self._save_task.cancel()
+
+        self._save_task = self.hass.async_create_task(self._debounced_save())
+
+    async def _debounced_save(self) -> None:
+        """Perform debounced save after delay."""
+        try:
+            await asyncio.sleep(SAVE_DEBOUNCE_DELAY)
+            async with self._save_lock:
+                await self._store.async_save(self._data)
+                _LOGGER.debug("Runtime changes persisted to storage")
+        except asyncio.CancelledError:
+            pass
+        except Exception as err:
+            _LOGGER.error("Failed to save runtime changes: %s", err)

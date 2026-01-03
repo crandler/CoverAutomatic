@@ -139,9 +139,14 @@ Additionally:
 
 ## Version
 
-1.0.5-dev
+1.0.6-dev
 
 ## Changelog
+
+### 1.0.6-dev (2026-01-03)
+- Fixed: Runtime changes (pause status, hysteresis timestamps) now persist across restarts
+- Fixed: Path traversal vulnerability in config import/export services
+- Added: Debounced save mechanism for efficient runtime persistence
 
 ### 1.0.5-dev (2026-01-03)
 - Added: Comfort temperature range (min/max) with automatic cooling/heating/neutral mode detection

@@ -16,6 +16,44 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+# Allowed base directories for config import/export
+ALLOWED_CONFIG_PATHS = ["/config", "/homeassistant"]
+
+
+def _validate_config_path(path: str) -> Path | None:
+    """Validate that path is within allowed directories.
+
+    Prevents path traversal attacks by ensuring the resolved path
+    stays within allowed base directories.
+
+    Returns:
+        Resolved Path if valid, None if path is unsafe.
+    """
+    try:
+        # Resolve to absolute path (handles ../ etc.)
+        resolved = Path(path).resolve()
+
+        # Check if path is within any allowed directory
+        for allowed_base in ALLOWED_CONFIG_PATHS:
+            allowed_path = Path(allowed_base).resolve()
+            if allowed_path.exists():
+                try:
+                    resolved.relative_to(allowed_path)
+                    return resolved
+                except ValueError:
+                    continue
+
+        _LOGGER.warning(
+            "Path validation failed: %s is not within allowed directories %s",
+            path,
+            ALLOWED_CONFIG_PATHS,
+        )
+        return None
+
+    except Exception as err:
+        _LOGGER.error("Path validation error for %s: %s", path, err)
+        return None
+
 
 async def async_setup_services(hass: HomeAssistant) -> None:
     """Set up services for CoverAutomatic."""
@@ -68,32 +106,49 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def handle_export_config(call: ServiceCall) -> None:
         """Handle export_config service call."""
-        path = call.data.get("path", "/config/cover_automatic_backup.yaml")
+        path_str = call.data.get("path", "/config/cover_automatic_backup.yaml")
+
+        # Validate path to prevent path traversal attacks
+        validated_path = _validate_config_path(path_str)
+        if validated_path is None:
+            _LOGGER.error(
+                "Export rejected: path '%s' is outside allowed directories", path_str
+            )
+            return
+
         for entry_data in hass.data[DOMAIN].values():
             storage = entry_data["storage"]
             data = storage.get_raw_data()
 
             def write_yaml():
-                with open(path, "w") as f:
+                with open(validated_path, "w") as f:
                     yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
 
             await hass.async_add_executor_job(write_yaml)
-            _LOGGER.info("Configuration exported to %s", path)
+            _LOGGER.info("Configuration exported to %s", validated_path)
             break
 
     async def handle_import_config(call: ServiceCall) -> None:
         """Handle import_config service call."""
-        path = call.data.get("path")
-        if not path:
+        path_str = call.data.get("path")
+        if not path_str:
+            _LOGGER.error("Import rejected: no path provided")
             return
 
-        file_path = Path(path)
-        if not file_path.exists():
-            _LOGGER.error("Import file not found: %s", path)
+        # Validate path to prevent path traversal attacks
+        validated_path = _validate_config_path(path_str)
+        if validated_path is None:
+            _LOGGER.error(
+                "Import rejected: path '%s' is outside allowed directories", path_str
+            )
+            return
+
+        if not validated_path.exists():
+            _LOGGER.error("Import file not found: %s", validated_path)
             return
 
         def read_yaml():
-            with open(path) as f:
+            with open(validated_path) as f:
                 return yaml.safe_load(f)
 
         data = await hass.async_add_executor_job(read_yaml)
@@ -104,7 +159,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             await storage.async_import_data(data)
             coordinator.refresh_state_tracking()
             await coordinator.async_request_refresh()
-            _LOGGER.info("Configuration imported from %s", path)
+            _LOGGER.info("Configuration imported from %s", validated_path)
             break
 
     hass.services.async_register(DOMAIN, "pause", handle_pause)
