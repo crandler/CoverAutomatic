@@ -153,3 +153,15 @@ class CoverAutomaticStorage:
         """Import data from dict."""
         self._data = data
         await self.async_save()
+
+    def update_cover_status(
+        self, entity_id: str, status: str, pause_until: float | None = None
+    ) -> None:
+        """Update cover status directly in storage data."""
+        if entity_id in self._data.get("covers", {}):
+            self._data["covers"][entity_id]["status"] = status
+            self._data["covers"][entity_id]["pause_until"] = pause_until
+
+    def get_cover_raw(self, entity_id: str) -> dict[str, Any] | None:
+        """Get raw cover data dict (not a copy)."""
+        return self._data.get("covers", {}).get(entity_id)

@@ -133,9 +133,15 @@ Additionally:
 
 ## Version
 
-1.0.0-dev
+1.0.1-dev
 
 ## Changelog
+
+### 1.0.1-dev (2026-01-03)
+- Fixed: Config flow data now properly transferred to storage
+- Fixed: Cover positions are now actually applied after rule evaluation
+- Fixed: Storage properties no longer recreate objects on each access
+- Fixed: Services only registered once (prevents errors with multiple entries)
 
 ### 1.0.0-dev (2026-01-03)
 - Initial development release

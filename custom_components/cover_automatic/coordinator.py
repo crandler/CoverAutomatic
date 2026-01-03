@@ -157,35 +157,35 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _pause_cover(self, cover: CoverConfig) -> None:
         """Pause automation for a cover."""
         self._cover_states[cover.entity_id] = CoverStatus.PAUSED
-        cover.status = CoverStatus.PAUSED
-        cover.pause_until = dt_util.now().timestamp() + (cover.pause_duration * 60)
+        pause_until = dt_util.now().timestamp() + (cover.pause_duration * 60)
+        self.storage.update_cover_status(
+            cover.entity_id, CoverStatus.PAUSED.value, pause_until
+        )
         self.async_set_updated_data(self.data)
 
     def resume_cover(self, entity_id: str) -> None:
         """Resume automation for a cover."""
-        cover = self.storage.covers.get(entity_id)
-        if cover:
+        if self.storage.get_cover_raw(entity_id):
             self._cover_states[entity_id] = CoverStatus.AUTO
-            cover.status = CoverStatus.AUTO
-            cover.pause_until = None
+            self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
             self.async_set_updated_data(self.data)
 
     def get_cover_status(self, entity_id: str) -> CoverStatus:
         """Get automation status for a cover."""
-        cover = self.storage.covers.get(entity_id)
-        if cover is None:
+        cover_raw = self.storage.get_cover_raw(entity_id)
+        if cover_raw is None:
             return CoverStatus.MANUAL
 
-        if not cover.auto_enabled:
+        if not cover_raw.get("auto_enabled", True):
             return CoverStatus.MANUAL
 
         status = self._cover_states.get(entity_id, CoverStatus.AUTO)
 
-        if status == CoverStatus.PAUSED and cover.pause_until:
-            if dt_util.now().timestamp() > cover.pause_until:
+        if status == CoverStatus.PAUSED:
+            pause_until = cover_raw.get("pause_until")
+            if pause_until and dt_util.now().timestamp() > pause_until:
                 self._cover_states[entity_id] = CoverStatus.AUTO
-                cover.status = CoverStatus.AUTO
-                cover.pause_until = None
+                self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
                 return CoverStatus.AUTO
 
         return status
@@ -219,6 +219,12 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "target_position": target_position,
                 "facade_id": cover.facade_id,
             }
+
+        # Store result first so async_apply_positions can use it
+        self.data = result
+
+        # Apply calculated positions to covers
+        await self.async_apply_positions()
 
         return result
 

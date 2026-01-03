@@ -19,6 +19,9 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_services(hass: HomeAssistant) -> None:
     """Set up services for CoverAutomatic."""
+    # Only register services once
+    if hass.services.has_service(DOMAIN, "pause"):
+        return
 
     async def handle_pause(call: ServiceCall) -> None:
         """Handle pause service call."""
