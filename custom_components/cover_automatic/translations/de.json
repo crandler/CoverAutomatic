@@ -10,26 +10,26 @@
       },
       "facades": {
         "title": "Fassaden konfigurieren",
-        "description": "Fassaden nach Himmelsrichtung hinzufuegen. Aktuelle Fassaden: {facades}",
+        "description": "Fassaden nach Himmelsrichtung hinzufügen. Aktuelle Fassaden: {facades}",
         "data": {
           "facade_name": "Fassadenname",
           "facade_direction": "Himmelsrichtung",
-          "add_facade": "Diese Fassade hinzufuegen",
+          "add_facade": "Diese Fassade hinzufügen",
           "done": "Fertig mit Fassaden"
         }
       },
       "covers": {
-        "title": "Beschattungen auswaehlen",
-        "description": "Beschattungen zur Steuerung auswaehlen.",
+        "title": "Beschattungen auswählen",
+        "description": "Beschattungen zur Steuerung auswählen.",
         "data": {
           "covers": "Zu verwaltende Beschattungen"
         }
       },
       "sensors": {
         "title": "Temperatursensoren (Optional)",
-        "description": "Temperatursensoren fuer intelligente Regeln konfigurieren.",
+        "description": "Temperatursensoren für intelligente Regeln konfigurieren.",
         "data": {
-          "outdoor_temp_sensor": "Aussentemperatur-Sensor"
+          "outdoor_temp_sensor": "Außentemperatur-Sensor"
         }
       }
     },
