@@ -1,0 +1,81 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "CoverAutomatic Einrichtung",
+        "description": "Intelligente Beschattungsautomatik einrichten.",
+        "data": {
+          "name": "Integrationsname"
+        }
+      },
+      "facades": {
+        "title": "Fassaden konfigurieren",
+        "description": "Fassaden nach Himmelsrichtung hinzufuegen. Aktuelle Fassaden: {facades}",
+        "data": {
+          "facade_name": "Fassadenname",
+          "facade_direction": "Himmelsrichtung",
+          "add_facade": "Diese Fassade hinzufuegen",
+          "done": "Fertig mit Fassaden"
+        }
+      },
+      "covers": {
+        "title": "Beschattungen auswaehlen",
+        "description": "Beschattungen zur Steuerung auswaehlen.",
+        "data": {
+          "covers": "Zu verwaltende Beschattungen"
+        }
+      },
+      "sensors": {
+        "title": "Temperatursensoren (Optional)",
+        "description": "Temperatursensoren fuer intelligente Regeln konfigurieren.",
+        "data": {
+          "outdoor_temp_sensor": "Aussentemperatur-Sensor"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "CoverAutomatic ist bereits konfiguriert.",
+      "no_covers": "Keine Beschattungen gefunden."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "CoverAutomatic Optionen",
+        "data": {
+          "scan_interval": "Aktualisierungsintervall (Sekunden)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "auto_enabled": {
+        "name": "Automatik"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "auto": "Automatisch",
+          "paused": "Pausiert",
+          "manual": "Manuell"
+        }
+      },
+      "sun_on_facade": {
+        "name": "Sonne auf Fassade"
+      }
+    },
+    "select": {
+      "scenario": {
+        "name": "Szenario"
+      }
+    },
+    "number": {
+      "pause_duration": {
+        "name": "Pausendauer"
+      }
+    }
+  }
+}

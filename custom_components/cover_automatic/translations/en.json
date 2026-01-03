@@ -1,0 +1,81 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "CoverAutomatic Setup",
+        "description": "Set up intelligent cover automation.",
+        "data": {
+          "name": "Integration name"
+        }
+      },
+      "facades": {
+        "title": "Configure Facades",
+        "description": "Add building facades by cardinal direction. Current facades: {facades}",
+        "data": {
+          "facade_name": "Facade name",
+          "facade_direction": "Direction",
+          "add_facade": "Add this facade",
+          "done": "Done adding facades"
+        }
+      },
+      "covers": {
+        "title": "Select Covers",
+        "description": "Select cover entities to manage.",
+        "data": {
+          "covers": "Covers to manage"
+        }
+      },
+      "sensors": {
+        "title": "Temperature Sensors (Optional)",
+        "description": "Configure temperature sensors for intelligent rules.",
+        "data": {
+          "outdoor_temp_sensor": "Outdoor temperature sensor"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "CoverAutomatic is already configured.",
+      "no_covers": "No cover entities found."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "CoverAutomatic Options",
+        "data": {
+          "scan_interval": "Scan interval (seconds)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "auto_enabled": {
+        "name": "Automation"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "auto": "Automatic",
+          "paused": "Paused",
+          "manual": "Manual"
+        }
+      },
+      "sun_on_facade": {
+        "name": "Sun on facade"
+      }
+    },
+    "select": {
+      "scenario": {
+        "name": "Scenario"
+      }
+    },
+    "number": {
+      "pause_duration": {
+        "name": "Pause duration"
+      }
+    }
+  }
+}
