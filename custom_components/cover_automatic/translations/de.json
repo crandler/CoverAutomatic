@@ -66,6 +66,12 @@
       },
       "sun_on_facade": {
         "name": "Sonne auf Fassade"
+      },
+      "sun_entry_time": {
+        "name": "Sonneneintritt"
+      },
+      "sun_exit_time": {
+        "name": "Sonnenaustritt"
       }
     },
     "select": {

@@ -23,10 +23,20 @@ class ConditionType(StrEnum):
     SUN_ELEVATION_BELOW = "sun_elevation_below"
     TEMPERATURE_ABOVE = "temperature_above"
     TEMPERATURE_BELOW = "temperature_below"
+    TEMPERATURE_COMFORT = "temperature_comfort"
     TIME_BETWEEN = "time_between"
     TIME_AFTER_SUNRISE = "time_after_sunrise"
     TIME_AFTER_SUNSET = "time_after_sunset"
     STATE_IS = "state_is"
+    WEATHER_IS = "weather_is"
+
+
+class ComfortMode(StrEnum):
+    """Temperature comfort mode result."""
+
+    COOLING = "cooling"
+    HEATING = "heating"
+    NEUTRAL = "neutral"
 
 
 @dataclass
@@ -178,6 +188,10 @@ class CoverConfig:
     lock_position: int = 100
     vent_sensor: str | None = None
     vent_position: int = 30
+    inverted: bool = False
+    min_position_change: int = 5
+    min_time_between_changes: int = 300
+    last_position_change: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -193,6 +207,10 @@ class CoverConfig:
             "lock_position": self.lock_position,
             "vent_sensor": self.vent_sensor,
             "vent_position": self.vent_position,
+            "inverted": self.inverted,
+            "min_position_change": self.min_position_change,
+            "min_time_between_changes": self.min_time_between_changes,
+            "last_position_change": self.last_position_change,
         }
 
     @classmethod
@@ -211,4 +229,8 @@ class CoverConfig:
             lock_position=data.get("lock_position", 100),
             vent_sensor=data.get("vent_sensor"),
             vent_position=data.get("vent_position", 30),
+            inverted=data.get("inverted", False),
+            min_position_change=data.get("min_position_change", 5),
+            min_time_between_changes=data.get("min_time_between_changes", 300),
+            last_position_change=data.get("last_position_change"),
         )

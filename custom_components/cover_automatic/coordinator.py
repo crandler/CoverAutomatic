@@ -102,6 +102,12 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self.storage.outdoor_temp_sensor:
             entities_to_track.add(self.storage.outdoor_temp_sensor)
 
+        if self.storage.indoor_temp_sensor:
+            entities_to_track.add(self.storage.indoor_temp_sensor)
+
+        if self.storage.weather_entity:
+            entities_to_track.add(self.storage.weather_entity)
+
         for rule_data in self.storage._data.get("rules", {}).values():
             for condition in rule_data.get("conditions", []):
                 if sensor := condition.get("params", {}).get("sensor"):
@@ -346,9 +352,11 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return result
 
     async def async_apply_positions(self) -> None:
-        """Apply calculated positions to covers."""
+        """Apply calculated positions to covers with hysteresis."""
         if not self.data:
             return
+
+        now = dt_util.now().timestamp()
 
         for entity_id, cover_data in self.data.get("covers", {}).items():
             if cover_data["status"] != CoverStatus.AUTO.value:
@@ -356,6 +364,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             target = cover_data.get("target_position")
             if target is None:
+                continue
+
+            cover_raw = self.storage.get_cover_raw(entity_id)
+            if cover_raw is None:
                 continue
 
             state = self.hass.states.get(entity_id)
@@ -367,6 +379,30 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except (ValueError, TypeError):
                 continue
 
+            # Handle inverted covers (100% = closed)
+            if cover_raw.get("inverted", False):
+                target = 100 - target
+
+            # Check hysteresis: minimum position change
+            min_change = cover_raw.get("min_position_change", 5)
+            position_diff = abs(current - target)
+            if position_diff < min_change and position_diff > 0:
+                _LOGGER.debug(
+                    "Skipping %s: position change %d < min %d",
+                    entity_id, position_diff, min_change
+                )
+                continue
+
+            # Check hysteresis: minimum time between changes
+            min_time = cover_raw.get("min_time_between_changes", 300)
+            last_change = cover_raw.get("last_position_change")
+            if last_change and (now - last_change) < min_time:
+                _LOGGER.debug(
+                    "Skipping %s: only %ds since last change (min %ds)",
+                    entity_id, int(now - last_change), min_time
+                )
+                continue
+
             if current != target:
                 _LOGGER.debug("Setting %s to position %s", entity_id, target)
                 await self.hass.services.async_call(
@@ -375,6 +411,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     {"entity_id": entity_id, "position": target},
                     blocking=False,
                 )
+                # Update last change timestamp
+                self.storage.update_cover_last_change(entity_id, now)
 
     def async_shutdown(self) -> None:
         """Shut down coordinator."""

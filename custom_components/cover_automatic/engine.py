@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.util import dt as dt_util
 
-from .models import Condition, ConditionType, CoverConfig, Rule
+from .models import ComfortMode, Condition, ConditionType, CoverConfig, Rule
 from .sun import get_sun_position, get_sunrise_time, get_sunset_time, is_sun_on_facade
 
 if TYPE_CHECKING:
@@ -115,6 +115,10 @@ class RuleEngine:
                     return self._eval_time_after_sunset(condition)
                 case ConditionType.STATE_IS:
                     return self._eval_state_is(condition)
+                case ConditionType.TEMPERATURE_COMFORT:
+                    return self._eval_temp_comfort(condition)
+                case ConditionType.WEATHER_IS:
+                    return self._eval_weather_is(condition)
                 case _:
                     _LOGGER.warning("Unknown condition type: %s", condition.type)
                     return False
@@ -241,3 +245,77 @@ class RuleEngine:
             return False
 
         return state.state == str(expected_state)
+
+    def _eval_temp_comfort(self, condition: Condition) -> bool:
+        """Evaluate temperature_comfort condition.
+
+        Checks if current mode matches expected mode (cooling/heating/neutral).
+        Uses indoor temp sensor and comfort range from storage.
+        """
+        expected_mode = condition.params.get("mode", ComfortMode.COOLING)
+        sensor_id = condition.params.get("sensor") or self.storage.indoor_temp_sensor
+
+        if not sensor_id:
+            return False
+
+        state = self.hass.states.get(sensor_id)
+        if state is None:
+            return False
+
+        try:
+            temp = float(state.state)
+        except (ValueError, TypeError):
+            return False
+
+        comfort_min = self.storage.comfort_temp_min
+        comfort_max = self.storage.comfort_temp_max
+
+        if temp > comfort_max:
+            current_mode = ComfortMode.COOLING
+        elif temp < comfort_min:
+            current_mode = ComfortMode.HEATING
+        else:
+            current_mode = ComfortMode.NEUTRAL
+
+        return current_mode == expected_mode
+
+    def _eval_weather_is(self, condition: Condition) -> bool:
+        """Evaluate weather_is condition.
+
+        Checks if current weather matches expected conditions.
+        Supports: sunny, cloudy, rainy, snowy, windy, clear
+        """
+        expected_states = condition.params.get("states", [])
+        if isinstance(expected_states, str):
+            expected_states = [expected_states]
+
+        weather_entity = condition.params.get("entity") or self.storage.weather_entity
+        if not weather_entity:
+            return False
+
+        state = self.hass.states.get(weather_entity)
+        if state is None:
+            return False
+
+        current_weather = state.state.lower()
+
+        # Map common weather states
+        sunny_states = ["sunny", "clear", "clear-night", "partlycloudy", "partly-cloudy"]
+        cloudy_states = ["cloudy", "fog", "hazy", "overcast"]
+        rainy_states = ["rainy", "pouring", "lightning", "lightning-rainy", "hail"]
+        snowy_states = ["snowy", "snowy-rainy"]
+
+        for expected in expected_states:
+            expected = expected.lower()
+            if expected == "sunny" and current_weather in sunny_states:
+                return True
+            if expected == "cloudy" and current_weather in cloudy_states:
+                return True
+            if expected == "rainy" and current_weather in rainy_states:
+                return True
+            if expected == "snowy" and current_weather in snowy_states:
+                return True
+            if expected == current_weather:
+                return True
+
+        return False

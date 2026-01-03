@@ -10,6 +10,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import CoverAutomaticCoordinator
 from .models import CoverStatus
+from .sun import get_facade_sun_times
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -38,6 +39,12 @@ async def async_setup_entry(
     for facade_id, facade in coordinator.storage.facades.items():
         entities.append(
             FacadeSunSensor(coordinator, facade_id, facade.name)
+        )
+        entities.append(
+            FacadeSunEntrySensor(coordinator, facade_id, facade.name)
+        )
+        entities.append(
+            FacadeSunExitSensor(coordinator, facade_id, facade.name)
         )
 
     async_add_entities(entities)
@@ -127,3 +134,79 @@ class FacadeSunSensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorEntity
         if self.native_value == "on":
             return "mdi:white-balance-sunny"
         return "mdi:weather-night"
+
+
+class FacadeSunEntrySensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorEntity):
+    """Sensor showing when sun enters facade."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "sun_entry_time"
+
+    def __init__(
+        self,
+        coordinator: CoverAutomaticCoordinator,
+        facade_id: str,
+        facade_name: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._facade_id = facade_id
+        self._attr_unique_id = f"{DOMAIN}_facade_{facade_id}_sun_entry"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, f"facade_{facade_id}")},
+            "name": f"CoverAutomatic Facade {facade_name}",
+            "manufacturer": "CoverAutomatic",
+            "model": "Facade",
+        }
+
+    @property
+    def native_value(self) -> str | None:
+        """Return sun entry time for facade."""
+        facade = self.coordinator.storage.facades.get(self._facade_id)
+        if facade is None:
+            return None
+        entry_time, _ = get_facade_sun_times(self.hass, facade)
+        return entry_time
+
+    @property
+    def icon(self) -> str:
+        """Return icon."""
+        return "mdi:weather-sunset-up"
+
+
+class FacadeSunExitSensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorEntity):
+    """Sensor showing when sun exits facade."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "sun_exit_time"
+
+    def __init__(
+        self,
+        coordinator: CoverAutomaticCoordinator,
+        facade_id: str,
+        facade_name: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._facade_id = facade_id
+        self._attr_unique_id = f"{DOMAIN}_facade_{facade_id}_sun_exit"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, f"facade_{facade_id}")},
+            "name": f"CoverAutomatic Facade {facade_name}",
+            "manufacturer": "CoverAutomatic",
+            "model": "Facade",
+        }
+
+    @property
+    def native_value(self) -> str | None:
+        """Return sun exit time for facade."""
+        facade = self.coordinator.storage.facades.get(self._facade_id)
+        if facade is None:
+            return None
+        _, exit_time = get_facade_sun_times(self.hass, facade)
+        return exit_time
+
+    @property
+    def icon(self) -> str:
+        """Return icon."""
+        return "mdi:weather-sunset-down"

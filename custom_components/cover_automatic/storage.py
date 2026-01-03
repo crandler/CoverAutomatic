@@ -37,6 +37,10 @@ class CoverAutomaticStorage:
                 "scenarios": {},
                 "active_scenario": "everyday",
                 "outdoor_temp_sensor": None,
+                "indoor_temp_sensor": None,
+                "weather_entity": None,
+                "comfort_temp_min": 21.0,
+                "comfort_temp_max": 25.0,
             }
         else:
             self._data = data
@@ -92,6 +96,46 @@ class CoverAutomaticStorage:
     def outdoor_temp_sensor(self, value: str | None) -> None:
         """Set outdoor temperature sensor entity ID."""
         self._data["outdoor_temp_sensor"] = value
+
+    @property
+    def indoor_temp_sensor(self) -> str | None:
+        """Get indoor temperature sensor entity ID."""
+        return self._data.get("indoor_temp_sensor")
+
+    @indoor_temp_sensor.setter
+    def indoor_temp_sensor(self, value: str | None) -> None:
+        """Set indoor temperature sensor entity ID."""
+        self._data["indoor_temp_sensor"] = value
+
+    @property
+    def weather_entity(self) -> str | None:
+        """Get weather entity ID."""
+        return self._data.get("weather_entity")
+
+    @weather_entity.setter
+    def weather_entity(self, value: str | None) -> None:
+        """Set weather entity ID."""
+        self._data["weather_entity"] = value
+
+    @property
+    def comfort_temp_min(self) -> float:
+        """Get minimum comfort temperature."""
+        return self._data.get("comfort_temp_min", 21.0)
+
+    @comfort_temp_min.setter
+    def comfort_temp_min(self, value: float) -> None:
+        """Set minimum comfort temperature."""
+        self._data["comfort_temp_min"] = value
+
+    @property
+    def comfort_temp_max(self) -> float:
+        """Get maximum comfort temperature."""
+        return self._data.get("comfort_temp_max", 25.0)
+
+    @comfort_temp_max.setter
+    def comfort_temp_max(self, value: float) -> None:
+        """Set maximum comfort temperature."""
+        self._data["comfort_temp_max"] = value
 
     async def async_add_facade(self, facade: Facade) -> None:
         """Add or update a facade."""
@@ -165,3 +209,8 @@ class CoverAutomaticStorage:
     def get_cover_raw(self, entity_id: str) -> dict[str, Any] | None:
         """Get raw cover data dict (not a copy)."""
         return self._data.get("covers", {}).get(entity_id)
+
+    def update_cover_last_change(self, entity_id: str, timestamp: float) -> None:
+        """Update cover's last position change timestamp."""
+        if entity_id in self._data.get("covers", {}):
+            self._data["covers"][entity_id]["last_position_change"] = timestamp

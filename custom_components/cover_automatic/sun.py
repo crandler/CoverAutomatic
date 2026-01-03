@@ -89,3 +89,56 @@ def get_sunset_time(hass: HomeAssistant) -> float | None:
     if sunset is None:
         return None
     return sunset.timestamp()
+
+
+def get_facade_sun_times(hass: HomeAssistant, facade: Facade) -> tuple[str | None, str | None]:
+    """Calculate approximate sun entry and exit times for a facade.
+
+    Uses linear interpolation based on typical sun path.
+    Returns times in HH:MM format or None if unavailable.
+    """
+    sunrise = get_sunrise_time(hass)
+    sunset = get_sunset_time(hass)
+
+    if sunrise is None or sunset is None:
+        return None, None
+
+    # Typical sun azimuth at sunrise ~90 (E), at solar noon ~180 (S), at sunset ~270 (W)
+    # This is a simplified model - actual path depends on latitude and date
+
+    day_length = sunset - sunrise
+    if day_length <= 0:
+        return None, None
+
+    # Approximate azimuth progression: sunrise=90, noon=180, sunset=270
+    # So azimuth moves roughly 180 degrees during daytime
+    azimuth_at_sunrise = 90.0
+    azimuth_at_sunset = 270.0
+    azimuth_range = azimuth_at_sunset - azimuth_at_sunrise
+
+    start_az = facade.azimuth_start
+    end_az = facade.azimuth_end
+
+    # Handle wrap-around (e.g., north facade: 315-45)
+    if start_az > end_az:
+        # Facade spans midnight azimuth - sun won't hit it during normal daytime
+        # unless it's early morning or late evening
+        return None, None
+
+    # Calculate entry time
+    entry_time = None
+    if azimuth_at_sunrise <= start_az <= azimuth_at_sunset:
+        fraction = (start_az - azimuth_at_sunrise) / azimuth_range
+        entry_timestamp = sunrise + (fraction * day_length)
+        entry_dt = dt_util.as_local(dt_util.utc_from_timestamp(entry_timestamp))
+        entry_time = entry_dt.strftime("%H:%M")
+
+    # Calculate exit time
+    exit_time = None
+    if azimuth_at_sunrise <= end_az <= azimuth_at_sunset:
+        fraction = (end_az - azimuth_at_sunrise) / azimuth_range
+        exit_timestamp = sunrise + (fraction * day_length)
+        exit_dt = dt_util.as_local(dt_util.utc_from_timestamp(exit_timestamp))
+        exit_time = exit_dt.strftime("%H:%M")
+
+    return entry_time, exit_time

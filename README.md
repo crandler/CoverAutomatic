@@ -30,12 +30,16 @@ In no event shall the author be liable for any claim, damages or other liability
 ## Features
 
 - **Sun-based automation** - Automatic shading when sun hits facade
-- **Temperature control** - React to indoor/outdoor temperatures
+- **Temperature control** - React to indoor/outdoor temperatures with comfort range
+- **Weather integration** - React to weather conditions (sunny, cloudy, rainy)
 - **Time schedules** - Open/close at specific times or relative to sunrise/sunset
 - **Scenarios** - Switch between modes like "Summer", "Winter", "Vacation"
 - **Manual override** - Automatic pause after manual intervention
 - **Window contact sensor** - Lock cover open when window is opened (configurable position)
 - **Ventilation sensor** - Move cover to ventilation position when vent is opened
+- **Sun entry/exit times** - Shows when sun will hit or leave each facade
+- **Hysteresis** - Prevents excessive motor wear with min position/time thresholds
+- **Inverted covers** - Support for covers where 100% = closed
 - **UI-first configuration** - Full setup via Home Assistant UI
 - **Device agnostic** - Works with any cover entity (Homematic IP, Shelly, etc.)
 
@@ -135,9 +139,17 @@ Additionally:
 
 ## Version
 
-1.0.4-dev
+1.0.5-dev
 
 ## Changelog
+
+### 1.0.5-dev (2026-01-03)
+- Added: Comfort temperature range (min/max) with automatic cooling/heating/neutral mode detection
+- Added: Weather entity integration with sunny/cloudy/rainy condition rules
+- Added: Hysteresis - min_position_change (default 5%) and min_time_between_changes (default 5min)
+- Added: Inverted cover support for covers where 100% = closed
+- Added: Sun entry/exit time sensors per facade (shows when sun hits/leaves)
+- Added: Indoor temperature sensor configuration for comfort rules
 
 ### 1.0.4-dev (2026-01-03)
 - Added: Lock sensor support - assign a contact sensor to lock cover when open (e.g., window contact)
