@@ -147,92 +147,49 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.13-dev
+1.0.13
 
 ## Changelog
 
-### 1.0.13-dev (2026-01-03)
-- Added: Comprehensive test suite (138 tests total)
-- Added: Coordinator tests (hysteresis, lock/vent sensors, state tracking)
-- Added: Services tests (pause, resume, set_scenario, export/import)
-- Added: Platform tests (Switch, Sensor, Select, Number)
+### 1.0.13 (2026-01-03)
 
-### 1.0.12-dev (2026-01-03)
-- Added: Scenario-rule linking UI (disable specific rules per scenario)
+First stable release with comprehensive test coverage.
 
-### 1.0.11-dev (2026-01-03)
-- Removed: Cover wrapper entities (redundant, coordinator controls original covers directly)
-- Changed: Platforms reduced from 5 to 4 (switch, sensor, select, number)
-
-### 1.0.10-dev (2026-01-03)
-- Added: Full UI for scenario management (add, edit, delete, activate)
-- Added: Icon selector for scenarios
-- Fixed: Ruff linting (removed unused imports and variables)
-- Added: GitHub Actions CI (tests, HACS validation, linting)
-
-### 1.0.9-dev (2026-01-03)
-- Added: Full UI for facade management (add, edit, delete facades)
-- Added: Full UI for rule management (add, edit, delete rules with conditions)
-- Added: Condition builder UI with support for all 11 condition types
-- Added: Unit tests for models, rule engine, and storage manager
-- Improved: Complete Options Flow for all configuration without YAML
-
-### 1.0.8-dev (2026-01-03)
-- Fixed: set_scenario service now supports custom scenarios (no longer hardcoded)
-- Improved: Better error messages when invalid scenario is provided
-
-### 1.0.7-dev (2026-01-03)
-- Added: Full UI configuration for covers (facade, lock/vent sensors, hysteresis, inverted)
-- Added: General settings UI (weather entity, indoor temp sensor, comfort range)
-- Added: Menu-based Options Flow for quick access to individual cover settings
-- Improved: All cover parameters now configurable without YAML
-
-### 1.0.6-dev (2026-01-03)
-- Fixed: Runtime changes (pause status, hysteresis timestamps) now persist across restarts
-- Fixed: Path traversal vulnerability in config import/export services
-- Added: Debounced save mechanism for efficient runtime persistence
-
-### 1.0.5-dev (2026-01-03)
-- Added: Comfort temperature range (min/max) with automatic cooling/heating/neutral mode detection
-- Added: Weather entity integration with sunny/cloudy/rainy condition rules
-- Added: Hysteresis - min_position_change (default 5%) and min_time_between_changes (default 5min)
-- Added: Inverted cover support for covers where 100% = closed
-- Added: Sun entry/exit time sensors per facade (shows when sun hits/leaves)
-- Added: Indoor temperature sensor configuration for comfort rules
-
-### 1.0.4-dev (2026-01-03)
-- Added: Lock sensor support - assign a contact sensor to lock cover when open (e.g., window contact)
-- Added: Vent sensor support - assign a contact sensor to move cover to ventilation position when open
-- Added: Configurable lock_position (default: 100%) and vent_position (default: 30%) per cover
-- Added: New LOCKED status for covers controlled by contact sensors
-- Added: Lock icon (mdi:lock) for locked covers in status sensor
-
-### 1.0.3-dev (2026-01-03)
-- Fixed: Options changes (scan_interval) now take effect immediately without restart
-- Fixed: State tracking refreshed after configuration import
-- Improved: More efficient entity ID checks (avoid unnecessary object creation)
-
-### 1.0.2-dev (2026-01-03)
-- Fixed: Facade model now includes direction field (prevented TypeError on setup)
-- Fixed: CoverConfig.to_dict() now persists status and pause_until fields
-- Fixed: Options scan_interval setting is now used by coordinator
-- Added: services.yaml for service UI descriptions in Developer Tools
-
-### 1.0.1-dev (2026-01-03)
-- Fixed: Config flow data now properly transferred to storage
-- Fixed: Cover positions are now actually applied after rule evaluation
-- Fixed: Storage properties no longer recreate objects on each access
-- Fixed: Services only registered once (prevents errors with multiple entries)
-
-### 1.0.0-dev (2026-01-03)
-- Initial development release
+**Core Features:**
 - Facade-based sun tracking (North, East, South, West)
-- Rule engine with 9 condition types (sun, temperature, time, state)
+- Rule engine with 11 condition types (sun, temperature, time, weather, state, comfort)
+- Priority-based rule matching with scenario support
 - 6 default scenarios (Everyday, Summer, Winter, Vacation, Cinema, Manual)
 - Manual override detection with configurable pause duration
-- UI-first configuration via Config Flow
-- Entity platforms: Cover, Switch, Sensor, Select, Number
-- Services: pause, resume, pause_all, resume_all, set_scenario, export_config, import_config
+
+**Sensors & Automation:**
+- Lock sensor support (window contact) - locks cover when open
+- Vent sensor support - moves cover to ventilation position
+- Weather entity integration (sunny/cloudy/rainy conditions)
+- Comfort temperature range with cooling/heating/neutral mode
+- Sun entry/exit time sensors per facade
+- Hysteresis (min position change, min time between changes)
+- Inverted cover support (100% = closed)
+
+**UI Configuration:**
+- Full Options Flow for all settings (no YAML required)
+- Facade management UI (add, edit, delete)
+- Rule management UI with condition builder
+- Scenario management UI with icon selector
+- Scenario-rule linking (disable rules per scenario)
+- Cover settings (facade, sensors, hysteresis, inverted)
+- General settings (weather, temperature sensors, comfort range)
+
+**Services:**
+- pause / resume / pause_all / resume_all
+- set_scenario (dynamic scenario support)
+- export_config / import_config (with path validation)
+
+**Quality:**
+- 138 unit tests (models, engine, storage, coordinator, services, platforms)
+- GitHub Actions CI (Python 3.11/3.12, HACS validation, Ruff linting)
+- Security: Path traversal protection in import/export
+- Debounced save for runtime persistence
 - Translations: English and German
 
 ---
