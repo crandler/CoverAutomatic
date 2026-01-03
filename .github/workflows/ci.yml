@@ -70,4 +70,4 @@ jobs:
       - name: Ruff check
         run: |
           source .venv/bin/activate
-          ruff check custom_components/cover_automatic/ --output-format=github || true
+          ruff check custom_components/cover_automatic/ --output-format=github

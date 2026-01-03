@@ -145,6 +145,31 @@
           "comfort_mode": "Komfort-Modus",
           "weather_state": "Wetterbedingung"
         }
+      },
+      "scenarios": {
+        "title": "Szenarien verwalten",
+        "description": "Szenarien hinzufügen, bearbeiten oder löschen.",
+        "data": {
+          "scenario_option": "Szenario auswählen"
+        }
+      },
+      "scenario_add": {
+        "title": "Szenario hinzufügen",
+        "description": "Neues Szenario erstellen.",
+        "data": {
+          "name": "Name",
+          "icon": "Symbol"
+        }
+      },
+      "scenario_edit": {
+        "title": "Szenario bearbeiten: {scenario_name}",
+        "description": "Szenario bearbeiten, aktivieren oder löschen.",
+        "data": {
+          "name": "Name",
+          "icon": "Symbol",
+          "activate": "Dieses Szenario aktivieren",
+          "delete": "Dieses Szenario löschen"
+        }
       }
     },
     "error": {

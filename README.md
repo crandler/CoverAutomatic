@@ -139,9 +139,15 @@ Additionally:
 
 ## Version
 
-1.0.9-dev
+1.0.10-dev
 
 ## Changelog
+
+### 1.0.10-dev (2026-01-03)
+- Added: Full UI for scenario management (add, edit, delete, activate)
+- Added: Icon selector for scenarios
+- Fixed: Ruff linting (removed unused imports and variables)
+- Added: GitHub Actions CI (tests, HACS validation, linting)
 
 ### 1.0.9-dev (2026-01-03)
 - Added: Full UI for facade management (add, edit, delete facades)

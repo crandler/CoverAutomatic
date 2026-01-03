@@ -196,6 +196,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
         self._selected_cover: str | None = None
         self._selected_facade: str | None = None
         self._selected_rule: str | None = None
+        self._selected_scenario: str | None = None
 
     def _get_storage(self):
         """Get storage from hass.data."""
@@ -218,6 +219,8 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 return await self.async_step_facades()
             elif selected == "rules":
                 return await self.async_step_rules()
+            elif selected == "scenarios":
+                return await self.async_step_scenarios()
             elif selected and selected.startswith("cover:"):
                 self._selected_cover = selected[6:]
                 return await self.async_step_cover_details()
@@ -227,6 +230,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             {"value": "general", "label": "Allgemeine Einstellungen"},
             {"value": "facades", "label": "Fassaden verwalten"},
             {"value": "rules", "label": "Regeln verwalten"},
+            {"value": "scenarios", "label": "Szenarien verwalten"},
         ]
 
         storage = self._get_storage()
@@ -856,6 +860,136 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                             mode=selector.SelectSelectorMode.DROPDOWN,
                         )
                     ),
+                }
+            ),
+        )
+
+    # -------------------------------------------------------------------------
+    # Scenario Management
+    # -------------------------------------------------------------------------
+
+    async def async_step_scenarios(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show scenario list with add/edit options."""
+        if user_input is not None:
+            selected = user_input.get("scenario_option")
+            if selected == "add":
+                return await self.async_step_scenario_add()
+            elif selected and selected.startswith("scenario:"):
+                self._selected_scenario = selected[9:]
+                return await self.async_step_scenario_edit()
+
+        storage = self._get_storage()
+        scenario_options = [{"value": "add", "label": "+ Neues Szenario hinzufuegen"}]
+
+        if storage:
+            active = storage.active_scenario
+            for scenario_id, scenario in storage.scenarios.items():
+                status = "(aktiv)" if scenario_id == active else ""
+                scenario_options.append({
+                    "value": f"scenario:{scenario_id}",
+                    "label": f"{scenario.name} {status}".strip(),
+                })
+
+        return self.async_show_form(
+            step_id="scenarios",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("scenario_option"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=scenario_options,
+                            mode=selector.SelectSelectorMode.LIST,
+                        )
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_scenario_add(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Add a new scenario."""
+        storage = self._get_storage()
+        errors: dict[str, str] = {}
+
+        if user_input is not None and storage:
+            scenario_name = user_input.get("name", "").strip()
+
+            if not scenario_name:
+                errors["name"] = "name_required"
+            else:
+                scenario_id = scenario_name.lower().replace(" ", "_")
+                if scenario_id in storage.scenarios:
+                    errors["name"] = "already_exists"
+                else:
+                    from .models import Scenario
+                    new_scenario = Scenario(
+                        id=scenario_id,
+                        name=scenario_name,
+                        icon=user_input.get("icon", "mdi:home"),
+                    )
+                    await storage.async_add_scenario(new_scenario)
+                    return self.async_create_entry(title="", data=self.config_entry.options)
+
+        return self.async_show_form(
+            step_id="scenario_add",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("name"): str,
+                    vol.Optional("icon", default="mdi:home"): selector.IconSelector(),
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_scenario_edit(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Edit or delete a scenario."""
+        storage = self._get_storage()
+        scenario_id = self._selected_scenario
+
+        if not storage or not scenario_id or scenario_id not in storage.scenarios:
+            return await self.async_step_scenarios()
+
+        scenario = storage.scenarios[scenario_id]
+
+        if user_input is not None:
+            if user_input.get("delete"):
+                await storage.async_remove_scenario(scenario_id)
+                # Reset active scenario if deleted
+                if storage.active_scenario == scenario_id:
+                    storage.active_scenario = "everyday"
+                    await storage.async_save()
+                return self.async_create_entry(title="", data=self.config_entry.options)
+
+            if user_input.get("activate"):
+                storage.active_scenario = scenario_id
+                await storage.async_save()
+                return self.async_create_entry(title="", data=self.config_entry.options)
+
+            # Update scenario
+            from .models import Scenario
+            updated_scenario = Scenario(
+                id=scenario_id,
+                name=user_input.get("name", scenario.name),
+                icon=user_input.get("icon", scenario.icon),
+                rules_enabled=scenario.rules_enabled,
+                rules_disabled=scenario.rules_disabled,
+            )
+            await storage.async_add_scenario(updated_scenario)
+            return self.async_create_entry(title="", data=self.config_entry.options)
+
+        return self.async_show_form(
+            step_id="scenario_edit",
+            description_placeholders={"scenario_name": scenario.name},
+            data_schema=vol.Schema(
+                {
+                    vol.Required("name", default=scenario.name): str,
+                    vol.Optional("icon", default=scenario.icon or "mdi:home"): selector.IconSelector(),
+                    vol.Optional("activate", default=False): bool,
+                    vol.Optional("delete", default=False): bool,
                 }
             ),
         )

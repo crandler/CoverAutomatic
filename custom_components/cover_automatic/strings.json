@@ -145,6 +145,31 @@
           "comfort_mode": "Comfort mode",
           "weather_state": "Weather condition"
         }
+      },
+      "scenarios": {
+        "title": "Manage Scenarios",
+        "description": "Add, edit or delete scenarios.",
+        "data": {
+          "scenario_option": "Select scenario"
+        }
+      },
+      "scenario_add": {
+        "title": "Add Scenario",
+        "description": "Create a new scenario.",
+        "data": {
+          "name": "Name",
+          "icon": "Icon"
+        }
+      },
+      "scenario_edit": {
+        "title": "Edit Scenario: {scenario_name}",
+        "description": "Edit, activate or delete this scenario.",
+        "data": {
+          "name": "Name",
+          "icon": "Icon",
+          "activate": "Activate this scenario",
+          "delete": "Delete this scenario"
+        }
       }
     },
     "error": {
