@@ -1,6 +1,31 @@
 # CoverAutomatic
 
-Home Assistant custom integration for intelligent, automated control of covers (shutters, blinds, roller blinds).
+**Home Assistant custom integration for intelligent, automated control of covers (shutters, blinds, roller blinds).**
+
+---
+
+> **DEVELOPMENT VERSION - USE AT YOUR OWN RISK**
+>
+> This is a private hobby project in active development. It is **not** a finished product.
+> Features may be incomplete, buggy, or change without notice.
+
+---
+
+## Disclaimer
+
+**NO WARRANTY - NO LIABILITY**
+
+This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement.
+
+In no event shall the author be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.
+
+**By using this software, you acknowledge that:**
+- This is experimental software that may contain bugs
+- Incorrect cover positions could affect your home's security or climate
+- You are solely responsible for testing and validating the behavior
+- The author assumes no responsibility for any damage to property or equipment
+
+---
 
 ## Features
 
@@ -15,43 +40,111 @@ Home Assistant custom integration for intelligent, automated control of covers (
 ## Requirements
 
 - Home Assistant 2024.1.0 or newer
+- HACS (Home Assistant Community Store) installed
 - Existing cover entities to control
+
+---
 
 ## Installation
 
-### HACS (Recommended)
+### Method 1: HACS (Recommended)
 
-1. Open HACS in Home Assistant
-2. Click "Integrations"
-3. Click the three dots menu, then "Custom repositories"
-4. Add this repository URL
-5. Install "CoverAutomatic"
-6. Restart Home Assistant
+#### Step 1: Add Custom Repository
 
-### Manual
+1. Open Home Assistant
+2. Navigate to **HACS** in the sidebar
+3. Click on **Integrations**
+4. Click the **three dots menu** (top right corner)
+5. Select **Custom repositories**
+6. In the dialog:
+   - **Repository:** `https://github.com/crandler/CoverAutomatic`
+   - **Category:** `Integration`
+7. Click **Add**
 
-1. Copy `custom_components/cover_automatic` to your `config/custom_components` directory
-2. Restart Home Assistant
+#### Step 2: Install the Integration
+
+1. In HACS Integrations, click **+ Explore & Download Repositories**
+2. Search for **CoverAutomatic**
+3. Click on it and then click **Download**
+4. Select the latest version and confirm
+
+#### Step 3: Restart Home Assistant
+
+1. Go to **Settings** > **System** > **Restart**
+2. Click **Restart** and wait for Home Assistant to come back online
+
+#### Step 4: Add the Integration
+
+1. Go to **Settings** > **Devices & Services**
+2. Click **+ Add Integration** (bottom right)
+3. Search for **CoverAutomatic**
+4. Follow the setup wizard:
+   - Enter a name for the integration
+   - Add your facades (building sides by cardinal direction)
+   - Select the cover entities you want to automate
+   - Optionally configure temperature sensors
+
+---
+
+### Method 2: Manual Installation
+
+1. Download the latest release from GitHub
+2. Extract and copy the `custom_components/cover_automatic` folder to your Home Assistant `config/custom_components/` directory
+3. Restart Home Assistant
+4. Add the integration via **Settings** > **Devices & Services** > **Add Integration**
+
+---
 
 ## Configuration
 
-1. Go to Settings > Devices & Services
-2. Click "Add Integration"
-3. Search for "CoverAutomatic"
-4. Follow the setup wizard
+After installation, the setup wizard will guide you through:
+
+1. **Facades** - Define your building facades by cardinal direction (North, East, South, West)
+2. **Covers** - Select which cover entities to manage
+3. **Sensors** - Optionally add temperature sensors for intelligent rules
+
+### Created Entities
+
+For each managed cover, the integration creates:
+
+| Entity | Description |
+|--------|-------------|
+| `switch.*_auto` | Enable/disable automation |
+| `sensor.*_status` | Current status (auto/paused/manual) |
+| `number.*_pause_duration` | Pause duration after manual override |
+
+Additionally:
+- `select.cover_automatic_scenario` - Active scenario selector
+- `sensor.cover_automatic_facade_*_sun` - Sun on facade indicator
+
+### Available Services
+
+| Service | Description |
+|---------|-------------|
+| `cover_automatic.pause` | Pause automation for a cover |
+| `cover_automatic.resume` | Resume automation for a cover |
+| `cover_automatic.pause_all` | Pause all covers |
+| `cover_automatic.resume_all` | Resume all covers |
+| `cover_automatic.set_scenario` | Set active scenario |
+| `cover_automatic.export_config` | Export configuration to YAML |
+| `cover_automatic.import_config` | Import configuration from YAML |
+
+---
 
 ## Documentation
 
 See [Design Document](docs/plans/2026-01-03-cover-automatic-design.md) for detailed architecture and concepts.
 
+---
+
 ## Version
 
-1.0.0
+1.0.0-dev
 
 ## Changelog
 
-### 1.0.0 (2026-01-03)
-- Initial release with full feature set
+### 1.0.0-dev (2026-01-03)
+- Initial development release
 - Facade-based sun tracking (North, East, South, West)
 - Rule engine with 9 condition types (sun, temperature, time, state)
 - 6 default scenarios (Everyday, Summer, Winter, Vacation, Cinema, Manual)
@@ -61,6 +154,44 @@ See [Design Document](docs/plans/2026-01-03-cover-automatic-design.md) for detai
 - Services: pause, resume, pause_all, resume_all, set_scenario, export_config, import_config
 - Translations: English and German
 
+---
+
 ## License
 
 MIT License
+
+Copyright (c) 2026
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## Author
+
+Private project by [@crandler](https://github.com/crandler)
+
+**This is not an official product. Use at your own risk.**
+
+---
+
+## Development
+
+This project was developed with AI assistance (Claude by Anthropic) under human supervision and review. All code has been reviewed and approved by a human developer before being committed.
+
+**AI-Assisted | Human-in-the-Loop | Code Reviewed**
