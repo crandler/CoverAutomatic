@@ -46,6 +46,7 @@ htmlcov/
 
 # Local development
 CLAUDE.md
+TODO.md
 *.local.yaml
 *.local.json
 
