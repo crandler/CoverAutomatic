@@ -25,13 +25,15 @@ _LOGGER = logging.getLogger(__name__)
 class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinate data updates and rule evaluation."""
 
-    def __init__(self, hass: HomeAssistant, storage: CoverAutomaticStorage) -> None:
+    def __init__(
+        self, hass: HomeAssistant, storage: CoverAutomaticStorage, scan_interval: int = DEFAULT_SCAN_INTERVAL
+    ) -> None:
         """Initialize coordinator."""
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
+            update_interval=timedelta(seconds=scan_interval),
         )
         self.storage = storage
         self.engine = RuleEngine(hass, storage)

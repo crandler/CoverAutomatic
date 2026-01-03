@@ -36,6 +36,7 @@ class Facade:
     name: str
     azimuth_start: float
     azimuth_end: float
+    direction: str = "south"
     min_elevation: float = 0.0
     cover_ids: list[str] = field(default_factory=list)
 
@@ -46,6 +47,7 @@ class Facade:
             "name": self.name,
             "azimuth_start": self.azimuth_start,
             "azimuth_end": self.azimuth_end,
+            "direction": self.direction,
             "min_elevation": self.min_elevation,
             "cover_ids": self.cover_ids,
         }
@@ -58,6 +60,7 @@ class Facade:
             name=data["name"],
             azimuth_start=data["azimuth_start"],
             azimuth_end=data["azimuth_end"],
+            direction=data.get("direction", "south"),
             min_elevation=data.get("min_elevation", 0.0),
             cover_ids=data.get("cover_ids", []),
         )
@@ -179,15 +182,20 @@ class CoverConfig:
             "facade_id": self.facade_id,
             "auto_enabled": self.auto_enabled,
             "pause_duration": self.pause_duration,
+            "status": self.status.value if isinstance(self.status, CoverStatus) else self.status,
+            "pause_until": self.pause_until,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> CoverConfig:
         """Create from dictionary."""
+        status_val = data.get("status", CoverStatus.AUTO.value)
         return cls(
             entity_id=data["entity_id"],
             name=data["name"],
             facade_id=data.get("facade_id"),
             auto_enabled=data.get("auto_enabled", True),
             pause_duration=data.get("pause_duration", 120),
+            status=CoverStatus(status_val) if isinstance(status_val, str) else status_val,
+            pause_until=data.get("pause_until"),
         )

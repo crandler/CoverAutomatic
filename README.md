@@ -133,9 +133,15 @@ Additionally:
 
 ## Version
 
-1.0.1-dev
+1.0.2-dev
 
 ## Changelog
+
+### 1.0.2-dev (2026-01-03)
+- Fixed: Facade model now includes direction field (prevented TypeError on setup)
+- Fixed: CoverConfig.to_dict() now persists status and pause_until fields
+- Fixed: Options scan_interval setting is now used by coordinator
+- Added: services.yaml for service UI descriptions in Developer Tools
 
 ### 1.0.1-dev (2026-01-03)
 - Fixed: Config flow data now properly transferred to storage

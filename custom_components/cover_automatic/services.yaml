@@ -1,64 +1,71 @@
 pause:
-  name: Pause Automation
-  description: Pause automation for a cover.
+  name: Pause automation
+  description: Pause automation for a specific cover.
   fields:
     entity_id:
-      name: Entity
-      description: Cover entity to pause.
+      name: Cover
+      description: The cover entity to pause automation for.
       required: true
       selector:
         entity:
           domain: cover
 
 resume:
-  name: Resume Automation
-  description: Resume automation for a cover.
+  name: Resume automation
+  description: Resume automation for a specific cover.
   fields:
     entity_id:
-      name: Entity
-      description: Cover entity to resume.
+      name: Cover
+      description: The cover entity to resume automation for.
       required: true
       selector:
         entity:
           domain: cover
 
 pause_all:
-  name: Pause All
-  description: Pause automation for all covers.
+  name: Pause all
+  description: Pause automation for all managed covers.
 
 resume_all:
-  name: Resume All
-  description: Resume automation for all covers.
+  name: Resume all
+  description: Resume automation for all managed covers.
 
 set_scenario:
-  name: Set Scenario
-  description: Set the active scenario.
+  name: Set scenario
+  description: Set the active automation scenario.
   fields:
     scenario:
       name: Scenario
-      description: Scenario to activate.
+      description: The scenario to activate.
       required: true
       selector:
-        text:
+        select:
+          options:
+            - everyday
+            - summer
+            - winter
+            - vacation
+            - cinema
+            - manual
 
 export_config:
-  name: Export Configuration
-  description: Export configuration to YAML file.
+  name: Export configuration
+  description: Export the current configuration to a YAML file.
   fields:
     path:
-      name: Path
-      description: File path for export.
-      default: "/config/cover_automatic_backup.yaml"
+      name: File path
+      description: Path to save the configuration file.
+      default: /config/cover_automatic_backup.yaml
       selector:
         text:
 
 import_config:
-  name: Import Configuration
-  description: Import configuration from YAML file.
+  name: Import configuration
+  description: Import configuration from a YAML file.
   fields:
     path:
-      name: Path
-      description: File path to import from.
+      name: File path
+      description: Path to the configuration file to import.
       required: true
       selector:
         text:

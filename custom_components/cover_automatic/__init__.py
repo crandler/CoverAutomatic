@@ -8,7 +8,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN
+from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
 from .coordinator import CoverAutomaticCoordinator
 from .services import async_setup_services, async_unload_services
 from .storage import CoverAutomaticStorage
@@ -37,7 +37,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     storage = CoverAutomaticStorage(hass)
-    coordinator = CoverAutomaticCoordinator(hass, storage)
+    scan_interval = entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
+    coordinator = CoverAutomaticCoordinator(hass, storage, scan_interval)
 
     await coordinator.async_setup()
 
