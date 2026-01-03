@@ -34,6 +34,8 @@ In no event shall the author be liable for any claim, damages or other liability
 - **Time schedules** - Open/close at specific times or relative to sunrise/sunset
 - **Scenarios** - Switch between modes like "Summer", "Winter", "Vacation"
 - **Manual override** - Automatic pause after manual intervention
+- **Window contact sensor** - Lock cover open when window is opened (configurable position)
+- **Ventilation sensor** - Move cover to ventilation position when vent is opened
 - **UI-first configuration** - Full setup via Home Assistant UI
 - **Device agnostic** - Works with any cover entity (Homematic IP, Shelly, etc.)
 
