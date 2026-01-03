@@ -119,9 +119,17 @@ For each managed cover, the integration creates:
 | `sensor.*_status` | Current status (auto/paused/manual/locked) |
 | `number.*_pause_duration` | Pause duration after manual override |
 
-Additionally:
+For each facade:
+| Entity | Description |
+|--------|-------------|
+| `sensor.*_sun` | Sun on facade indicator (on/off) |
+| `sensor.*_sun_entry` | Time when sun enters facade |
+| `sensor.*_sun_exit` | Time when sun leaves facade |
+
+Global:
 - `select.cover_automatic_scenario` - Active scenario selector
-- `sensor.cover_automatic_facade_*_sun` - Sun on facade indicator
+
+Note: The integration controls your original cover entities directly. No wrapper entities are created.
 
 ### Available Services
 
@@ -139,9 +147,13 @@ Additionally:
 
 ## Version
 
-1.0.10-dev
+1.0.11-dev
 
 ## Changelog
+
+### 1.0.11-dev (2026-01-03)
+- Removed: Cover wrapper entities (redundant, coordinator controls original covers directly)
+- Changed: Platforms reduced from 5 to 4 (switch, sensor, select, number)
 
 ### 1.0.10-dev (2026-01-03)
 - Added: Full UI for scenario management (add, edit, delete, activate)

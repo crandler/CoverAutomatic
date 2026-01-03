@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS_LIST: list[Platform] = [
-    Platform.COVER,
     Platform.SWITCH,
     Platform.SENSOR,
     Platform.SELECT,

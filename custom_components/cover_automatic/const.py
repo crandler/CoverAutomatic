@@ -34,4 +34,4 @@ STORAGE_KEY: Final = f"{DOMAIN}.storage"
 STORAGE_VERSION: Final = 1
 
 # Platforms
-PLATFORMS: Final = ["cover", "switch", "sensor", "select", "number"]
+PLATFORMS: Final = ["switch", "sensor", "select", "number"]
