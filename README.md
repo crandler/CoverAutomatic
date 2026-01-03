@@ -112,7 +112,7 @@ For each managed cover, the integration creates:
 | Entity | Description |
 |--------|-------------|
 | `switch.*_auto` | Enable/disable automation |
-| `sensor.*_status` | Current status (auto/paused/manual) |
+| `sensor.*_status` | Current status (auto/paused/manual/locked) |
 | `number.*_pause_duration` | Pause duration after manual override |
 
 Additionally:
