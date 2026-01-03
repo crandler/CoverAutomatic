@@ -46,9 +46,12 @@ See [Design Document](docs/plans/2026-01-03-cover-automatic-design.md) for detai
 
 ## Version
 
-0.2.0
+0.3.0
 
 ## Changelog
+
+### 0.3.0 (2026-01-03)
+- Add number platform for pause duration configuration per cover
 
 ### 0.2.0 (2026-01-03)
 - Add config flow for UI-based setup with multi-step wizard
