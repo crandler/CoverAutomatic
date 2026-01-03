@@ -976,20 +976,39 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 name=user_input.get("name", scenario.name),
                 icon=user_input.get("icon", scenario.icon),
                 rules_enabled=scenario.rules_enabled,
-                rules_disabled=scenario.rules_disabled,
+                rules_disabled=user_input.get("rules_disabled", []),
             )
             await storage.async_add_scenario(updated_scenario)
             return self.async_create_entry(title="", data=self.config_entry.options)
 
+        # Build rule options for multi-select
+        rule_options = [
+            {"value": rule_id, "label": rule.name}
+            for rule_id, rule in storage.rules.items()
+        ]
+
+        # Build schema - only show rules_disabled if rules exist
+        schema_dict: dict[Any, Any] = {
+            vol.Required("name", default=scenario.name): str,
+            vol.Optional("icon", default=scenario.icon or "mdi:home"): selector.IconSelector(),
+        }
+
+        if rule_options:
+            schema_dict[vol.Optional("rules_disabled", default=scenario.rules_disabled)] = (
+                selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=rule_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+            )
+
+        schema_dict[vol.Optional("activate", default=False)] = bool
+        schema_dict[vol.Optional("delete", default=False)] = bool
+
         return self.async_show_form(
             step_id="scenario_edit",
             description_placeholders={"scenario_name": scenario.name},
-            data_schema=vol.Schema(
-                {
-                    vol.Required("name", default=scenario.name): str,
-                    vol.Optional("icon", default=scenario.icon or "mdi:home"): selector.IconSelector(),
-                    vol.Optional("activate", default=False): bool,
-                    vol.Optional("delete", default=False): bool,
-                }
-            ),
+            data_schema=vol.Schema(schema_dict),
         )

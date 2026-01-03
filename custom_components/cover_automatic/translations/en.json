@@ -167,6 +167,7 @@
         "data": {
           "name": "Name",
           "icon": "Icon",
+          "rules_disabled": "Disabled rules in this scenario",
           "activate": "Activate this scenario",
           "delete": "Delete this scenario"
         }

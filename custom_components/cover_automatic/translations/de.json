@@ -167,6 +167,7 @@
         "data": {
           "name": "Name",
           "icon": "Symbol",
+          "rules_disabled": "Deaktivierte Regeln in diesem Szenario",
           "activate": "Dieses Szenario aktivieren",
           "delete": "Dieses Szenario löschen"
         }

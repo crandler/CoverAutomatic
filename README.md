@@ -147,9 +147,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.11-dev
+1.0.12-dev
 
 ## Changelog
+
+### 1.0.12-dev (2026-01-03)
+- Added: Scenario-rule linking UI (disable specific rules per scenario)
 
 ### 1.0.11-dev (2026-01-03)
 - Removed: Cover wrapper entities (redundant, coordinator controls original covers directly)
