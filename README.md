@@ -133,9 +133,14 @@ Additionally:
 
 ## Version
 
-1.0.2-dev
+1.0.3-dev
 
 ## Changelog
+
+### 1.0.3-dev (2026-01-03)
+- Fixed: Options changes (scan_interval) now take effect immediately without restart
+- Fixed: State tracking refreshed after configuration import
+- Improved: More efficient entity ID checks (avoid unnecessary object creation)
 
 ### 1.0.2-dev (2026-01-03)
 - Fixed: Facade model now includes direction field (prevented TypeError on setup)

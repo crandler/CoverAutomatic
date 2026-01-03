@@ -102,6 +102,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             storage = entry_data["storage"]
             coordinator = entry_data["coordinator"]
             await storage.async_import_data(data)
+            coordinator.refresh_state_tracking()
             await coordinator.async_request_refresh()
             _LOGGER.info("Configuration imported from %s", path)
             break

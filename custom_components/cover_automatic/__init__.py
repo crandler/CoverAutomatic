@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from homeassistant.const import Platform
@@ -41,6 +42,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = CoverAutomaticCoordinator(hass, storage, scan_interval)
 
     await coordinator.async_setup()
+
+    async def async_options_updated(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+        """Handle options update."""
+        new_interval = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
+        coordinator.update_interval = timedelta(seconds=new_interval)
+        await coordinator.async_request_refresh()
+
+    entry.async_on_unload(entry.add_update_listener(async_options_updated))
 
     # Transfer config flow data to storage (first setup only)
     if entry.data.get("facades") and not storage.facades:

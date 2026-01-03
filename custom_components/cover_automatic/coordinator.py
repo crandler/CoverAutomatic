@@ -92,17 +92,17 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Set up state change tracking for relevant entities."""
         entities_to_track: set[str] = {SUN_ENTITY_ID}
 
-        for cover in self.storage.covers.values():
-            entities_to_track.add(cover.entity_id)
+        for entity_id in self.storage._data.get("covers", {}):
+            entities_to_track.add(entity_id)
 
         if self.storage.outdoor_temp_sensor:
             entities_to_track.add(self.storage.outdoor_temp_sensor)
 
-        for rule in self.storage.rules.values():
-            for condition in rule.conditions:
-                if sensor := condition.params.get("sensor"):
+        for rule_data in self.storage._data.get("rules", {}).values():
+            for condition in rule_data.get("conditions", []):
+                if sensor := condition.get("params", {}).get("sensor"):
                     entities_to_track.add(sensor)
-                if entity := condition.params.get("entity"):
+                if entity := condition.get("params", {}).get("entity"):
                     entities_to_track.add(entity)
 
         new_entities = entities_to_track - self._tracked_entities
@@ -116,6 +116,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._unsub_state_change.append(unsub)
             self._tracked_entities.update(new_entities)
 
+    def refresh_state_tracking(self) -> None:
+        """Refresh state tracking after configuration changes."""
+        self._setup_state_tracking()
+
     @callback
     def _async_on_state_change(self, event: Event) -> None:
         """Handle state changes of tracked entities."""
@@ -123,7 +127,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         old_state = event.data.get("old_state")
         new_state = event.data.get("new_state")
 
-        if entity_id in [c.entity_id for c in self.storage.covers.values()]:
+        if entity_id in self.storage._data.get("covers", {}):
             self._handle_cover_state_change(entity_id, old_state, new_state)
         else:
             self.hass.async_create_task(self.async_request_refresh())
