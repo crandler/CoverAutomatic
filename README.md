@@ -131,12 +131,6 @@ Additionally:
 
 ---
 
-## Documentation
-
-See [Design Document](docs/plans/2026-01-03-cover-automatic-design.md) for detailed architecture and concepts.
-
----
-
 ## Version
 
 1.0.0-dev
