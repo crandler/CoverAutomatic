@@ -12,6 +12,7 @@ class CoverStatus(StrEnum):
     AUTO = "auto"
     PAUSED = "paused"
     MANUAL = "manual"
+    LOCKED = "locked"
 
 
 class ConditionType(StrEnum):
@@ -173,6 +174,10 @@ class CoverConfig:
     pause_duration: int = 120
     status: CoverStatus = CoverStatus.AUTO
     pause_until: float | None = None
+    lock_sensor: str | None = None
+    lock_position: int = 100
+    vent_sensor: str | None = None
+    vent_position: int = 30
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -184,6 +189,10 @@ class CoverConfig:
             "pause_duration": self.pause_duration,
             "status": self.status.value if isinstance(self.status, CoverStatus) else self.status,
             "pause_until": self.pause_until,
+            "lock_sensor": self.lock_sensor,
+            "lock_position": self.lock_position,
+            "vent_sensor": self.vent_sensor,
+            "vent_position": self.vent_position,
         }
 
     @classmethod
@@ -198,4 +207,8 @@ class CoverConfig:
             pause_duration=data.get("pause_duration", 120),
             status=CoverStatus(status_val) if isinstance(status_val, str) else status_val,
             pause_until=data.get("pause_until"),
+            lock_sensor=data.get("lock_sensor"),
+            lock_position=data.get("lock_position", 100),
+            vent_sensor=data.get("vent_sensor"),
+            vent_position=data.get("vent_position", 30),
         )

@@ -83,6 +83,8 @@ class CoverAutomaticStatusSensor(CoordinatorEntity[CoverAutomaticCoordinator], S
                 return "mdi:pause-circle"
             case CoverStatus.MANUAL:
                 return "mdi:hand-back-right"
+            case CoverStatus.LOCKED:
+                return "mdi:lock"
             case _:
                 return "mdi:help-circle"
 

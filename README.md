@@ -133,9 +133,16 @@ Additionally:
 
 ## Version
 
-1.0.3-dev
+1.0.4-dev
 
 ## Changelog
+
+### 1.0.4-dev (2026-01-03)
+- Added: Lock sensor support - assign a contact sensor to lock cover when open (e.g., window contact)
+- Added: Vent sensor support - assign a contact sensor to move cover to ventilation position when open
+- Added: Configurable lock_position (default: 100%) and vent_position (default: 30%) per cover
+- Added: New LOCKED status for covers controlled by contact sensors
+- Added: Lock icon (mdi:lock) for locked covers in status sensor
 
 ### 1.0.3-dev (2026-01-03)
 - Fixed: Options changes (scan_interval) now take effect immediately without restart

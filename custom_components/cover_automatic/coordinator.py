@@ -92,8 +92,12 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Set up state change tracking for relevant entities."""
         entities_to_track: set[str] = {SUN_ENTITY_ID}
 
-        for entity_id in self.storage._data.get("covers", {}):
+        for entity_id, cover_data in self.storage._data.get("covers", {}).items():
             entities_to_track.add(entity_id)
+            if lock_sensor := cover_data.get("lock_sensor"):
+                entities_to_track.add(lock_sensor)
+            if vent_sensor := cover_data.get("vent_sensor"):
+                entities_to_track.add(vent_sensor)
 
         if self.storage.outdoor_temp_sensor:
             entities_to_track.add(self.storage.outdoor_temp_sensor)
@@ -120,6 +124,21 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Refresh state tracking after configuration changes."""
         self._setup_state_tracking()
 
+    def _get_covers_by_sensor(self, sensor_id: str) -> tuple[list[str], list[str]]:
+        """Get cover entity IDs that use a specific sensor.
+
+        Returns:
+            Tuple of (lock_covers, vent_covers) - covers using this as lock/vent sensor.
+        """
+        lock_covers = []
+        vent_covers = []
+        for entity_id, cover_data in self.storage._data.get("covers", {}).items():
+            if cover_data.get("lock_sensor") == sensor_id:
+                lock_covers.append(entity_id)
+            if cover_data.get("vent_sensor") == sensor_id:
+                vent_covers.append(entity_id)
+        return lock_covers, vent_covers
+
     @callback
     def _async_on_state_change(self, event: Event) -> None:
         """Handle state changes of tracked entities."""
@@ -130,7 +149,76 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if entity_id in self.storage._data.get("covers", {}):
             self._handle_cover_state_change(entity_id, old_state, new_state)
         else:
-            self.hass.async_create_task(self.async_request_refresh())
+            lock_covers, vent_covers = self._get_covers_by_sensor(entity_id)
+            if lock_covers or vent_covers:
+                self._handle_contact_sensor_change(
+                    entity_id, lock_covers, vent_covers, old_state, new_state
+                )
+            else:
+                self.hass.async_create_task(self.async_request_refresh())
+
+    def _handle_contact_sensor_change(
+        self,
+        sensor_id: str,
+        lock_covers: list[str],
+        vent_covers: list[str],
+        old_state: Any,
+        new_state: Any,
+    ) -> None:
+        """Handle contact sensor state changes (lock or vent)."""
+        if new_state is None:
+            return
+
+        is_open = new_state.state in ("on", "open", "true", "1")
+
+        # Handle lock sensor covers (window open -> fully open)
+        for cover_id in lock_covers:
+            cover_raw = self.storage.get_cover_raw(cover_id)
+            if cover_raw is None:
+                continue
+
+            current_status = self._cover_states.get(cover_id, CoverStatus.AUTO)
+
+            if is_open and current_status != CoverStatus.LOCKED:
+                self._lock_cover(cover_id, cover_raw.get("lock_position", 100))
+            elif not is_open and current_status == CoverStatus.LOCKED:
+                self._unlock_cover(cover_id)
+
+        # Handle vent sensor covers (vent open -> ventilation position)
+        for cover_id in vent_covers:
+            cover_raw = self.storage.get_cover_raw(cover_id)
+            if cover_raw is None:
+                continue
+
+            current_status = self._cover_states.get(cover_id, CoverStatus.AUTO)
+
+            if is_open and current_status != CoverStatus.LOCKED:
+                self._lock_cover(cover_id, cover_raw.get("vent_position", 30))
+            elif not is_open and current_status == CoverStatus.LOCKED:
+                self._unlock_cover(cover_id)
+
+    def _lock_cover(self, entity_id: str, lock_position: int) -> None:
+        """Lock a cover due to open contact sensor."""
+        _LOGGER.debug("Locking cover %s at position %s", entity_id, lock_position)
+        self._cover_states[entity_id] = CoverStatus.LOCKED
+        self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
+
+        self.hass.async_create_task(
+            self.hass.services.async_call(
+                "cover",
+                "set_cover_position",
+                {"entity_id": entity_id, "position": lock_position},
+                blocking=False,
+            )
+        )
+        self.async_set_updated_data(self.data)
+
+    def _unlock_cover(self, entity_id: str) -> None:
+        """Unlock a cover when contact sensor closes."""
+        _LOGGER.debug("Unlocking cover %s", entity_id)
+        self._cover_states[entity_id] = CoverStatus.AUTO
+        self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
+        self.hass.async_create_task(self.async_request_refresh())
 
     def _handle_cover_state_change(
         self, entity_id: str, old_state: Any, new_state: Any
@@ -184,6 +272,29 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         if not cover_raw.get("auto_enabled", True):
             return CoverStatus.MANUAL
+
+        # Check lock sensor state (window contact)
+        if lock_sensor := cover_raw.get("lock_sensor"):
+            sensor_state = self.hass.states.get(lock_sensor)
+            if sensor_state and sensor_state.state in ("on", "open", "true", "1"):
+                if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
+                    self._cover_states[entity_id] = CoverStatus.LOCKED
+                    self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
+                return CoverStatus.LOCKED
+
+        # Check vent sensor state (ventilation contact)
+        if vent_sensor := cover_raw.get("vent_sensor"):
+            sensor_state = self.hass.states.get(vent_sensor)
+            if sensor_state and sensor_state.state in ("on", "open", "true", "1"):
+                if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
+                    self._cover_states[entity_id] = CoverStatus.LOCKED
+                    self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
+                return CoverStatus.LOCKED
+
+        # If was locked but both sensors now closed, unlock
+        if self._cover_states.get(entity_id) == CoverStatus.LOCKED:
+            self._cover_states[entity_id] = CoverStatus.AUTO
+            self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
 
         status = self._cover_states.get(entity_id, CoverStatus.AUTO)
 

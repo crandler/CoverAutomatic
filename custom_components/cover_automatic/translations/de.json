@@ -60,7 +60,8 @@
         "state": {
           "auto": "Automatisch",
           "paused": "Pausiert",
-          "manual": "Manuell"
+          "manual": "Manuell",
+          "locked": "Gesperrt"
         }
       },
       "sun_on_facade": {
