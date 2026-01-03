@@ -73,7 +73,83 @@
           "min_time_between_changes": "Min. time between changes (sec)",
           "pause_duration": "Pause duration after manual override (min)"
         }
+      },
+      "facades": {
+        "title": "Manage Facades",
+        "description": "Add, edit or delete facades.",
+        "data": {
+          "facade_option": "Select facade"
+        }
+      },
+      "facade_add": {
+        "title": "Add Facade",
+        "description": "Create a new facade.",
+        "data": {
+          "name": "Name",
+          "direction": "Direction"
+        }
+      },
+      "facade_edit": {
+        "title": "Edit Facade: {facade_name}",
+        "description": "Edit or delete this facade.",
+        "data": {
+          "name": "Name",
+          "direction": "Direction",
+          "azimuth_start": "Azimuth start (degrees)",
+          "azimuth_end": "Azimuth end (degrees)",
+          "min_elevation": "Min. sun elevation (degrees)",
+          "delete": "Delete this facade"
+        }
+      },
+      "rules": {
+        "title": "Manage Rules",
+        "description": "Add, edit or delete automation rules.",
+        "data": {
+          "rule_option": "Select rule"
+        }
+      },
+      "rule_add": {
+        "title": "Add Rule",
+        "description": "Create a new automation rule.",
+        "data": {
+          "name": "Name",
+          "enabled": "Enabled",
+          "priority": "Priority (higher = more important)",
+          "target_position": "Target position (%)"
+        }
+      },
+      "rule_edit": {
+        "title": "Edit Rule: {rule_name}",
+        "description": "Current conditions: {conditions}",
+        "data": {
+          "name": "Name",
+          "enabled": "Enabled",
+          "priority": "Priority",
+          "target_position": "Target position (%)",
+          "add_condition": "Add condition",
+          "delete": "Delete this rule"
+        }
+      },
+      "rule_condition": {
+        "title": "Add Condition to: {rule_name}",
+        "description": "Select condition type and parameters.",
+        "data": {
+          "condition_type": "Condition type",
+          "value": "Value",
+          "sensor": "Sensor",
+          "entity": "Entity",
+          "state": "State",
+          "time_start": "Start time (HH:MM)",
+          "time_end": "End time (HH:MM)",
+          "offset": "Offset (minutes)",
+          "comfort_mode": "Comfort mode",
+          "weather_state": "Weather condition"
+        }
       }
+    },
+    "error": {
+      "name_required": "Name is required.",
+      "already_exists": "An item with this name already exists."
     }
   },
   "entity": {

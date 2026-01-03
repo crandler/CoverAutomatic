@@ -73,7 +73,83 @@
           "min_time_between_changes": "Min. Zeit zwischen Änderungen (Sek)",
           "pause_duration": "Pausendauer nach manuellem Eingriff (Min)"
         }
+      },
+      "facades": {
+        "title": "Fassaden verwalten",
+        "description": "Fassaden hinzufügen, bearbeiten oder löschen.",
+        "data": {
+          "facade_option": "Fassade auswählen"
+        }
+      },
+      "facade_add": {
+        "title": "Fassade hinzufügen",
+        "description": "Neue Fassade erstellen.",
+        "data": {
+          "name": "Name",
+          "direction": "Himmelsrichtung"
+        }
+      },
+      "facade_edit": {
+        "title": "Fassade bearbeiten: {facade_name}",
+        "description": "Diese Fassade bearbeiten oder löschen.",
+        "data": {
+          "name": "Name",
+          "direction": "Himmelsrichtung",
+          "azimuth_start": "Azimut Start (Grad)",
+          "azimuth_end": "Azimut Ende (Grad)",
+          "min_elevation": "Min. Sonnenhöhe (Grad)",
+          "delete": "Diese Fassade löschen"
+        }
+      },
+      "rules": {
+        "title": "Regeln verwalten",
+        "description": "Automatisierungsregeln hinzufügen, bearbeiten oder löschen.",
+        "data": {
+          "rule_option": "Regel auswählen"
+        }
+      },
+      "rule_add": {
+        "title": "Regel hinzufügen",
+        "description": "Neue Automatisierungsregel erstellen.",
+        "data": {
+          "name": "Name",
+          "enabled": "Aktiviert",
+          "priority": "Priorität (höher = wichtiger)",
+          "target_position": "Zielposition (%)"
+        }
+      },
+      "rule_edit": {
+        "title": "Regel bearbeiten: {rule_name}",
+        "description": "Aktuelle Bedingungen: {conditions}",
+        "data": {
+          "name": "Name",
+          "enabled": "Aktiviert",
+          "priority": "Priorität",
+          "target_position": "Zielposition (%)",
+          "add_condition": "Bedingung hinzufügen",
+          "delete": "Diese Regel löschen"
+        }
+      },
+      "rule_condition": {
+        "title": "Bedingung hinzufügen zu: {rule_name}",
+        "description": "Bedingungstyp und Parameter auswählen.",
+        "data": {
+          "condition_type": "Bedingungstyp",
+          "value": "Wert",
+          "sensor": "Sensor",
+          "entity": "Entität",
+          "state": "Status",
+          "time_start": "Startzeit (HH:MM)",
+          "time_end": "Endzeit (HH:MM)",
+          "offset": "Offset (Minuten)",
+          "comfort_mode": "Komfort-Modus",
+          "weather_state": "Wetterbedingung"
+        }
       }
+    },
+    "error": {
+      "name_required": "Name ist erforderlich.",
+      "already_exists": "Ein Eintrag mit diesem Namen existiert bereits."
     }
   },
   "entity": {

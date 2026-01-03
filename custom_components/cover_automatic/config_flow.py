@@ -194,6 +194,8 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
         """Initialize options flow."""
         self.config_entry = config_entry
         self._selected_cover: str | None = None
+        self._selected_facade: str | None = None
+        self._selected_rule: str | None = None
 
     def _get_storage(self):
         """Get storage from hass.data."""
@@ -207,17 +209,25 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Show menu with general settings and all covers."""
+        """Show main menu."""
         if user_input is not None:
             selected = user_input.get("menu_option")
             if selected == "general":
                 return await self.async_step_general()
+            elif selected == "facades":
+                return await self.async_step_facades()
+            elif selected == "rules":
+                return await self.async_step_rules()
             elif selected and selected.startswith("cover:"):
-                self._selected_cover = selected[6:]  # Remove "cover:" prefix
+                self._selected_cover = selected[6:]
                 return await self.async_step_cover_details()
 
-        # Build menu options: General + all covers
-        menu_options = [{"value": "general", "label": "Allgemeine Einstellungen"}]
+        # Build menu options
+        menu_options = [
+            {"value": "general", "label": "Allgemeine Einstellungen"},
+            {"value": "facades", "label": "Fassaden verwalten"},
+            {"value": "rules", "label": "Regeln verwalten"},
+        ]
 
         storage = self._get_storage()
         if storage:
@@ -225,7 +235,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 cover = storage.covers[entity_id]
                 menu_options.append({
                     "value": f"cover:{entity_id}",
-                    "label": cover.name or entity_id,
+                    "label": f"Cover: {cover.name or entity_id}",
                 })
 
         return self.async_show_form(
@@ -421,6 +431,431 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                         "pause_duration",
                         default=current_pause,
                     ): vol.All(vol.Coerce(int), vol.Range(min=0, max=480)),
+                }
+            ),
+        )
+
+    # -------------------------------------------------------------------------
+    # Facade Management
+    # -------------------------------------------------------------------------
+
+    async def async_step_facades(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show facade list with add/edit options."""
+        if user_input is not None:
+            selected = user_input.get("facade_option")
+            if selected == "add":
+                return await self.async_step_facade_add()
+            elif selected and selected.startswith("facade:"):
+                self._selected_facade = selected[7:]
+                return await self.async_step_facade_edit()
+
+        storage = self._get_storage()
+        facade_options = [{"value": "add", "label": "+ Neue Fassade hinzufuegen"}]
+
+        if storage:
+            for facade_id, facade in storage.facades.items():
+                facade_options.append({
+                    "value": f"facade:{facade_id}",
+                    "label": f"{facade.name} ({facade.direction.upper()})",
+                })
+
+        return self.async_show_form(
+            step_id="facades",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("facade_option"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=facade_options,
+                            mode=selector.SelectSelectorMode.LIST,
+                        )
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_facade_add(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Add a new facade."""
+        storage = self._get_storage()
+        errors: dict[str, str] = {}
+
+        if user_input is not None and storage:
+            facade_name = user_input.get("name", "").strip()
+            facade_direction = user_input.get("direction", "south")
+
+            if not facade_name:
+                errors["name"] = "name_required"
+            else:
+                facade_id = facade_name.lower().replace(" ", "_")
+                if facade_id in storage.facades:
+                    errors["name"] = "already_exists"
+                else:
+                    from .models import Facade
+                    preset = FACADE_PRESETS.get(facade_direction, FACADE_PRESETS["south"])
+                    new_facade = Facade(
+                        id=facade_id,
+                        name=facade_name,
+                        direction=facade_direction,
+                        azimuth_start=preset["start"],
+                        azimuth_end=preset["end"],
+                    )
+                    await storage.async_add_facade(new_facade)
+                    return self.async_create_entry(title="", data=self.config_entry.options)
+
+        return self.async_show_form(
+            step_id="facade_add",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("name"): str,
+                    vol.Required("direction", default="south"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                {"value": "north", "label": "Nord"},
+                                {"value": "east", "label": "Ost"},
+                                {"value": "south", "label": "Sued"},
+                                {"value": "west", "label": "West"},
+                            ],
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_facade_edit(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Edit or delete a facade."""
+        storage = self._get_storage()
+        facade_id = self._selected_facade
+
+        if not storage or not facade_id or facade_id not in storage.facades:
+            return await self.async_step_facades()
+
+        facade = storage.facades[facade_id]
+
+        if user_input is not None:
+            if user_input.get("delete"):
+                await storage.async_remove_facade(facade_id)
+                return self.async_create_entry(title="", data=self.config_entry.options)
+
+            # Update facade
+            new_name = user_input.get("name", facade.name)
+            new_direction = user_input.get("direction", facade.direction)
+            preset = FACADE_PRESETS.get(new_direction, FACADE_PRESETS["south"])
+
+            from .models import Facade
+            updated_facade = Facade(
+                id=facade_id,
+                name=new_name,
+                direction=new_direction,
+                azimuth_start=user_input.get("azimuth_start", preset["start"]),
+                azimuth_end=user_input.get("azimuth_end", preset["end"]),
+                min_elevation=user_input.get("min_elevation", 0.0),
+            )
+            await storage.async_add_facade(updated_facade)
+            return self.async_create_entry(title="", data=self.config_entry.options)
+
+        return self.async_show_form(
+            step_id="facade_edit",
+            description_placeholders={"facade_name": facade.name},
+            data_schema=vol.Schema(
+                {
+                    vol.Required("name", default=facade.name): str,
+                    vol.Required("direction", default=facade.direction): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                {"value": "north", "label": "Nord"},
+                                {"value": "east", "label": "Ost"},
+                                {"value": "south", "label": "Sued"},
+                                {"value": "west", "label": "West"},
+                            ],
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                    vol.Optional("azimuth_start", default=facade.azimuth_start): vol.All(
+                        vol.Coerce(float), vol.Range(min=0, max=360)
+                    ),
+                    vol.Optional("azimuth_end", default=facade.azimuth_end): vol.All(
+                        vol.Coerce(float), vol.Range(min=0, max=360)
+                    ),
+                    vol.Optional("min_elevation", default=facade.min_elevation): vol.All(
+                        vol.Coerce(float), vol.Range(min=0, max=90)
+                    ),
+                    vol.Optional("delete", default=False): bool,
+                }
+            ),
+        )
+
+    # -------------------------------------------------------------------------
+    # Rule Management
+    # -------------------------------------------------------------------------
+
+    async def async_step_rules(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show rule list with add/edit options."""
+        if user_input is not None:
+            selected = user_input.get("rule_option")
+            if selected == "add":
+                return await self.async_step_rule_add()
+            elif selected and selected.startswith("rule:"):
+                self._selected_rule = selected[5:]
+                return await self.async_step_rule_edit()
+
+        storage = self._get_storage()
+        rule_options = [{"value": "add", "label": "+ Neue Regel hinzufuegen"}]
+
+        if storage:
+            for rule_id, rule in storage.rules.items():
+                status = "aktiv" if rule.enabled else "inaktiv"
+                rule_options.append({
+                    "value": f"rule:{rule_id}",
+                    "label": f"{rule.name} ({status})",
+                })
+
+        return self.async_show_form(
+            step_id="rules",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("rule_option"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=rule_options,
+                            mode=selector.SelectSelectorMode.LIST,
+                        )
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_rule_add(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Add a new rule."""
+        storage = self._get_storage()
+        errors: dict[str, str] = {}
+
+        if user_input is not None and storage:
+            rule_name = user_input.get("name", "").strip()
+
+            if not rule_name:
+                errors["name"] = "name_required"
+            else:
+                rule_id = rule_name.lower().replace(" ", "_")
+                if rule_id in storage.rules:
+                    errors["name"] = "already_exists"
+                else:
+                    from .models import Rule
+                    new_rule = Rule(
+                        id=rule_id,
+                        name=rule_name,
+                        enabled=user_input.get("enabled", True),
+                        priority=user_input.get("priority", 10),
+                        target_position=user_input.get("target_position", 0),
+                    )
+                    await storage.async_add_rule(new_rule)
+                    # Go to rule edit to add conditions
+                    self._selected_rule = rule_id
+                    return await self.async_step_rule_edit()
+
+        return self.async_show_form(
+            step_id="rule_add",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("name"): str,
+                    vol.Optional("enabled", default=True): bool,
+                    vol.Optional("priority", default=10): vol.All(
+                        vol.Coerce(int), vol.Range(min=1, max=100)
+                    ),
+                    vol.Optional("target_position", default=0): vol.All(
+                        vol.Coerce(int), vol.Range(min=0, max=100)
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_rule_edit(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Edit or delete a rule."""
+        storage = self._get_storage()
+        rule_id = self._selected_rule
+
+        if not storage or not rule_id or rule_id not in storage.rules:
+            return await self.async_step_rules()
+
+        rule = storage.rules[rule_id]
+
+        if user_input is not None:
+            if user_input.get("delete"):
+                await storage.async_remove_rule(rule_id)
+                return self.async_create_entry(title="", data=self.config_entry.options)
+
+            if user_input.get("add_condition"):
+                return await self.async_step_rule_condition()
+
+            # Update rule
+            from .models import Rule
+            updated_rule = Rule(
+                id=rule_id,
+                name=user_input.get("name", rule.name),
+                enabled=user_input.get("enabled", rule.enabled),
+                priority=user_input.get("priority", rule.priority),
+                target_position=user_input.get("target_position", rule.target_position),
+                conditions=rule.conditions,
+                facade_ids=rule.facade_ids,
+                cover_ids=rule.cover_ids,
+                scenarios=rule.scenarios,
+            )
+            await storage.async_add_rule(updated_rule)
+            return self.async_create_entry(title="", data=self.config_entry.options)
+
+        # Build conditions display
+        conditions_str = ", ".join([c.type.value for c in rule.conditions]) or "Keine"
+
+        return self.async_show_form(
+            step_id="rule_edit",
+            description_placeholders={
+                "rule_name": rule.name,
+                "conditions": conditions_str,
+            },
+            data_schema=vol.Schema(
+                {
+                    vol.Required("name", default=rule.name): str,
+                    vol.Optional("enabled", default=rule.enabled): bool,
+                    vol.Optional("priority", default=rule.priority): vol.All(
+                        vol.Coerce(int), vol.Range(min=1, max=100)
+                    ),
+                    vol.Optional("target_position", default=rule.target_position): vol.All(
+                        vol.Coerce(int), vol.Range(min=0, max=100)
+                    ),
+                    vol.Optional("add_condition", default=False): bool,
+                    vol.Optional("delete", default=False): bool,
+                }
+            ),
+        )
+
+    async def async_step_rule_condition(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Add a condition to a rule."""
+        storage = self._get_storage()
+        rule_id = self._selected_rule
+
+        if not storage or not rule_id or rule_id not in storage.rules:
+            return await self.async_step_rules()
+
+        rule = storage.rules[rule_id]
+
+        if user_input is not None:
+            from .models import Condition, ConditionType
+
+            condition_type = user_input.get("condition_type")
+            params: dict[str, Any] = {}
+
+            # Build params based on condition type
+            if condition_type in ("sun_elevation_above", "sun_elevation_below"):
+                params["value"] = user_input.get("value", 0)
+            elif condition_type in ("temperature_above", "temperature_below"):
+                params["sensor"] = user_input.get("sensor")
+                params["value"] = user_input.get("value", 20)
+            elif condition_type == "temperature_comfort":
+                params["mode"] = user_input.get("comfort_mode", "cooling")
+            elif condition_type == "time_between":
+                params["start"] = user_input.get("time_start", "08:00")
+                params["end"] = user_input.get("time_end", "20:00")
+            elif condition_type in ("time_after_sunrise", "time_after_sunset"):
+                params["offset"] = user_input.get("offset", 0)
+            elif condition_type == "state_is":
+                params["entity"] = user_input.get("entity")
+                params["state"] = user_input.get("state")
+            elif condition_type == "weather_is":
+                params["states"] = [user_input.get("weather_state", "sunny")]
+
+            new_condition = Condition(
+                type=ConditionType(condition_type),
+                params=params,
+            )
+
+            # Update rule with new condition
+            from .models import Rule
+            updated_rule = Rule(
+                id=rule_id,
+                name=rule.name,
+                enabled=rule.enabled,
+                priority=rule.priority,
+                target_position=rule.target_position,
+                conditions=list(rule.conditions) + [new_condition],
+                facade_ids=rule.facade_ids,
+                cover_ids=rule.cover_ids,
+                scenarios=rule.scenarios,
+            )
+            await storage.async_add_rule(updated_rule)
+            return await self.async_step_rule_edit()
+
+        condition_types = [
+            {"value": "sun_on_facade", "label": "Sonne auf Fassade"},
+            {"value": "sun_elevation_above", "label": "Sonnenhoehe ueber"},
+            {"value": "sun_elevation_below", "label": "Sonnenhoehe unter"},
+            {"value": "temperature_above", "label": "Temperatur ueber"},
+            {"value": "temperature_below", "label": "Temperatur unter"},
+            {"value": "temperature_comfort", "label": "Komfort-Modus"},
+            {"value": "time_between", "label": "Zeit zwischen"},
+            {"value": "time_after_sunrise", "label": "Nach Sonnenaufgang"},
+            {"value": "time_after_sunset", "label": "Nach Sonnenuntergang"},
+            {"value": "state_is", "label": "Entity-Status ist"},
+            {"value": "weather_is", "label": "Wetter ist"},
+        ]
+
+        return self.async_show_form(
+            step_id="rule_condition",
+            description_placeholders={"rule_name": rule.name},
+            data_schema=vol.Schema(
+                {
+                    vol.Required("condition_type"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=condition_types,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                    vol.Optional("value", default=20): vol.Coerce(float),
+                    vol.Optional("sensor"): selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor")
+                    ),
+                    vol.Optional("entity"): selector.EntitySelector(
+                        selector.EntitySelectorConfig()
+                    ),
+                    vol.Optional("state"): str,
+                    vol.Optional("time_start", default="08:00"): str,
+                    vol.Optional("time_end", default="20:00"): str,
+                    vol.Optional("offset", default=0): vol.All(
+                        vol.Coerce(int), vol.Range(min=-180, max=180)
+                    ),
+                    vol.Optional("comfort_mode", default="cooling"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                {"value": "cooling", "label": "Kuehlung"},
+                                {"value": "heating", "label": "Heizung"},
+                                {"value": "neutral", "label": "Neutral"},
+                            ],
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                    vol.Optional("weather_state", default="sunny"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                {"value": "sunny", "label": "Sonnig"},
+                                {"value": "cloudy", "label": "Bewoelkt"},
+                                {"value": "rainy", "label": "Regnerisch"},
+                            ],
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
                 }
             ),
         )

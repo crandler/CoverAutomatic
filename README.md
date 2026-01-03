@@ -139,9 +139,16 @@ Additionally:
 
 ## Version
 
-1.0.8-dev
+1.0.9-dev
 
 ## Changelog
+
+### 1.0.9-dev (2026-01-03)
+- Added: Full UI for facade management (add, edit, delete facades)
+- Added: Full UI for rule management (add, edit, delete rules with conditions)
+- Added: Condition builder UI with support for all 11 condition types
+- Added: Unit tests for models, rule engine, and storage manager
+- Improved: Complete Options Flow for all configuration without YAML
 
 ### 1.0.8-dev (2026-01-03)
 - Fixed: set_scenario service now supports custom scenarios (no longer hardcoded)
