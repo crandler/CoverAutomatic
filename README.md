@@ -46,26 +46,20 @@ See [Design Document](docs/plans/2026-01-03-cover-automatic-design.md) for detai
 
 ## Version
 
-0.4.0
+1.0.0
 
 ## Changelog
 
-### 0.4.0 (2026-01-03)
-- Add cover platform as wrapper entities with automation status attributes
-
-### 0.3.0 (2026-01-03)
-- Add number platform for pause duration configuration per cover
-
-### 0.2.0 (2026-01-03)
-- Add config flow for UI-based setup with multi-step wizard
-- Support facade configuration by direction (North, East, South, West)
-- Cover entity selection with multi-select
-- Optional temperature sensor configuration
-- Options flow for scan interval adjustment
-
-### 0.1.0 (2026-01-03)
-- Initial project setup
-- Design document created
+### 1.0.0 (2026-01-03)
+- Initial release with full feature set
+- Facade-based sun tracking (North, East, South, West)
+- Rule engine with 9 condition types (sun, temperature, time, state)
+- 6 default scenarios (Everyday, Summer, Winter, Vacation, Cinema, Manual)
+- Manual override detection with configurable pause duration
+- UI-first configuration via Config Flow
+- Entity platforms: Cover, Switch, Sensor, Select, Number
+- Services: pause, resume, pause_all, resume_all, set_scenario, export_config, import_config
+- Translations: English and German
 
 ## License
 
