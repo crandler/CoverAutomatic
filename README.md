@@ -46,9 +46,16 @@ See [Design Document](docs/plans/2026-01-03-cover-automatic-design.md) for detai
 
 ## Version
 
-0.1.0 - Initial development
+0.2.0
 
 ## Changelog
+
+### 0.2.0 (2026-01-03)
+- Add config flow for UI-based setup with multi-step wizard
+- Support facade configuration by direction (North, East, South, West)
+- Cover entity selection with multi-select
+- Optional temperature sensor configuration
+- Options flow for scan interval adjustment
 
 ### 0.1.0 (2026-01-03)
 - Initial project setup
