@@ -710,6 +710,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 name=user_input.get("name", rule.name),
                 enabled=user_input.get("enabled", rule.enabled),
                 priority=user_input.get("priority", rule.priority),
+                condition_operator=user_input.get("condition_operator", rule.condition_operator),
                 target_position=user_input.get("target_position", rule.target_position),
                 conditions=rule.conditions,
                 facade_ids=rule.facade_ids,
@@ -734,6 +735,17 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                     vol.Optional("enabled", default=rule.enabled): bool,
                     vol.Optional("priority", default=rule.priority): vol.All(
                         vol.Coerce(int), vol.Range(min=1, max=100)
+                    ),
+                    vol.Optional(
+                        "condition_operator", default=rule.condition_operator
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                {"value": "and", "label": "AND"},
+                                {"value": "or", "label": "OR"},
+                            ],
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
                     ),
                     vol.Optional("target_position", default=rule.target_position): vol.All(
                         vol.Coerce(int), vol.Range(min=0, max=100)
@@ -793,6 +805,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 name=rule.name,
                 enabled=rule.enabled,
                 priority=rule.priority,
+                condition_operator=rule.condition_operator,
                 target_position=rule.target_position,
                 conditions=list(rule.conditions) + [new_condition],
                 facade_ids=rule.facade_ids,

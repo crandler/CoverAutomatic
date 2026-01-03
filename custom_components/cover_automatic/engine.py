@@ -87,11 +87,27 @@ class RuleEngine:
         return True
 
     def _evaluate_conditions(self, rule: Rule, cover: CoverConfig) -> bool:
-        """Evaluate all conditions of a rule."""
-        for condition in rule.conditions:
-            if not self._evaluate_condition(condition, cover):
-                return False
-        return True
+        """Evaluate all conditions of a rule.
+
+        Supports AND and OR operators:
+        - AND (default): All conditions must be true
+        - OR: At least one condition must be true
+        """
+        if not rule.conditions:
+            return True
+
+        if rule.condition_operator == "or":
+            # OR: At least one condition must be true
+            for condition in rule.conditions:
+                if self._evaluate_condition(condition, cover):
+                    return True
+            return False
+        else:
+            # AND (default): All conditions must be true
+            for condition in rule.conditions:
+                if not self._evaluate_condition(condition, cover):
+                    return False
+            return True
 
     def _evaluate_condition(self, condition: Condition, cover: CoverConfig) -> bool:
         """Evaluate a single condition."""

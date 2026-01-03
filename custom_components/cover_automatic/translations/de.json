@@ -125,6 +125,7 @@
           "name": "Name",
           "enabled": "Aktiviert",
           "priority": "Priorität",
+          "condition_operator": "Bedingungslogik",
           "target_position": "Zielposition (%)",
           "add_condition": "Bedingung hinzufügen",
           "delete": "Diese Regel löschen"

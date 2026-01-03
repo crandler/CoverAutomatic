@@ -105,6 +105,7 @@ class Rule:
     name: str
     enabled: bool = True
     priority: int = 10
+    condition_operator: str = "and"  # "and" or "or"
     scenarios: list[str] = field(default_factory=list)
     facade_ids: list[str] = field(default_factory=list)
     cover_ids: list[str] = field(default_factory=list)
@@ -118,6 +119,7 @@ class Rule:
             "name": self.name,
             "enabled": self.enabled,
             "priority": self.priority,
+            "condition_operator": self.condition_operator,
             "scenarios": self.scenarios,
             "facade_ids": self.facade_ids,
             "cover_ids": self.cover_ids,
@@ -133,6 +135,7 @@ class Rule:
             name=data["name"],
             enabled=data.get("enabled", True),
             priority=data.get("priority", 10),
+            condition_operator=data.get("condition_operator", "and"),
             scenarios=data.get("scenarios", []),
             facade_ids=data.get("facade_ids", []),
             cover_ids=data.get("cover_ids", []),

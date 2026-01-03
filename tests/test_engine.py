@@ -481,3 +481,152 @@ class TestWeatherCondition:
         )
         result = engine._eval_weather_is(condition)
         assert result is True
+
+
+class TestConditionOperator:
+    """Tests for condition operator logic (AND/OR)."""
+
+    def test_and_operator_all_true(
+        self, engine, mock_hass, test_cover
+    ) -> None:
+        """Test AND operator: all conditions true -> True."""
+        mock_hass.states.get.return_value = MockState("30.0")
+
+        rule = Rule(
+            id="test",
+            name="Test",
+            condition_operator="and",
+            conditions=[
+                Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.temp", "value": 25},
+                ),
+                Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.temp", "value": 20},
+                ),
+            ],
+        )
+
+        result = engine._evaluate_conditions(rule, test_cover)
+        assert result is True
+
+    def test_and_operator_one_false(
+        self, engine, mock_hass, test_cover
+    ) -> None:
+        """Test AND operator: one condition false -> False."""
+        mock_hass.states.get.return_value = MockState("22.0")
+
+        rule = Rule(
+            id="test",
+            name="Test",
+            condition_operator="and",
+            conditions=[
+                Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.temp", "value": 20},
+                ),
+                Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.temp", "value": 25},
+                ),
+            ],
+        )
+
+        result = engine._evaluate_conditions(rule, test_cover)
+        assert result is False
+
+    def test_or_operator_one_true(
+        self, engine, mock_hass, test_cover
+    ) -> None:
+        """Test OR operator: one condition true -> True."""
+        mock_hass.states.get.return_value = MockState("22.0")
+
+        rule = Rule(
+            id="test",
+            name="Test",
+            condition_operator="or",
+            conditions=[
+                Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.temp", "value": 20},
+                ),
+                Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.temp", "value": 25},
+                ),
+            ],
+        )
+
+        result = engine._evaluate_conditions(rule, test_cover)
+        assert result is True
+
+    def test_or_operator_all_false(
+        self, engine, mock_hass, test_cover
+    ) -> None:
+        """Test OR operator: all conditions false -> False."""
+        mock_hass.states.get.return_value = MockState("15.0")
+
+        rule = Rule(
+            id="test",
+            name="Test",
+            condition_operator="or",
+            conditions=[
+                Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.temp", "value": 20},
+                ),
+                Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.temp", "value": 25},
+                ),
+            ],
+        )
+
+        result = engine._evaluate_conditions(rule, test_cover)
+        assert result is False
+
+    def test_default_operator_is_and(
+        self, engine, mock_hass, test_cover
+    ) -> None:
+        """Test default operator is AND when not specified."""
+        mock_hass.states.get.return_value = MockState("22.0")
+
+        rule = Rule(
+            id="test",
+            name="Test",
+            conditions=[
+                Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.temp", "value": 20},
+                ),
+                Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.temp", "value": 25},
+                ),
+            ],
+        )
+
+        # Default is AND, so one false condition should fail
+        result = engine._evaluate_conditions(rule, test_cover)
+        assert result is False
+
+    def test_empty_conditions_returns_true(
+        self, engine, test_cover
+    ) -> None:
+        """Test empty conditions list returns True for both operators."""
+        rule_and = Rule(
+            id="test_and",
+            name="Test AND",
+            condition_operator="and",
+            conditions=[],
+        )
+        rule_or = Rule(
+            id="test_or",
+            name="Test OR",
+            condition_operator="or",
+            conditions=[],
+        )
+
+        assert engine._evaluate_conditions(rule_and, test_cover) is True
+        assert engine._evaluate_conditions(rule_or, test_cover) is True

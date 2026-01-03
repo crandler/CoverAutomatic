@@ -147,9 +147,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.13
+1.0.14
 
 ## Changelog
+
+### 1.0.14 (2026-01-04)
+
+- Add OR logic for rule conditions (condition_operator field)
+- Rules can now use AND (all conditions must match) or OR (any condition must match)
+- 144 unit tests (+6 for condition operator)
 
 ### 1.0.13 (2026-01-03)
 

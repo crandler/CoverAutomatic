@@ -125,6 +125,7 @@
           "name": "Name",
           "enabled": "Enabled",
           "priority": "Priority",
+          "condition_operator": "Condition logic",
           "target_position": "Target position (%)",
           "add_condition": "Add condition",
           "delete": "Delete this rule"
