@@ -1,0 +1,379 @@
+"""Tests for CoverAutomatic platform entities."""
+from __future__ import annotations
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from custom_components.cover_automatic.models import CoverConfig, CoverStatus, Facade, Scenario
+
+
+@pytest.fixture
+def mock_coordinator():
+    """Create mock coordinator."""
+    coordinator = MagicMock()
+    coordinator.data = {}
+    coordinator.async_request_refresh = AsyncMock()
+    coordinator.get_cover_status = MagicMock(return_value=CoverStatus.AUTO)
+    coordinator.resume_cover = MagicMock()
+
+    mock_storage = MagicMock()
+    mock_storage.covers = {}
+    mock_storage.facades = {}
+    mock_storage.scenarios = {}
+    mock_storage.active_scenario = "everyday"
+    mock_storage.async_add_cover = AsyncMock()
+    mock_storage.async_add_scenario = AsyncMock()
+    mock_storage.async_save = AsyncMock()
+
+    coordinator.storage = mock_storage
+    return coordinator
+
+
+@pytest.fixture
+def mock_hass():
+    """Create mock Home Assistant instance."""
+    hass = MagicMock()
+    hass.states = MagicMock()
+    return hass
+
+
+class TestSwitchPlatform:
+    """Tests for switch platform (auto enable/disable)."""
+
+    def test_switch_entity_properties(self, mock_coordinator) -> None:
+        """Test switch entity has correct properties."""
+        from custom_components.cover_automatic.switch import CoverAutomaticAutoSwitch
+
+        mock_cover = CoverConfig(
+            entity_id="cover.living_room",
+            name="Living Room",
+            auto_enabled=True,
+        )
+        mock_coordinator.storage.covers = {"cover.living_room": mock_cover}
+
+        switch = CoverAutomaticAutoSwitch(
+            mock_coordinator, "cover.living_room", "Living Room"
+        )
+        switch.hass = MagicMock()
+
+        assert switch.unique_id == "cover_automatic_cover.living_room_auto"
+        assert switch.is_on is True
+
+    def test_switch_is_off_when_disabled(self, mock_coordinator) -> None:
+        """Test switch is off when auto_enabled is False."""
+        from custom_components.cover_automatic.switch import CoverAutomaticAutoSwitch
+
+        mock_cover = CoverConfig(
+            entity_id="cover.test",
+            name="Test",
+            auto_enabled=False,
+        )
+        mock_coordinator.storage.covers = {"cover.test": mock_cover}
+
+        switch = CoverAutomaticAutoSwitch(mock_coordinator, "cover.test", "Test")
+        switch.hass = MagicMock()
+
+        assert switch.is_on is False
+
+    @pytest.mark.asyncio
+    async def test_turn_on_enables_automation(self, mock_coordinator) -> None:
+        """Test turning on enables automation."""
+        from custom_components.cover_automatic.switch import CoverAutomaticAutoSwitch
+
+        mock_cover = CoverConfig(
+            entity_id="cover.test",
+            name="Test",
+            auto_enabled=False,
+        )
+        mock_coordinator.storage.covers = {"cover.test": mock_cover}
+
+        switch = CoverAutomaticAutoSwitch(mock_coordinator, "cover.test", "Test")
+        switch.hass = MagicMock()
+        switch.async_write_ha_state = MagicMock()
+
+        await switch.async_turn_on()
+
+        assert mock_cover.auto_enabled is True
+        mock_coordinator.storage.async_add_cover.assert_called_once_with(mock_cover)
+        mock_coordinator.resume_cover.assert_called_once_with("cover.test")
+
+    @pytest.mark.asyncio
+    async def test_turn_off_disables_automation(self, mock_coordinator) -> None:
+        """Test turning off disables automation."""
+        from custom_components.cover_automatic.switch import CoverAutomaticAutoSwitch
+
+        mock_cover = CoverConfig(
+            entity_id="cover.test",
+            name="Test",
+            auto_enabled=True,
+        )
+        mock_coordinator.storage.covers = {"cover.test": mock_cover}
+
+        switch = CoverAutomaticAutoSwitch(mock_coordinator, "cover.test", "Test")
+        switch.hass = MagicMock()
+        switch.async_write_ha_state = MagicMock()
+
+        await switch.async_turn_off()
+
+        assert mock_cover.auto_enabled is False
+        mock_coordinator.storage.async_add_cover.assert_called_once_with(mock_cover)
+
+
+class TestSensorPlatform:
+    """Tests for sensor platform (status, sun on facade, sun times)."""
+
+    def test_status_sensor_value(self, mock_coordinator) -> None:
+        """Test status sensor returns correct value."""
+        from custom_components.cover_automatic.sensor import CoverAutomaticStatusSensor
+
+        mock_coordinator.get_cover_status.return_value = CoverStatus.PAUSED
+
+        sensor = CoverAutomaticStatusSensor(
+            mock_coordinator, "cover.test", "Test"
+        )
+        sensor.hass = MagicMock()
+
+        assert sensor.native_value == "paused"
+
+    def test_status_sensor_icon_auto(self, mock_coordinator) -> None:
+        """Test status sensor icon for AUTO status."""
+        from custom_components.cover_automatic.sensor import CoverAutomaticStatusSensor
+
+        mock_coordinator.get_cover_status.return_value = CoverStatus.AUTO
+
+        sensor = CoverAutomaticStatusSensor(
+            mock_coordinator, "cover.test", "Test"
+        )
+        sensor.hass = MagicMock()
+
+        assert sensor.icon == "mdi:robot"
+
+    def test_status_sensor_icon_paused(self, mock_coordinator) -> None:
+        """Test status sensor icon for PAUSED status."""
+        from custom_components.cover_automatic.sensor import CoverAutomaticStatusSensor
+
+        mock_coordinator.get_cover_status.return_value = CoverStatus.PAUSED
+
+        sensor = CoverAutomaticStatusSensor(
+            mock_coordinator, "cover.test", "Test"
+        )
+        sensor.hass = MagicMock()
+
+        assert sensor.icon == "mdi:pause-circle"
+
+    def test_status_sensor_icon_locked(self, mock_coordinator) -> None:
+        """Test status sensor icon for LOCKED status."""
+        from custom_components.cover_automatic.sensor import CoverAutomaticStatusSensor
+
+        mock_coordinator.get_cover_status.return_value = CoverStatus.LOCKED
+
+        sensor = CoverAutomaticStatusSensor(
+            mock_coordinator, "cover.test", "Test"
+        )
+        sensor.hass = MagicMock()
+
+        assert sensor.icon == "mdi:lock"
+
+    def test_status_sensor_icon_manual(self, mock_coordinator) -> None:
+        """Test status sensor icon for MANUAL status."""
+        from custom_components.cover_automatic.sensor import CoverAutomaticStatusSensor
+
+        mock_coordinator.get_cover_status.return_value = CoverStatus.MANUAL
+
+        sensor = CoverAutomaticStatusSensor(
+            mock_coordinator, "cover.test", "Test"
+        )
+        sensor.hass = MagicMock()
+
+        assert sensor.icon == "mdi:hand-back-right"
+
+    def test_facade_sun_sensor_on(self, mock_coordinator) -> None:
+        """Test facade sun sensor when sun is on facade."""
+        from custom_components.cover_automatic.sensor import FacadeSunSensor
+
+        mock_coordinator.data = {
+            "facades": {
+                "south": {"sun_on_facade": True}
+            }
+        }
+
+        sensor = FacadeSunSensor(mock_coordinator, "south", "South")
+        sensor.hass = MagicMock()
+
+        assert sensor.native_value == "on"
+        assert sensor.icon == "mdi:white-balance-sunny"
+
+    def test_facade_sun_sensor_off(self, mock_coordinator) -> None:
+        """Test facade sun sensor when sun is not on facade."""
+        from custom_components.cover_automatic.sensor import FacadeSunSensor
+
+        mock_coordinator.data = {
+            "facades": {
+                "south": {"sun_on_facade": False}
+            }
+        }
+
+        sensor = FacadeSunSensor(mock_coordinator, "south", "South")
+        sensor.hass = MagicMock()
+
+        assert sensor.native_value == "off"
+        assert sensor.icon == "mdi:weather-night"
+
+    def test_facade_sun_entry_sensor(self, mock_coordinator, mock_hass) -> None:
+        """Test facade sun entry time sensor."""
+        from custom_components.cover_automatic.sensor import FacadeSunEntrySensor
+
+        mock_facade = Facade(
+            id="south",
+            name="South",
+            azimuth_start=135.0,
+            azimuth_end=225.0,
+            direction="south",
+        )
+        mock_coordinator.storage.facades = {"south": mock_facade}
+
+        sensor = FacadeSunEntrySensor(mock_coordinator, "south", "South")
+        sensor.hass = mock_hass
+
+        with patch(
+            "custom_components.cover_automatic.sensor.get_facade_sun_times",
+            return_value=("10:30", "16:45"),
+        ):
+            assert sensor.native_value == "10:30"
+            assert sensor.icon == "mdi:weather-sunset-up"
+
+    def test_facade_sun_exit_sensor(self, mock_coordinator, mock_hass) -> None:
+        """Test facade sun exit time sensor."""
+        from custom_components.cover_automatic.sensor import FacadeSunExitSensor
+
+        mock_facade = Facade(
+            id="south",
+            name="South",
+            azimuth_start=135.0,
+            azimuth_end=225.0,
+            direction="south",
+        )
+        mock_coordinator.storage.facades = {"south": mock_facade}
+
+        sensor = FacadeSunExitSensor(mock_coordinator, "south", "South")
+        sensor.hass = mock_hass
+
+        with patch(
+            "custom_components.cover_automatic.sensor.get_facade_sun_times",
+            return_value=("10:30", "16:45"),
+        ):
+            assert sensor.native_value == "16:45"
+            assert sensor.icon == "mdi:weather-sunset-down"
+
+
+class TestSelectPlatform:
+    """Tests for select platform (scenario selector)."""
+
+    def test_scenario_select_options(self, mock_coordinator) -> None:
+        """Test scenario select returns available options."""
+        from custom_components.cover_automatic.select import ScenarioSelect
+
+        mock_coordinator.storage.scenarios = {
+            "everyday": Scenario(id="everyday", name="Everyday"),
+            "summer": Scenario(id="summer", name="Summer"),
+            "winter": Scenario(id="winter", name="Winter"),
+        }
+
+        select = ScenarioSelect(mock_coordinator, "entry123")
+        select.hass = MagicMock()
+
+        options = select.options
+        assert "everyday" in options
+        assert "summer" in options
+        assert "winter" in options
+
+    def test_scenario_select_current_option(self, mock_coordinator) -> None:
+        """Test scenario select returns current active scenario."""
+        from custom_components.cover_automatic.select import ScenarioSelect
+
+        mock_coordinator.storage.active_scenario = "summer"
+
+        select = ScenarioSelect(mock_coordinator, "entry123")
+        select.hass = MagicMock()
+
+        assert select.current_option == "summer"
+
+    @pytest.mark.asyncio
+    async def test_scenario_select_changes_scenario(self, mock_coordinator) -> None:
+        """Test selecting a scenario changes active scenario."""
+        from custom_components.cover_automatic.select import ScenarioSelect
+
+        mock_coordinator.storage.active_scenario = "everyday"
+
+        select = ScenarioSelect(mock_coordinator, "entry123")
+        select.hass = MagicMock()
+        select.async_write_ha_state = MagicMock()
+
+        await select.async_select_option("vacation")
+
+        assert mock_coordinator.storage.active_scenario == "vacation"
+        mock_coordinator.storage.async_save.assert_called_once()
+        mock_coordinator.async_request_refresh.assert_called_once()
+
+
+class TestNumberPlatform:
+    """Tests for number platform (pause duration)."""
+
+    def test_pause_duration_value(self, mock_coordinator) -> None:
+        """Test pause duration returns correct value."""
+        from custom_components.cover_automatic.number import PauseDurationNumber
+
+        mock_cover = CoverConfig(
+            entity_id="cover.test",
+            name="Test",
+            pause_duration=180,
+        )
+        mock_coordinator.storage.covers = {"cover.test": mock_cover}
+
+        number = PauseDurationNumber(mock_coordinator, "cover.test", "Test")
+        number.hass = MagicMock()
+
+        assert number.native_value == 180.0
+
+    def test_pause_duration_default_value(self, mock_coordinator) -> None:
+        """Test pause duration default when cover not found."""
+        from custom_components.cover_automatic.number import PauseDurationNumber
+
+        mock_coordinator.storage.covers = {}
+
+        number = PauseDurationNumber(mock_coordinator, "cover.unknown", "Unknown")
+        number.hass = MagicMock()
+
+        assert number.native_value == 120.0
+
+    @pytest.mark.asyncio
+    async def test_set_pause_duration(self, mock_coordinator) -> None:
+        """Test setting pause duration value."""
+        from custom_components.cover_automatic.number import PauseDurationNumber
+
+        mock_cover = CoverConfig(
+            entity_id="cover.test",
+            name="Test",
+            pause_duration=120,
+        )
+        mock_coordinator.storage.covers = {"cover.test": mock_cover}
+
+        number = PauseDurationNumber(mock_coordinator, "cover.test", "Test")
+        number.hass = MagicMock()
+        number.async_write_ha_state = MagicMock()
+
+        await number.async_set_native_value(240.0)
+
+        assert mock_cover.pause_duration == 240
+        mock_coordinator.storage.async_add_cover.assert_called_once_with(mock_cover)
+
+    def test_pause_duration_attributes(self, mock_coordinator) -> None:
+        """Test pause duration number attributes."""
+        from custom_components.cover_automatic.number import PauseDurationNumber
+
+        number = PauseDurationNumber(mock_coordinator, "cover.test", "Test")
+
+        assert number._attr_native_min_value == 0
+        assert number._attr_native_max_value == 480
+        assert number._attr_native_step == 5

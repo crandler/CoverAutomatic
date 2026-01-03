@@ -4,11 +4,9 @@ from __future__ import annotations
 import pytest
 
 from custom_components.cover_automatic.models import (
-    ComfortMode,
     Condition,
     ConditionType,
     CoverConfig,
-    CoverStatus,
     Facade,
     Rule,
     Scenario,

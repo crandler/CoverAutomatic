@@ -1,7 +1,6 @@
 """Tests for CoverAutomatic data models."""
 from __future__ import annotations
 
-import pytest
 
 from custom_components.cover_automatic.models import (
     ComfortMode,

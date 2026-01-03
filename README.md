@@ -147,9 +147,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.12-dev
+1.0.13-dev
 
 ## Changelog
+
+### 1.0.13-dev (2026-01-03)
+- Added: Comprehensive test suite (138 tests total)
+- Added: Coordinator tests (hysteresis, lock/vent sensors, state tracking)
+- Added: Services tests (pause, resume, set_scenario, export/import)
+- Added: Platform tests (Switch, Sensor, Select, Number)
 
 ### 1.0.12-dev (2026-01-03)
 - Added: Scenario-rule linking UI (disable specific rules per scenario)
