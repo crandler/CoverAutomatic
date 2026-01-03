@@ -42,8 +42,36 @@
     "step": {
       "init": {
         "title": "CoverAutomatic Options",
+        "description": "Select what to configure.",
         "data": {
-          "scan_interval": "Scan interval (seconds)"
+          "menu_option": "Configuration"
+        }
+      },
+      "general": {
+        "title": "General Settings",
+        "description": "Configure global settings for CoverAutomatic.",
+        "data": {
+          "scan_interval": "Scan interval (seconds)",
+          "outdoor_temp_sensor": "Outdoor temperature sensor",
+          "indoor_temp_sensor": "Indoor temperature sensor",
+          "weather_entity": "Weather entity",
+          "comfort_temp_min": "Comfort temperature min (°C)",
+          "comfort_temp_max": "Comfort temperature max (°C)"
+        }
+      },
+      "cover_details": {
+        "title": "Cover: {cover_name}",
+        "description": "Configure settings for this cover.",
+        "data": {
+          "facade_id": "Facade",
+          "lock_sensor": "Lock sensor (window contact)",
+          "lock_position": "Position when locked (%)",
+          "vent_sensor": "Vent sensor (ventilation contact)",
+          "vent_position": "Position when venting (%)",
+          "inverted": "Inverted (100% = closed)",
+          "min_position_change": "Min. position change (%)",
+          "min_time_between_changes": "Min. time between changes (sec)",
+          "pause_duration": "Pause duration after manual override (min)"
         }
       }
     }

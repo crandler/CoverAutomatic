@@ -42,8 +42,36 @@
     "step": {
       "init": {
         "title": "CoverAutomatic Optionen",
+        "description": "Wähle aus, was konfiguriert werden soll.",
         "data": {
-          "scan_interval": "Aktualisierungsintervall (Sekunden)"
+          "menu_option": "Konfiguration"
+        }
+      },
+      "general": {
+        "title": "Allgemeine Einstellungen",
+        "description": "Globale Einstellungen für CoverAutomatic konfigurieren.",
+        "data": {
+          "scan_interval": "Aktualisierungsintervall (Sekunden)",
+          "outdoor_temp_sensor": "Außentemperatur-Sensor",
+          "indoor_temp_sensor": "Innentemperatur-Sensor",
+          "weather_entity": "Wetter-Entität",
+          "comfort_temp_min": "Komfort-Temperatur Min (°C)",
+          "comfort_temp_max": "Komfort-Temperatur Max (°C)"
+        }
+      },
+      "cover_details": {
+        "title": "Beschattung: {cover_name}",
+        "description": "Einstellungen für diese Beschattung konfigurieren.",
+        "data": {
+          "facade_id": "Fassade",
+          "lock_sensor": "Sperr-Sensor (Fensterkontakt)",
+          "lock_position": "Position bei Sperre (%)",
+          "vent_sensor": "Lüftungs-Sensor (Lüftungskontakt)",
+          "vent_position": "Position bei Lüftung (%)",
+          "inverted": "Invertiert (100% = geschlossen)",
+          "min_position_change": "Min. Positionsänderung (%)",
+          "min_time_between_changes": "Min. Zeit zwischen Änderungen (Sek)",
+          "pause_duration": "Pausendauer nach manuellem Eingriff (Min)"
         }
       }
     }

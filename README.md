@@ -139,9 +139,15 @@ Additionally:
 
 ## Version
 
-1.0.6-dev
+1.0.7-dev
 
 ## Changelog
+
+### 1.0.7-dev (2026-01-03)
+- Added: Full UI configuration for covers (facade, lock/vent sensors, hysteresis, inverted)
+- Added: General settings UI (weather entity, indoor temp sensor, comfort range)
+- Added: Menu-based Options Flow for quick access to individual cover settings
+- Improved: All cover parameters now configurable without YAML
 
 ### 1.0.6-dev (2026-01-03)
 - Fixed: Runtime changes (pause status, hysteresis timestamps) now persist across restarts
