@@ -68,23 +68,15 @@ class RuleEngine:
         return False
 
     def _rule_active_in_scenario(self, rule: Rule, scenario_id: str) -> bool:
-        """Check if rule is active in current scenario."""
+        """Check if rule is active in current scenario.
+
+        Uses simple blacklist logic: rules are active unless explicitly
+        disabled in the scenario's rules_disabled list.
+        """
         scenario = self.storage.scenarios.get(scenario_id)
-
         if scenario is None:
-            return not rule.scenarios or scenario_id in rule.scenarios
-
-        if rule.id in scenario.rules_disabled:
-            return False
-
-        if scenario.rules_enabled and rule.id not in scenario.rules_enabled:
-            if rule.scenarios and scenario_id not in rule.scenarios:
-                return False
-
-        if rule.scenarios and scenario_id not in rule.scenarios:
-            return False
-
-        return True
+            return True
+        return rule.id not in scenario.rules_disabled
 
     def _evaluate_conditions(self, rule: Rule, cover: CoverConfig) -> bool:
         """Evaluate all conditions of a rule.

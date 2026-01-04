@@ -715,7 +715,6 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 conditions=rule.conditions,
                 facade_ids=rule.facade_ids,
                 cover_ids=rule.cover_ids,
-                scenarios=rule.scenarios,
             )
             await storage.async_add_rule(updated_rule)
             return self.async_create_entry(title="", data=self.config_entry.options)
@@ -810,7 +809,6 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 conditions=list(rule.conditions) + [new_condition],
                 facade_ids=rule.facade_ids,
                 cover_ids=rule.cover_ids,
-                scenarios=rule.scenarios,
             )
             await storage.async_add_rule(updated_rule)
             return await self.async_step_rule_edit()
@@ -988,7 +986,6 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 id=scenario_id,
                 name=user_input.get("name", scenario.name),
                 icon=user_input.get("icon", scenario.icon),
-                rules_enabled=scenario.rules_enabled,
                 rules_disabled=user_input.get("rules_disabled", []),
             )
             await storage.async_add_scenario(updated_scenario)

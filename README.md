@@ -147,9 +147,16 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.16
+1.0.17
 
 ## Changelog
+
+### 1.0.17 (2026-01-04)
+
+- Simplified scenario logic: removed `rule.scenarios` and `scenario.rules_enabled`
+- Scenarios now use blacklist-only approach via `rules_disabled`
+- Cleaner, more predictable rule activation logic
+- Breaking change: existing `rules_enabled` and `rule.scenarios` data will be ignored
 
 ### 1.0.16 (2026-01-04)
 

@@ -199,12 +199,11 @@ class TestScenario:
         data = {
             "id": "vacation",
             "name": "Vacation",
-            "rules_enabled": ["security_rule"],
             "rules_disabled": ["comfort_rule"],
         }
         scenario = Scenario.from_dict(data)
         assert scenario.id == "vacation"
-        assert "security_rule" in scenario.rules_enabled
+        assert scenario.name == "Vacation"
         assert "comfort_rule" in scenario.rules_disabled
 
 
