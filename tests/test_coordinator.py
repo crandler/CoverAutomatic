@@ -449,11 +449,59 @@ class TestStateTracking:
             assert "sensor.indoor_temp" in tracked_entities
             assert "weather.home" in tracked_entities
 
-    def test_refresh_state_tracking(self, coordinator) -> None:
-        """Test refresh_state_tracking calls setup."""
+    def test_refresh_state_tracking_calls_full_refresh(self, coordinator) -> None:
+        """Test refresh_state_tracking calls setup with full_refresh=True."""
         with patch.object(coordinator, "_setup_state_tracking") as mock_setup:
             coordinator.refresh_state_tracking()
-            mock_setup.assert_called_once()
+            mock_setup.assert_called_once_with(full_refresh=True)
+
+    def test_full_refresh_clears_old_listeners(self, coordinator, mock_storage) -> None:
+        """Test full_refresh removes old listeners before re-registering."""
+        mock_storage._data = {"covers": {}, "rules": {}}
+
+        # Simulate existing listeners
+        mock_unsub1 = MagicMock()
+        mock_unsub2 = MagicMock()
+        coordinator._unsub_state_change = [mock_unsub1, mock_unsub2]
+        coordinator._tracked_entities = {"sun.sun", "cover.old"}
+
+        with patch(
+            "custom_components.cover_automatic.coordinator.async_track_state_change_event"
+        ) as mock_track:
+            mock_track.return_value = MagicMock()
+            coordinator._setup_state_tracking(full_refresh=True)
+
+            # Old listeners should be unsubscribed
+            mock_unsub1.assert_called_once()
+            mock_unsub2.assert_called_once()
+
+            # Tracked entities should be cleared and rebuilt
+            assert "cover.old" not in coordinator._tracked_entities
+            assert "sun.sun" in coordinator._tracked_entities
+
+    def test_incremental_tracking_keeps_old_listeners(
+        self, coordinator, mock_storage
+    ) -> None:
+        """Test incremental tracking (full_refresh=False) keeps existing listeners."""
+        mock_storage._data = {"covers": {"cover.new": {}}, "rules": {}}
+
+        # Simulate existing listeners
+        mock_unsub = MagicMock()
+        coordinator._unsub_state_change = [mock_unsub]
+        coordinator._tracked_entities = {"sun.sun"}
+
+        with patch(
+            "custom_components.cover_automatic.coordinator.async_track_state_change_event"
+        ) as mock_track:
+            mock_track.return_value = MagicMock()
+            coordinator._setup_state_tracking(full_refresh=False)
+
+            # Old listener should NOT be unsubscribed
+            mock_unsub.assert_not_called()
+
+            # New entity should be added
+            assert "cover.new" in coordinator._tracked_entities
+            assert "sun.sun" in coordinator._tracked_entities
 
 
 class TestShutdown:

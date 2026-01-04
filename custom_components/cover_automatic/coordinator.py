@@ -88,8 +88,20 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             for scenario in defaults:
                 await self.storage.async_add_scenario(scenario)
 
-    def _setup_state_tracking(self) -> None:
-        """Set up state change tracking for relevant entities."""
+    def _setup_state_tracking(self, full_refresh: bool = False) -> None:
+        """Set up state change tracking for relevant entities.
+
+        Args:
+            full_refresh: If True, remove all existing listeners and re-register.
+                         If False, only add listeners for new entities.
+        """
+        if full_refresh:
+            # Remove all existing listeners
+            for unsub in self._unsub_state_change:
+                unsub()
+            self._unsub_state_change.clear()
+            self._tracked_entities.clear()
+
         entities_to_track: set[str] = {SUN_ENTITY_ID}
 
         for entity_id, cover_data in self.storage._data.get("covers", {}).items():
@@ -127,8 +139,11 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._tracked_entities.update(new_entities)
 
     def refresh_state_tracking(self) -> None:
-        """Refresh state tracking after configuration changes."""
-        self._setup_state_tracking()
+        """Refresh state tracking after configuration changes.
+
+        Performs a full refresh to ensure removed entities are no longer tracked.
+        """
+        self._setup_state_tracking(full_refresh=True)
 
     def _get_covers_by_sensor(self, sensor_id: str) -> tuple[list[str], list[str]]:
         """Get cover entity IDs that use a specific sensor.

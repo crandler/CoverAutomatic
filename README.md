@@ -147,9 +147,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.14
+1.0.15
 
 ## Changelog
+
+### 1.0.15 (2026-01-04)
+
+- Fix state tracking memory leak: removed entities are now properly untracked
+- `refresh_state_tracking()` now performs full cleanup before re-registering listeners
+- 146 unit tests (+2 for state tracking cleanup)
 
 ### 1.0.14 (2026-01-04)
 
