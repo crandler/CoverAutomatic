@@ -78,6 +78,7 @@ def coordinator(mock_hass, mock_storage):
         coord._tracked_entities = set()
         coord._unsub_state_change = []
         coord._cover_states = {}
+        coord._last_positions = {}
         coord.data = {}
         coord.logger = MagicMock()
         coord.name = "cover_automatic"

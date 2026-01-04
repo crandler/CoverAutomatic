@@ -147,9 +147,19 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.18
+1.0.19
 
 ## Changelog
+
+### 1.0.19 (2026-01-04)
+
+- Fix Lock/Vent race condition: lock sensor now has priority over vent sensor
+- Fix memory leak: cleanup orphaned entries from `_last_positions` and `_cover_states`
+- Fix AttributeError: guard against corrupt sensor states
+- Fix inverted cover lock/vent position: apply inversion to lock/vent positions
+- Fix scenario deletion: fallback to valid scenario when deleting active scenario
+- Fix async save race condition: use lock and cancel pending debounced saves
+- 182 unit tests
 
 ### 1.0.18 (2026-01-04)
 

@@ -971,7 +971,14 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 await storage.async_remove_scenario(scenario_id)
                 # Reset active scenario if deleted
                 if storage.active_scenario == scenario_id:
-                    storage.active_scenario = "everyday"
+                    # Find a valid fallback scenario
+                    remaining = list(storage.scenarios.keys())
+                    if "everyday" in remaining:
+                        storage.active_scenario = "everyday"
+                    elif remaining:
+                        storage.active_scenario = remaining[0]
+                    else:
+                        storage.active_scenario = ""
                     await storage.async_save()
                 return self.async_create_entry(title="", data=self.config_entry.options)
 

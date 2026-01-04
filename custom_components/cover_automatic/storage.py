@@ -52,8 +52,17 @@ class CoverAutomaticStorage:
             self._data = data
 
     async def async_save(self) -> None:
-        """Save data to storage."""
-        await self._store.async_save(self._data)
+        """Save data to storage.
+
+        Uses the same lock as debounced saves to prevent concurrent writes.
+        """
+        # Cancel any pending debounced save since we're saving now
+        if self._save_task is not None:
+            self._save_task.cancel()
+            self._save_task = None
+
+        async with self._save_lock:
+            await self._store.async_save(self._data)
 
     @property
     def facades(self) -> dict[str, Facade]:

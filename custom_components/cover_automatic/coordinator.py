@@ -102,6 +102,15 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._unsub_state_change.clear()
             self._tracked_entities.clear()
 
+            # Cleanup orphaned entries from runtime state dicts
+            current_covers = set(self.storage._data.get("covers", {}).keys())
+            orphaned_states = set(self._cover_states.keys()) - current_covers
+            orphaned_positions = set(self._last_positions.keys()) - current_covers
+            for entity_id in orphaned_states:
+                del self._cover_states[entity_id]
+            for entity_id in orphaned_positions:
+                del self._last_positions[entity_id]
+
         entities_to_track: set[str] = {SUN_ENTITY_ID}
 
         for entity_id, cover_data in self.storage._data.get("covers", {}).items():
@@ -178,6 +187,16 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 self.hass.async_create_task(self.async_request_refresh())
 
+    def _is_lock_sensor_open(self, cover_raw: dict[str, Any]) -> bool:
+        """Check if the lock sensor for a cover is open."""
+        lock_sensor = cover_raw.get("lock_sensor")
+        if not lock_sensor:
+            return False
+        sensor_state = self.hass.states.get(lock_sensor)
+        if sensor_state is None or not hasattr(sensor_state, "state"):
+            return False
+        return sensor_state.state in ("on", "open", "true", "1")
+
     def _handle_contact_sensor_change(
         self,
         sensor_id: str,
@@ -187,12 +206,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         new_state: Any,
     ) -> None:
         """Handle contact sensor state changes (lock or vent)."""
-        if new_state is None:
+        if new_state is None or not hasattr(new_state, "state"):
             return
 
         is_open = new_state.state in ("on", "open", "true", "1")
 
         # Handle lock sensor covers (window open -> fully open)
+        # Lock sensor has priority over vent sensor
         for cover_id in lock_covers:
             cover_raw = self.storage.get_cover_raw(cover_id)
             if cover_raw is None:
@@ -203,7 +223,12 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if is_open and current_status != CoverStatus.LOCKED:
                 self._lock_cover(cover_id, cover_raw.get("lock_position", 100))
             elif not is_open and current_status == CoverStatus.LOCKED:
-                self._unlock_cover(cover_id)
+                # Only unlock if vent sensor is also not open
+                if not self._is_vent_sensor_open(cover_raw):
+                    self._unlock_cover(cover_id)
+                else:
+                    # Lock sensor closed but vent still open -> switch to vent position
+                    self._lock_cover(cover_id, cover_raw.get("vent_position", 30))
 
         # Handle vent sensor covers (vent open -> ventilation position)
         for cover_id in vent_covers:
@@ -213,22 +238,43 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             current_status = self._cover_states.get(cover_id, CoverStatus.AUTO)
 
+            # Skip if lock sensor is open (lock has priority)
+            if self._is_lock_sensor_open(cover_raw):
+                continue
+
             if is_open and current_status != CoverStatus.LOCKED:
                 self._lock_cover(cover_id, cover_raw.get("vent_position", 30))
             elif not is_open and current_status == CoverStatus.LOCKED:
                 self._unlock_cover(cover_id)
 
+    def _is_vent_sensor_open(self, cover_raw: dict[str, Any]) -> bool:
+        """Check if the vent sensor for a cover is open."""
+        vent_sensor = cover_raw.get("vent_sensor")
+        if not vent_sensor:
+            return False
+        sensor_state = self.hass.states.get(vent_sensor)
+        if sensor_state is None or not hasattr(sensor_state, "state"):
+            return False
+        return sensor_state.state in ("on", "open", "true", "1")
+
     def _lock_cover(self, entity_id: str, lock_position: int) -> None:
         """Lock a cover due to open contact sensor."""
-        _LOGGER.debug("Locking cover %s at position %s", entity_id, lock_position)
         self._cover_states[entity_id] = CoverStatus.LOCKED
         self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
+
+        # Handle inverted covers
+        cover_raw = self.storage.get_cover_raw(entity_id)
+        actual_position = lock_position
+        if cover_raw and cover_raw.get("inverted", False):
+            actual_position = 100 - lock_position
+
+        _LOGGER.debug("Locking cover %s at position %s (actual: %s)", entity_id, lock_position, actual_position)
 
         self.hass.async_create_task(
             self.hass.services.async_call(
                 "cover",
                 "set_cover_position",
-                {"entity_id": entity_id, "position": lock_position},
+                {"entity_id": entity_id, "position": actual_position},
                 blocking=False,
             )
         )
