@@ -147,9 +147,17 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.15
+1.0.16
 
 ## Changelog
+
+### 1.0.16 (2026-01-04)
+
+- Fix wrap-around facade sun times calculation (north facade bug)
+- Extended azimuth model range from 90-270 to 60-300 degrees for temperate latitudes
+- Proper handling of wrap-around facades (e.g., north: 315-45 degrees)
+- Extracted `_azimuth_to_time()` helper function for cleaner code
+- 167 unit tests (+21 for sun position calculations)
 
 ### 1.0.15 (2026-01-04)
 
