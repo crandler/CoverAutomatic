@@ -147,9 +147,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.17
+1.0.18
 
 ## Changelog
+
+### 1.0.18 (2026-01-04)
+
+- Add comprehensive integration tests for coordinator flows
+- Tests cover: Happy Path, State Transitions, Hysteresis, Scenarios, Inverted Covers
+- 182 unit tests (+15 integration tests)
 
 ### 1.0.17 (2026-01-04)
 
