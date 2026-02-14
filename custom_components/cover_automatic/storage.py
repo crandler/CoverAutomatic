@@ -285,7 +285,10 @@ class CoverAutomaticStorage:
         # Ensure required keys exist
         for key in _REQUIRED_DICT_KEYS:
             data.setdefault(key, {})
-        data.setdefault("active_scenario", "everyday")
+        data.setdefault(
+            "active_scenario",
+            self._data.get("active_scenario", "everyday"),
+        )
 
         # Validate sub-elements can be deserialized (skip corrupt entries)
         _validators: dict[str, type] = {

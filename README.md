@@ -147,9 +147,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.23
+1.0.24
 
 ## Changelog
+
+### 1.0.24 (2026-02-14)
+
+- Harden facade azimuth: normalize values to 0-360 range in `Facade.from_dict()`
+- Fix import: preserve current active_scenario when not present in import data
+- 182 unit tests
 
 ### 1.0.23 (2026-02-14)
 

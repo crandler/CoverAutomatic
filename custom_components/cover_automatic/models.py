@@ -69,8 +69,8 @@ class Facade:
         return cls(
             id=data["id"],
             name=data["name"],
-            azimuth_start=data["azimuth_start"],
-            azimuth_end=data["azimuth_end"],
+            azimuth_start=float(data["azimuth_start"]) % 360,
+            azimuth_end=float(data["azimuth_end"]) % 360,
             direction=data.get("direction", "south"),
             min_elevation=data.get("min_elevation", 0.0),
             cover_ids=data.get("cover_ids", []),
