@@ -602,13 +602,50 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             new_direction = user_input.get("direction", facade.direction)
             preset = FACADE_PRESETS.get(new_direction, FACADE_PRESETS["south"])
 
+            azimuth_start = user_input.get("azimuth_start", preset["start"])
+            azimuth_end = user_input.get("azimuth_end", preset["end"])
+
+            # Validate azimuth range (equal values are invalid)
+            if azimuth_start == azimuth_end:
+                return self.async_show_form(
+                    step_id="facade_edit",
+                    errors={"base": "invalid_azimuth_range"},
+                    description_placeholders={"facade_name": facade.name},
+                    data_schema=vol.Schema(
+                        {
+                            vol.Required("name", default=new_name): str,
+                            vol.Required("direction", default=new_direction): selector.SelectSelector(
+                                selector.SelectSelectorConfig(
+                                    options=[
+                                        {"value": "north", "label": "Nord"},
+                                        {"value": "east", "label": "Ost"},
+                                        {"value": "south", "label": "Sued"},
+                                        {"value": "west", "label": "West"},
+                                    ],
+                                    mode=selector.SelectSelectorMode.DROPDOWN,
+                                )
+                            ),
+                            vol.Optional("azimuth_start", default=azimuth_start): vol.All(
+                                vol.Coerce(float), vol.Range(min=0, max=360)
+                            ),
+                            vol.Optional("azimuth_end", default=azimuth_end): vol.All(
+                                vol.Coerce(float), vol.Range(min=0, max=360)
+                            ),
+                            vol.Optional("min_elevation", default=user_input.get("min_elevation", 0.0)): vol.All(
+                                vol.Coerce(float), vol.Range(min=0, max=90)
+                            ),
+                            vol.Optional("delete", default=False): bool,
+                        }
+                    ),
+                )
+
             from .models import Facade
             updated_facade = Facade(
                 id=facade_id,
                 name=new_name,
                 direction=new_direction,
-                azimuth_start=user_input.get("azimuth_start", preset["start"]),
-                azimuth_end=user_input.get("azimuth_end", preset["end"]),
+                azimuth_start=azimuth_start,
+                azimuth_end=azimuth_end,
                 min_elevation=user_input.get("min_elevation", 0.0),
             )
             await storage.async_add_facade(updated_facade)

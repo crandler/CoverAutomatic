@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time as time_mod
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -112,12 +113,15 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Cleanup orphaned entries from runtime state dicts
             current_covers = set(self.storage._data.get("covers", {}).keys())
-            orphaned_states = set(self._cover_states.keys()) - current_covers
-            orphaned_positions = set(self._last_positions.keys()) - current_covers
-            for entity_id in orphaned_states:
-                del self._cover_states[entity_id]
-            for entity_id in orphaned_positions:
-                del self._last_positions[entity_id]
+            for state_dict in (
+                self._cover_states,
+                self._last_positions,
+                self._pre_lock_states,
+                self._last_command_time,
+            ):
+                orphaned = set(state_dict.keys()) - current_covers
+                for entity_id in orphaned:
+                    del state_dict[entity_id]
 
         entities_to_track: set[str] = {SUN_ENTITY_ID}
 
@@ -285,7 +289,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Update expected position to prevent false manual override
         self._last_positions[entity_id] = actual_position
 
-        self._last_command_time[entity_id] = dt_util.now().timestamp()
+        self._last_command_time[entity_id] = time_mod.monotonic()
         self.hass.async_create_task(
             self.hass.services.async_call(
                 "cover",
@@ -330,7 +334,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     state.attributes.get("current_position", 0)
                 )
             except (ValueError, TypeError):
-                self._last_positions.pop(entity_id, None)
+                _LOGGER.warning(
+                    "Invalid position attribute for %s, keeping previous value",
+                    entity_id,
+                )
 
     def _handle_cover_state_change(
         self, entity_id: str, old_state: Any, new_state: Any
@@ -349,7 +356,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         # Ignore position changes during settle time after our own commands
         last_cmd = self._last_command_time.get(entity_id, 0)
-        if (dt_util.now().timestamp() - last_cmd) < SETTLE_TIME:
+        if (time_mod.monotonic() - last_cmd) < SETTLE_TIME:
             return
 
         expected_position = self._last_positions.get(entity_id)
@@ -370,9 +377,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     expected_position,
                     current_position,
                 )
-                self._pause_cover(cover)
+                self.pause_cover(cover)
 
-    def _pause_cover(self, cover: CoverConfig) -> None:
+    def pause_cover(self, cover: CoverConfig) -> None:
         """Pause automation for a cover."""
         self._cover_states[cover.entity_id] = CoverStatus.PAUSED
         pause_until = dt_util.now().timestamp() + (cover.pause_duration * 60)
@@ -423,20 +430,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # If was locked but both sensors now closed, unlock
             if self._cover_states.get(entity_id) == CoverStatus.LOCKED:
-                # Restore previous state if was PAUSED and pause not expired
-                previous = self._pre_lock_states.pop(entity_id, CoverStatus.AUTO)
-                if previous == CoverStatus.PAUSED:
-                    pause_until = cover_raw.get("pause_until")
-                    if pause_until and dt_util.now().timestamp() < pause_until:
-                        self._cover_states[entity_id] = CoverStatus.PAUSED
-                        self.storage.update_cover_status(
-                            entity_id, CoverStatus.PAUSED.value, pause_until
-                        )
-                        self._update_last_position_from_state(entity_id)
-                        continue
-                self._cover_states[entity_id] = CoverStatus.AUTO
-                self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
-                self._update_last_position_from_state(entity_id)
+                self._unlock_cover(entity_id)
+                continue
 
             # Check pause expiry
             status = self._cover_states.get(entity_id, CoverStatus.AUTO)
@@ -557,7 +552,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.debug("Setting %s to position %s", entity_id, target)
                 # Store physical position and command time BEFORE issuing command
                 self._last_positions[entity_id] = target
-                self._last_command_time[entity_id] = now
+                self._last_command_time[entity_id] = time_mod.monotonic()
                 await self.hass.services.async_call(
                     "cover",
                     "set_cover_position",
@@ -575,7 +570,12 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         for unsub in self._unsub_state_change:
             unsub()
         self._unsub_state_change.clear()
-        # Cancel pending debounced save
+        # Flush pending debounced save to prevent data loss
         if self.storage._save_task is not None:
             self.storage._save_task.cancel()
             self.storage._save_task = None
+            # Immediate save to persist any pending runtime changes
+            try:
+                await self.storage.async_save()
+            except Exception:
+                _LOGGER.warning("Failed to flush pending save during shutdown")

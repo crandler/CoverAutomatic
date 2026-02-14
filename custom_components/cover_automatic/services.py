@@ -76,7 +76,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         for entry_data in _get_entries().values():
             coordinator = entry_data["coordinator"]
             if entity_id in coordinator.storage.covers:
-                coordinator._pause_cover(coordinator.storage.covers[entity_id])
+                coordinator.pause_cover(coordinator.storage.covers[entity_id])
                 break
 
     async def handle_resume(call: ServiceCall) -> None:
@@ -93,7 +93,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         for entry_data in _get_entries().values():
             coordinator = entry_data["coordinator"]
             for cover in coordinator.storage.covers.values():
-                coordinator._pause_cover(cover)
+                coordinator.pause_cover(cover)
 
     async def handle_resume_all(call: ServiceCall) -> None:
         """Handle resume_all service call."""
@@ -153,10 +153,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             data = storage.get_raw_data()
 
             def write_yaml():
-                with open(validated_path, "w") as f:
+                with open(validated_path, "w", encoding="utf-8") as f:
                     yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
 
-            await hass.async_add_executor_job(write_yaml)
+            try:
+                await hass.async_add_executor_job(write_yaml)
+            except (OSError, yaml.YAMLError) as err:
+                _LOGGER.error("Export failed: %s", err)
+                return
             _LOGGER.info("Configuration exported to %s", validated_path)
             break
 
@@ -182,10 +186,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             return
 
         def read_yaml():
-            with open(validated_path) as f:
+            with open(validated_path, encoding="utf-8") as f:
                 return yaml.safe_load(f)
 
-        data = await hass.async_add_executor_job(read_yaml)
+        try:
+            data = await hass.async_add_executor_job(read_yaml)
+        except (OSError, yaml.YAMLError) as err:
+            _LOGGER.error("Import failed: could not read file: %s", err)
+            return
 
         for entry_data in _get_entries().values():
             storage = entry_data["storage"]

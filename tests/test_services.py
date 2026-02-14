@@ -178,7 +178,7 @@ class TestPauseResumeServices:
         # Execute pause handler
         await handlers["pause"](call)
 
-        coordinator._pause_cover.assert_called_once_with(cover)
+        coordinator.pause_cover.assert_called_once_with(cover)
 
     @pytest.mark.asyncio
     async def test_resume_service_calls_coordinator(

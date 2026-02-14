@@ -98,6 +98,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if unload_ok:
         hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
+    else:
+        # Ensure coordinator shutdown even on failed platform unload
+        data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+        if data:
+            coordinator = data.get("coordinator")
+            if coordinator:
+                await coordinator.async_shutdown()
 
     if not hass.data.get(DOMAIN):
         await async_unload_services(hass)

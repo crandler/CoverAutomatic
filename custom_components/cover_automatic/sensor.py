@@ -127,7 +127,9 @@ class FacadeSunSensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorEntity
         """Return if sun is on facade."""
         if self.coordinator.data:
             facades = self.coordinator.data.get("facades", {})
-            facade_data = facades.get(self._facade_id, {})
+            facade_data = facades.get(self._facade_id)
+            if facade_data is None:
+                return "unknown"
             return "on" if facade_data.get("sun_on_facade", False) else "off"
         return "unknown"
 
@@ -167,6 +169,7 @@ class FacadeSunEntrySensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorE
         """Return sun entry time for facade."""
         facade = self.coordinator.storage.facades.get(self._facade_id)
         if facade is None:
+            _LOGGER.debug("Facade %s not found in storage", self._facade_id)
             return None
         entry_time, _ = get_facade_sun_times(self.hass, facade)
         return entry_time
@@ -205,6 +208,7 @@ class FacadeSunExitSensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorEn
         """Return sun exit time for facade."""
         facade = self.coordinator.storage.facades.get(self._facade_id)
         if facade is None:
+            _LOGGER.debug("Facade %s not found in storage", self._facade_id)
             return None
         _, exit_time = get_facade_sun_times(self.hass, facade)
         return exit_time

@@ -177,7 +177,8 @@
     "error": {
       "name_required": "Name ist erforderlich.",
       "already_exists": "Ein Eintrag mit diesem Namen existiert bereits.",
-      "min_must_be_less_than_max": "Minimum muss kleiner als Maximum sein."
+      "min_must_be_less_than_max": "Minimum muss kleiner als Maximum sein.",
+      "invalid_azimuth_range": "Start- und End-Azimut muessen unterschiedlich sein."
     }
   },
   "entity": {

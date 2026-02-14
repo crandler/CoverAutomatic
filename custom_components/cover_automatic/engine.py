@@ -227,7 +227,10 @@ class RuleEngine:
 
     def _eval_time_after_sunrise(self, condition: Condition) -> bool:
         """Evaluate time_after_sunrise condition."""
-        offset_minutes = condition.params.get("offset", 0)
+        try:
+            offset_minutes = int(condition.params.get("offset", 0))
+        except (ValueError, TypeError):
+            return False
         sunrise = get_sunrise_time(self.hass)
 
         if sunrise is None:
@@ -238,7 +241,10 @@ class RuleEngine:
 
     def _eval_time_after_sunset(self, condition: Condition) -> bool:
         """Evaluate time_after_sunset condition."""
-        offset_minutes = condition.params.get("offset", 0)
+        try:
+            offset_minutes = int(condition.params.get("offset", 0))
+        except (ValueError, TypeError):
+            return False
         sunset = get_sunset_time(self.hass)
 
         if sunset is None:
@@ -285,9 +291,9 @@ class RuleEngine:
         comfort_min = self.storage.comfort_temp_min
         comfort_max = self.storage.comfort_temp_max
 
-        if temp > comfort_max:
+        if temp >= comfort_max:
             current_mode = ComfortMode.COOLING
-        elif temp < comfort_min:
+        elif temp <= comfort_min:
             current_mode = ComfortMode.HEATING
         else:
             current_mode = ComfortMode.NEUTRAL

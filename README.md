@@ -147,9 +147,26 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.21
+1.0.22
 
 ## Changelog
+
+### 1.0.22 (2026-02-14)
+
+- Fix pre-lock state restoration: eliminate double-pop in sync and unlock paths
+- Fix orphan cleanup: include `_pre_lock_states` and `_last_command_time` in full refresh
+- Fix manual override detection: keep last valid position on parse error instead of deleting
+- Fix settle time: use monotonic clock instead of wall clock to prevent NTP drift issues
+- Fix shutdown data loss: flush pending debounced save before cancelling task
+- Fix coordinator shutdown on failed unload: ensure cleanup even when platforms fail
+- Fix `pause_cover` API: renamed from private `_pause_cover` to public method
+- Fix export/import I/O: catch `OSError` and `yaml.YAMLError` with proper logging
+- Fix switch turn_off: persist MANUAL status to storage instead of only in-memory
+- Fix sensor facade handling: return "unknown" when facade_id missing from data
+- Fix comfort mode boundary: use `>=`/`<=` for cooling/heating thresholds (no dead zone)
+- Fix offset type validation: protect `time_after_sunrise`/`sunset` against non-numeric offset
+- Fix facade azimuth validation: reject equal start/end values in config flow
+- 182 unit tests
 
 ### 1.0.21 (2026-02-14)
 
