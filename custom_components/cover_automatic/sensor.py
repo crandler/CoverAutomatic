@@ -171,7 +171,11 @@ class FacadeSunEntrySensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorE
         if facade is None:
             _LOGGER.debug("Facade %s not found in storage", self._facade_id)
             return None
-        entry_time, _ = get_facade_sun_times(self.hass, facade)
+        try:
+            entry_time, _ = get_facade_sun_times(self.hass, facade)
+        except Exception:
+            _LOGGER.debug("Failed to get sun times for facade %s", self._facade_id)
+            return None
         return entry_time
 
     @property
@@ -210,7 +214,11 @@ class FacadeSunExitSensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorEn
         if facade is None:
             _LOGGER.debug("Facade %s not found in storage", self._facade_id)
             return None
-        _, exit_time = get_facade_sun_times(self.hass, facade)
+        try:
+            _, exit_time = get_facade_sun_times(self.hass, facade)
+        except Exception:
+            _LOGGER.debug("Failed to get sun times for facade %s", self._facade_id)
+            return None
         return exit_time
 
     @property

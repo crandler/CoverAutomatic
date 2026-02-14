@@ -147,9 +147,14 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.22
+1.0.23
 
 ## Changelog
+
+### 1.0.23 (2026-02-14)
+
+- Fix sensor crash: protect facade sun entry/exit sensors against `get_facade_sun_times()` exceptions
+- 182 unit tests
 
 ### 1.0.22 (2026-02-14)
 
