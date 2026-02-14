@@ -402,9 +402,17 @@ class TestExportImport:
 
     @pytest.mark.asyncio
     async def test_import_data(self, storage, mock_store) -> None:
-        """Test importing data."""
+        """Test importing data with valid sub-elements."""
         import_data = {
-            "facades": {"north": {"id": "north", "name": "North"}},
+            "facades": {
+                "north": {
+                    "id": "north",
+                    "name": "North",
+                    "azimuth_start": 315.0,
+                    "azimuth_end": 45.0,
+                    "direction": "north",
+                }
+            },
             "covers": {},
             "rules": {},
             "scenarios": {},
@@ -412,7 +420,8 @@ class TestExportImport:
         }
         await storage.async_import_data(import_data)
 
-        assert storage._data == import_data
+        assert storage._data["active_scenario"] == "winter"
+        assert "north" in storage._data["facades"]
         mock_store.async_save.assert_called_once()
 
 

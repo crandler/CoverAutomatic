@@ -79,6 +79,8 @@ def coordinator(mock_hass, mock_storage):
         coord._unsub_state_change = []
         coord._cover_states = {}
         coord._last_positions = {}
+        coord._last_command_time = {}
+        coord._pre_lock_states = {}
         coord.data = {}
         coord.logger = MagicMock()
         coord.name = "cover_automatic"
@@ -139,30 +141,57 @@ class TestCoverStatus:
         status = coordinator.get_cover_status("cover.test")
         assert status == CoverStatus.MANUAL
 
-    def test_get_cover_status_returns_locked_when_lock_sensor_open(
+    def test_sync_sets_locked_when_lock_sensor_open(
         self, coordinator, mock_hass, mock_storage
     ) -> None:
-        """Test status is LOCKED when lock sensor is open."""
-        mock_storage.get_cover_raw.return_value = {
-            "auto_enabled": True,
-            "lock_sensor": "binary_sensor.window",
+        """Test _sync_cover_statuses sets LOCKED when lock sensor is open."""
+        mock_storage._data = {
+            "covers": {
+                "cover.test": {
+                    "auto_enabled": True,
+                    "lock_sensor": "binary_sensor.window",
+                    "lock_position": 100,
+                    "vent_sensor": None,
+                    "inverted": False,
+                }
+            }
         }
+        mock_storage.get_cover_raw.return_value = mock_storage._data["covers"]["cover.test"]
         mock_hass.states.get.return_value = MockState("on")
+        mock_hass.async_create_task = MagicMock()
 
+        with patch("custom_components.cover_automatic.coordinator.dt_util") as mock_dt:
+            mock_dt.now.return_value.timestamp.return_value = 1000.0
+            coordinator._sync_cover_statuses()
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED
         status = coordinator.get_cover_status("cover.test")
         assert status == CoverStatus.LOCKED
 
-    def test_get_cover_status_returns_locked_when_vent_sensor_open(
+    def test_sync_sets_locked_when_vent_sensor_open(
         self, coordinator, mock_hass, mock_storage
     ) -> None:
-        """Test status is LOCKED when vent sensor is open."""
-        mock_storage.get_cover_raw.return_value = {
-            "auto_enabled": True,
-            "lock_sensor": None,
-            "vent_sensor": "binary_sensor.vent",
+        """Test _sync_cover_statuses sets LOCKED when vent sensor is open."""
+        mock_storage._data = {
+            "covers": {
+                "cover.test": {
+                    "auto_enabled": True,
+                    "lock_sensor": None,
+                    "vent_sensor": "binary_sensor.vent",
+                    "vent_position": 30,
+                    "inverted": False,
+                }
+            }
         }
+        mock_storage.get_cover_raw.return_value = mock_storage._data["covers"]["cover.test"]
         mock_hass.states.get.return_value = MockState("on")
+        mock_hass.async_create_task = MagicMock()
 
+        with patch("custom_components.cover_automatic.coordinator.dt_util") as mock_dt:
+            mock_dt.now.return_value.timestamp.return_value = 1000.0
+            coordinator._sync_cover_statuses()
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED
         status = coordinator.get_cover_status("cover.test")
         assert status == CoverStatus.LOCKED
 
@@ -180,23 +209,30 @@ class TestCoverStatus:
         status = coordinator.get_cover_status("cover.test")
         assert status == CoverStatus.AUTO
 
-    def test_get_cover_status_respects_pause_timeout(
+    def test_sync_respects_pause_timeout(
         self, coordinator, mock_hass, mock_storage
     ) -> None:
-        """Test PAUSED status expires based on pause_until."""
+        """Test _sync_cover_statuses expires PAUSED based on pause_until."""
         coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
-        mock_storage.get_cover_raw.return_value = {
-            "auto_enabled": True,
-            "pause_until": 500,  # Expired (before current time 1000)
-            "lock_sensor": None,
-            "vent_sensor": None,
+        mock_storage._data = {
+            "covers": {
+                "cover.test": {
+                    "auto_enabled": True,
+                    "pause_until": 500,  # Expired (before current time 1000)
+                    "lock_sensor": None,
+                    "vent_sensor": None,
+                }
+            }
         }
+        mock_storage.get_cover_raw.return_value = mock_storage._data["covers"]["cover.test"]
 
-        with patch("homeassistant.util.dt.now") as mock_now:
-            mock_now.return_value.timestamp.return_value = 1000
+        with patch("custom_components.cover_automatic.coordinator.dt_util") as mock_dt:
+            mock_dt.now.return_value.timestamp.return_value = 1000
 
+            coordinator._sync_cover_statuses()
+
+            assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
             status = coordinator.get_cover_status("cover.test")
-            # Status transitions from PAUSED to AUTO when pause_until has expired
             assert status == CoverStatus.AUTO
 
     def test_resume_cover(self, coordinator, mock_storage) -> None:
@@ -248,18 +284,22 @@ class TestContactSensorHandling:
         assert lock_covers == []
         assert vent_covers == ["cover.living"]
 
-    def test_lock_cover_sets_status(self, coordinator, mock_hass) -> None:
+    def test_lock_cover_sets_status(self, coordinator, mock_hass, mock_storage) -> None:
         """Test locking cover updates status to LOCKED."""
-        # Mock to prevent actual async task creation
         mock_hass.async_create_task = MagicMock()
+        mock_storage.get_cover_raw.return_value = {"inverted": False}
 
-        coordinator._lock_cover("cover.test", 100)
+        with patch("custom_components.cover_automatic.coordinator.dt_util") as mock_dt:
+            mock_dt.now.return_value.timestamp.return_value = 1000.0
+            coordinator._lock_cover("cover.test", 100)
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED
 
-    def test_unlock_cover_resets_status(self, coordinator, mock_storage) -> None:
+    def test_unlock_cover_resets_status(self, coordinator, mock_hass, mock_storage) -> None:
         """Test unlocking cover resets status to AUTO."""
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
+        mock_storage.get_cover_raw.return_value = {"pause_until": None}
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 50})
 
         coordinator._unlock_cover("cover.test")
 
@@ -508,13 +548,15 @@ class TestStateTracking:
 class TestShutdown:
     """Tests for coordinator shutdown."""
 
-    def test_async_shutdown_unsubscribes_all(self, coordinator) -> None:
+    @pytest.mark.asyncio
+    async def test_async_shutdown_unsubscribes_all(self, coordinator, mock_storage) -> None:
         """Test shutdown unsubscribes all state change listeners."""
         mock_unsub1 = MagicMock()
         mock_unsub2 = MagicMock()
         coordinator._unsub_state_change = [mock_unsub1, mock_unsub2]
+        mock_storage._save_task = None
 
-        coordinator.async_shutdown()
+        await coordinator.async_shutdown()
 
         mock_unsub1.assert_called_once()
         mock_unsub2.assert_called_once()

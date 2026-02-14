@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import DOMAIN
 from .coordinator import CoverAutomaticCoordinator
 from .services import async_setup_services, async_unload_services
 from .storage import CoverAutomaticStorage
@@ -37,16 +36,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     storage = CoverAutomaticStorage(hass)
-    scan_interval = entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
+    scan_interval = entry.options.get("scan_interval", 60)
     coordinator = CoverAutomaticCoordinator(hass, storage, scan_interval)
 
     await coordinator.async_setup()
 
     async def async_options_updated(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
-        """Handle options update."""
-        new_interval = config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
-        coordinator.update_interval = timedelta(seconds=new_interval)
-        await coordinator.async_request_refresh()
+        """Handle options update by reloading entry to recreate entities."""
+        await hass.config_entries.async_reload(config_entry.entry_id)
 
     entry.async_on_unload(entry.add_update_listener(async_options_updated))
 
@@ -100,11 +97,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS_LIST)
 
     if unload_ok:
-        data = hass.data[DOMAIN].pop(entry.entry_id)
-        coordinator = data["coordinator"]
-        coordinator.async_shutdown()
+        hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
 
-    if not hass.data[DOMAIN]:
+    if not hass.data.get(DOMAIN):
         await async_unload_services(hass)
 
     return unload_ok

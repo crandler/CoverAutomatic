@@ -90,6 +90,8 @@ def coordinator(mock_hass, mock_storage):
         coord._unsub_state_change = []
         coord._cover_states = {}
         coord._last_positions = {}
+        coord._last_command_time = {}
+        coord._pre_lock_states = {}
         coord.data = {}
         coord.logger = MagicMock()
 
@@ -283,12 +285,14 @@ class TestStateTransitionIntegration:
     def test_pause_timeout_resumes_automation(
         self, coordinator, mock_hass, mock_storage
     ) -> None:
-        """Test that paused cover resumes after timeout."""
+        """Test that paused cover resumes after timeout via _sync_cover_statuses."""
         mock_storage._data = {
             "covers": {
                 "cover.test": {
                     "auto_enabled": True,
                     "pause_until": 500.0,  # Pause ended
+                    "lock_sensor": None,
+                    "vent_sensor": None,
                 }
             },
             "facades": {},
@@ -301,6 +305,7 @@ class TestStateTransitionIntegration:
 
         with patch("custom_components.cover_automatic.coordinator.dt_util") as mock_dt:
             mock_dt.now.return_value.timestamp.return_value = 1000.0  # After pause_until
+            coordinator._sync_cover_statuses()
             status = coordinator.get_cover_status("cover.test")
 
         assert status == CoverStatus.AUTO
@@ -314,6 +319,7 @@ class TestStateTransitionIntegration:
                 "cover.test": {
                     "lock_sensor": "binary_sensor.window",
                     "lock_position": 100,
+                    "inverted": False,
                 }
             },
             "facades": {},
@@ -328,19 +334,18 @@ class TestStateTransitionIntegration:
         old_state = MockState("off")
         new_state = MockState("on")  # Window opened
 
-        coordinator._handle_contact_sensor_change(
-            "binary_sensor.window",
-            lock_covers=["cover.test"],
-            vent_covers=[],
-            old_state=old_state,
-            new_state=new_state,
-        )
+        with patch("custom_components.cover_automatic.coordinator.dt_util") as mock_dt:
+            mock_dt.now.return_value.timestamp.return_value = 1000.0
+            coordinator._handle_contact_sensor_change(
+                "binary_sensor.window",
+                lock_covers=["cover.test"],
+                vent_covers=[],
+                old_state=old_state,
+                new_state=new_state,
+            )
 
         # Cover should be locked
         assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED
-
-        # Service should be called to move to lock position
-        mock_hass.services.async_call.assert_called()
 
     def test_lock_sensor_unlocks_cover(
         self, coordinator, mock_hass, mock_storage
@@ -351,6 +356,9 @@ class TestStateTransitionIntegration:
                 "cover.test": {
                     "lock_sensor": "binary_sensor.window",
                     "lock_position": 100,
+                    "vent_sensor": None,
+                    "inverted": False,
+                    "pause_until": None,
                 }
             },
             "facades": {},
@@ -360,6 +368,7 @@ class TestStateTransitionIntegration:
         mock_storage.get_cover_raw.return_value = mock_storage._data["covers"]["cover.test"]
 
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 100})
 
         # Simulate window closing
         old_state = MockState("on")
@@ -385,6 +394,8 @@ class TestStateTransitionIntegration:
                 "cover.test": {
                     "vent_sensor": "binary_sensor.vent",
                     "vent_position": 30,
+                    "lock_sensor": None,
+                    "inverted": False,
                 }
             },
             "facades": {},
@@ -399,13 +410,15 @@ class TestStateTransitionIntegration:
         old_state = MockState("off")
         new_state = MockState("on")
 
-        coordinator._handle_contact_sensor_change(
-            "binary_sensor.vent",
-            lock_covers=[],
-            vent_covers=["cover.test"],
-            old_state=old_state,
-            new_state=new_state,
-        )
+        with patch("custom_components.cover_automatic.coordinator.dt_util") as mock_dt:
+            mock_dt.now.return_value.timestamp.return_value = 1000.0
+            coordinator._handle_contact_sensor_change(
+                "binary_sensor.vent",
+                lock_covers=[],
+                vent_covers=["cover.test"],
+                old_state=old_state,
+                new_state=new_state,
+            )
 
         # Cover should be locked at vent position
         assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED

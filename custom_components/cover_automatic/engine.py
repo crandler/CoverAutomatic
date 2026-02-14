@@ -33,7 +33,7 @@ class RuleEngine:
             Target position (0-100) or None if no rule matches.
         """
         active_scenario = self.storage.active_scenario
-        matching_rules: list[tuple[int, int]] = []
+        matching_rules: list[tuple[int, str, int]] = []
 
         for rule in self.storage.rules.values():
             if not rule.enabled:
@@ -46,13 +46,14 @@ class RuleEngine:
                 continue
 
             if self._evaluate_conditions(rule, cover):
-                matching_rules.append((rule.priority, rule.target_position))
+                matching_rules.append((rule.priority, rule.id, rule.target_position))
 
         if not matching_rules:
             return None
 
-        matching_rules.sort(key=lambda x: x[0], reverse=True)
-        return matching_rules[0][1]
+        # Sort by priority desc, then by rule ID asc for deterministic order
+        matching_rules.sort(key=lambda x: (-x[0], x[1]))
+        return matching_rules[0][2]
 
     def _rule_applies_to_cover(self, rule: Rule, cover: CoverConfig) -> bool:
         """Check if rule applies to cover."""
@@ -207,11 +208,17 @@ class RuleEngine:
             start_parts = start_str.split(":")
             end_parts = end_str.split(":")
             start_time = time(int(start_parts[0]), int(start_parts[1]))
-            end_time = time(int(end_parts[0]), int(end_parts[1]))
+            # End time includes seconds for full-minute coverage
+            end_sec = int(end_parts[2]) if len(end_parts) > 2 else 59
+            end_time = time(int(end_parts[0]), int(end_parts[1]), end_sec)
         except (ValueError, IndexError):
             return False
 
         now = dt_util.now().time()
+
+        # Same start and end means all day
+        if start_time == end_time:
+            return True
 
         if start_time <= end_time:
             return start_time <= now <= end_time
@@ -308,10 +315,11 @@ class RuleEngine:
         current_weather = state.state.lower()
 
         # Map common weather states
-        sunny_states = ["sunny", "clear", "clear-night", "partlycloudy", "partly-cloudy"]
-        cloudy_states = ["cloudy", "fog", "hazy", "overcast"]
+        sunny_states = ["sunny", "clear", "clear-night"]
+        cloudy_states = ["cloudy", "fog", "hazy", "overcast", "partlycloudy", "partly-cloudy"]
         rainy_states = ["rainy", "pouring", "lightning", "lightning-rainy", "hail"]
         snowy_states = ["snowy", "snowy-rainy"]
+        windy_states = ["windy", "exceptional"]
 
         for expected in expected_states:
             expected = expected.lower()
@@ -322,6 +330,8 @@ class RuleEngine:
             if expected == "rainy" and current_weather in rainy_states:
                 return True
             if expected == "snowy" and current_weather in snowy_states:
+                return True
+            if expected == "windy" and current_weather in windy_states:
                 return True
             if expected == current_weather:
                 return True

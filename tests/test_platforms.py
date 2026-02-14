@@ -290,9 +290,14 @@ class TestSelectPlatform:
 
     def test_scenario_select_current_option(self, mock_coordinator) -> None:
         """Test scenario select returns current active scenario."""
+        from custom_components.cover_automatic.models import Scenario
         from custom_components.cover_automatic.select import ScenarioSelect
 
         mock_coordinator.storage.active_scenario = "summer"
+        mock_coordinator.storage.scenarios = {
+            "everyday": Scenario(id="everyday", name="Everyday"),
+            "summer": Scenario(id="summer", name="Summer"),
+        }
 
         select = ScenarioSelect(mock_coordinator, "entry123")
         select.hass = MagicMock()

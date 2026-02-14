@@ -21,6 +21,12 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+# Tolerance for manual override detection (positions)
+MANUAL_OVERRIDE_TOLERANCE = 2
+
+# Seconds to ignore position changes after our own commands
+SETTLE_TIME = 30
+
 
 class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinate data updates and rule evaluation."""
@@ -41,6 +47,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._unsub_state_change: list[Any] = []
         self._cover_states: dict[str, CoverStatus] = {}
         self._last_positions: dict[str, int | None] = {}
+        self._last_command_time: dict[str, float] = {}
+        self._pre_lock_states: dict[str, CoverStatus] = {}
 
     async def async_setup(self) -> None:
         """Set up the coordinator."""
@@ -212,17 +220,16 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         is_open = new_state.state in ("on", "open", "true", "1")
 
         # Handle lock sensor covers (window open -> fully open)
-        # Lock sensor has priority over vent sensor
+        # Lock sensor always has priority - override even if already locked by vent
         for cover_id in lock_covers:
             cover_raw = self.storage.get_cover_raw(cover_id)
             if cover_raw is None:
                 continue
 
-            current_status = self._cover_states.get(cover_id, CoverStatus.AUTO)
-
-            if is_open and current_status != CoverStatus.LOCKED:
+            if is_open:
+                # Always apply lock position (lock has priority over vent)
                 self._lock_cover(cover_id, cover_raw.get("lock_position", 100))
-            elif not is_open and current_status == CoverStatus.LOCKED:
+            elif not is_open and self._cover_states.get(cover_id) == CoverStatus.LOCKED:
                 # Only unlock if vent sensor is also not open
                 if not self._is_vent_sensor_open(cover_raw):
                     self._unlock_cover(cover_id)
@@ -236,11 +243,11 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if cover_raw is None:
                 continue
 
-            current_status = self._cover_states.get(cover_id, CoverStatus.AUTO)
-
             # Skip if lock sensor is open (lock has priority)
             if self._is_lock_sensor_open(cover_raw):
                 continue
+
+            current_status = self._cover_states.get(cover_id, CoverStatus.AUTO)
 
             if is_open and current_status != CoverStatus.LOCKED:
                 self._lock_cover(cover_id, cover_raw.get("vent_position", 30))
@@ -259,6 +266,11 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _lock_cover(self, entity_id: str, lock_position: int) -> None:
         """Lock a cover due to open contact sensor."""
+        # Save previous state for restoration after unlock
+        if entity_id not in self._pre_lock_states:
+            self._pre_lock_states[entity_id] = self._cover_states.get(
+                entity_id, CoverStatus.AUTO
+            )
         self._cover_states[entity_id] = CoverStatus.LOCKED
         self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
 
@@ -270,6 +282,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         _LOGGER.debug("Locking cover %s at position %s (actual: %s)", entity_id, lock_position, actual_position)
 
+        # Update expected position to prevent false manual override
+        self._last_positions[entity_id] = actual_position
+
+        self._last_command_time[entity_id] = dt_util.now().timestamp()
         self.hass.async_create_task(
             self.hass.services.async_call(
                 "cover",
@@ -283,9 +299,38 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _unlock_cover(self, entity_id: str) -> None:
         """Unlock a cover when contact sensor closes."""
         _LOGGER.debug("Unlocking cover %s", entity_id)
+
+        # Restore previous state if was PAUSED and pause not expired
+        previous = self._pre_lock_states.pop(entity_id, CoverStatus.AUTO)
+        if previous == CoverStatus.PAUSED:
+            cover_raw = self.storage.get_cover_raw(entity_id)
+            pause_until = cover_raw.get("pause_until") if cover_raw else None
+            if pause_until and dt_util.now().timestamp() < pause_until:
+                self._cover_states[entity_id] = CoverStatus.PAUSED
+                self.storage.update_cover_status(
+                    entity_id, CoverStatus.PAUSED.value, pause_until
+                )
+                # Update expected position to current to prevent false override
+                self._update_last_position_from_state(entity_id)
+                self.async_set_updated_data(self.data)
+                return
+
         self._cover_states[entity_id] = CoverStatus.AUTO
         self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
+        # Update expected position to current to prevent false override
+        self._update_last_position_from_state(entity_id)
         self.hass.async_create_task(self.async_request_refresh())
+
+    def _update_last_position_from_state(self, entity_id: str) -> None:
+        """Update _last_positions from current HA state."""
+        state = self.hass.states.get(entity_id)
+        if state:
+            try:
+                self._last_positions[entity_id] = int(
+                    state.attributes.get("current_position", 0)
+                )
+            except (ValueError, TypeError):
+                self._last_positions.pop(entity_id, None)
 
     def _handle_cover_state_change(
         self, entity_id: str, old_state: Any, new_state: Any
@@ -298,6 +343,15 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if cover is None:
             return
 
+        # Ignore position changes while cover is moving
+        if hasattr(new_state, "state") and new_state.state in ("opening", "closing"):
+            return
+
+        # Ignore position changes during settle time after our own commands
+        last_cmd = self._last_command_time.get(entity_id, 0)
+        if (dt_util.now().timestamp() - last_cmd) < SETTLE_TIME:
+            return
+
         expected_position = self._last_positions.get(entity_id)
 
         try:
@@ -305,7 +359,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except (ValueError, TypeError):
             return
 
-        if expected_position is not None and current_position != expected_position:
+        if (
+            expected_position is not None
+            and abs(current_position - expected_position) > MANUAL_OVERRIDE_TOLERANCE
+        ):
             if cover.auto_enabled and self._cover_states.get(entity_id) == CoverStatus.AUTO:
                 _LOGGER.debug(
                     "Manual override detected for %s (expected %s, got %s)",
@@ -331,8 +388,66 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
             self.async_set_updated_data(self.data)
 
+    def _sync_cover_statuses(self) -> None:
+        """Sync cover statuses from sensor states.
+
+        Updates _cover_states and storage for all covers. Called once per
+        update cycle to avoid side effects in property accessors.
+        """
+        for entity_id in list(self.storage._data.get("covers", {}).keys()):
+            cover_raw = self.storage.get_cover_raw(entity_id)
+            if cover_raw is None:
+                continue
+
+            if not cover_raw.get("auto_enabled", True):
+                self._cover_states[entity_id] = CoverStatus.MANUAL
+                continue
+
+            # Check lock sensor state (window contact) - highest priority
+            if lock_sensor := cover_raw.get("lock_sensor"):
+                sensor_state = self.hass.states.get(lock_sensor)
+                if sensor_state and hasattr(sensor_state, "state") and sensor_state.state in ("on", "open", "true", "1"):
+                    if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
+                        # First detection (e.g. after restart) - send position
+                        self._lock_cover(entity_id, cover_raw.get("lock_position", 100))
+                    continue
+
+            # Check vent sensor state (ventilation contact)
+            if vent_sensor := cover_raw.get("vent_sensor"):
+                sensor_state = self.hass.states.get(vent_sensor)
+                if sensor_state and hasattr(sensor_state, "state") and sensor_state.state in ("on", "open", "true", "1"):
+                    if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
+                        # First detection (e.g. after restart) - send position
+                        self._lock_cover(entity_id, cover_raw.get("vent_position", 30))
+                    continue
+
+            # If was locked but both sensors now closed, unlock
+            if self._cover_states.get(entity_id) == CoverStatus.LOCKED:
+                # Restore previous state if was PAUSED and pause not expired
+                previous = self._pre_lock_states.pop(entity_id, CoverStatus.AUTO)
+                if previous == CoverStatus.PAUSED:
+                    pause_until = cover_raw.get("pause_until")
+                    if pause_until and dt_util.now().timestamp() < pause_until:
+                        self._cover_states[entity_id] = CoverStatus.PAUSED
+                        self.storage.update_cover_status(
+                            entity_id, CoverStatus.PAUSED.value, pause_until
+                        )
+                        self._update_last_position_from_state(entity_id)
+                        continue
+                self._cover_states[entity_id] = CoverStatus.AUTO
+                self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
+                self._update_last_position_from_state(entity_id)
+
+            # Check pause expiry
+            status = self._cover_states.get(entity_id, CoverStatus.AUTO)
+            if status == CoverStatus.PAUSED:
+                pause_until = cover_raw.get("pause_until")
+                if pause_until and dt_util.now().timestamp() > pause_until:
+                    self._cover_states[entity_id] = CoverStatus.AUTO
+                    self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
+
     def get_cover_status(self, entity_id: str) -> CoverStatus:
-        """Get automation status for a cover."""
+        """Get automation status for a cover (read-only, no side effects)."""
         cover_raw = self.storage.get_cover_raw(entity_id)
         if cover_raw is None:
             return CoverStatus.MANUAL
@@ -340,42 +455,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if not cover_raw.get("auto_enabled", True):
             return CoverStatus.MANUAL
 
-        # Check lock sensor state (window contact)
-        if lock_sensor := cover_raw.get("lock_sensor"):
-            sensor_state = self.hass.states.get(lock_sensor)
-            if sensor_state and sensor_state.state in ("on", "open", "true", "1"):
-                if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
-                    self._cover_states[entity_id] = CoverStatus.LOCKED
-                    self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
-                return CoverStatus.LOCKED
-
-        # Check vent sensor state (ventilation contact)
-        if vent_sensor := cover_raw.get("vent_sensor"):
-            sensor_state = self.hass.states.get(vent_sensor)
-            if sensor_state and sensor_state.state in ("on", "open", "true", "1"):
-                if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
-                    self._cover_states[entity_id] = CoverStatus.LOCKED
-                    self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
-                return CoverStatus.LOCKED
-
-        # If was locked but both sensors now closed, unlock
-        if self._cover_states.get(entity_id) == CoverStatus.LOCKED:
-            self._cover_states[entity_id] = CoverStatus.AUTO
-            self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
-
-        status = self._cover_states.get(entity_id, CoverStatus.AUTO)
-
-        if status == CoverStatus.PAUSED:
-            pause_until = cover_raw.get("pause_until")
-            if pause_until and dt_util.now().timestamp() > pause_until:
-                self._cover_states[entity_id] = CoverStatus.AUTO
-                self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
-                return CoverStatus.AUTO
-
-        return status
+        return self._cover_states.get(entity_id, CoverStatus.AUTO)
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Update data and evaluate rules."""
+        # Sync cover statuses from sensors before evaluation
+        self._sync_cover_statuses()
+
         result: dict[str, Any] = {
             "covers": {},
             "facades": {},
@@ -395,8 +481,6 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             if status == CoverStatus.AUTO:
                 target_position = self.engine.evaluate_cover(cover)
-                if target_position is not None:
-                    self._last_positions[entity_id] = target_position
 
             result["covers"][entity_id] = {
                 "status": status.value,
@@ -420,7 +504,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         now = dt_util.now().timestamp()
 
         for entity_id, cover_data in self.data.get("covers", {}).items():
-            if cover_data["status"] != CoverStatus.AUTO.value:
+            # Use live status from _cover_states instead of snapshot
+            if self._cover_states.get(entity_id, CoverStatus.AUTO) != CoverStatus.AUTO:
                 continue
 
             target = cover_data.get("target_position")
@@ -452,6 +537,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "Skipping %s: position change %d < min %d",
                     entity_id, position_diff, min_change
                 )
+                # Accept current position as expected
+                self._last_positions[entity_id] = current
                 continue
 
             # Check hysteresis: minimum time between changes
@@ -462,10 +549,15 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "Skipping %s: only %ds since last change (min %ds)",
                     entity_id, int(now - last_change), min_time
                 )
+                # Accept current position as expected
+                self._last_positions[entity_id] = current
                 continue
 
             if current != target:
                 _LOGGER.debug("Setting %s to position %s", entity_id, target)
+                # Store physical position and command time BEFORE issuing command
+                self._last_positions[entity_id] = target
+                self._last_command_time[entity_id] = now
                 await self.hass.services.async_call(
                     "cover",
                     "set_cover_position",
@@ -474,9 +566,16 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
                 # Update last change timestamp
                 self.storage.update_cover_last_change(entity_id, now)
+            else:
+                # Position matches, update expected
+                self._last_positions[entity_id] = current
 
-    def async_shutdown(self) -> None:
+    async def async_shutdown(self) -> None:
         """Shut down coordinator."""
         for unsub in self._unsub_state_change:
             unsub()
         self._unsub_state_change.clear()
+        # Cancel pending debounced save
+        if self.storage._save_task is not None:
+            self.storage._save_task.cancel()
+            self.storage._save_task = None

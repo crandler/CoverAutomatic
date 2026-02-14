@@ -147,9 +147,54 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.19
+1.0.21
 
 ## Changelog
+
+### 1.0.21 (2026-02-14)
+
+- Fix rule deletion: clean up stale references in scenario `rules_disabled` lists
+- Fix import data mutation: deep copy imported data to prevent external corruption
+- Fix import validation: validate all sub-elements via `from_dict`, skip corrupt entries
+- Fix import: preserve global settings (sensors, comfort temps) not present in import data
+- Fix debounced save: reset `_save_task` to None in finally block to prevent stale refs
+- Fix comfort temperature validation: reject min >= max with user-facing error message
+- Fix config flow cache: invalidate cover deserialization cache after raw mutation
+- Fix config flow: protect against invalid ConditionType values with graceful redirect
+- Fix scenario editing: preserve `rules_disabled` when form field is not submitted
+- Fix sun position: return None when sun entity attributes are missing (not 0,0)
+- Fix services KeyError: safe `.get()` access for `hass.data[DOMAIN]`
+- Fix config export/import paths: allow `config_dir` as valid base directory
+- Fix unload entry: safe `.get()`/`.pop()` with defaults to prevent KeyError
+- Fix scenario select: return `["everyday"]` fallback when no scenarios exist
+- Fix time condition: end time defaults to :59 seconds for full-minute coverage
+- Fix rule priority: deterministic sort by rule ID when priorities are equal
+- Fix switch turn_off: set MANUAL status in coordinator immediately
+- Fix sensor icon: protect against invalid CoverStatus values
+- 182 unit tests
+
+### 1.0.20 (2026-02-14)
+
+- Fix inverted covers: position tracking now uses physical position after inversion
+- Fix manual override false positives during cover movement (opening/closing states ignored)
+- Fix manual override detection: tolerance-based comparison (threshold: 2%)
+- Fix lock sensor priority: always applies lock position even when already locked by vent
+- Fix `async_shutdown` signature: changed from sync to async def
+- Fix `get_cover_status()` side effects: extracted status mutations into `_sync_cover_statuses()`
+- Fix `_last_positions` tracking in all code paths (lock, hysteresis skip, same-position)
+- Fix storage import validation: reject non-dict data, validate required keys
+- Fix storage `get_raw_data()`: use deep copy instead of shallow copy
+- Add storage deserialization cache with proper invalidation
+- Fix weather mapping: moved "partlycloudy" from sunny to cloudy states, added windy states
+- Fix time condition: equal start/end times now match all day
+- Fix config flow: sanitize IDs with umlaut conversion and regex cleanup
+- Fix config flow: added facade parameter to `sun_on_facade` condition builder
+- Fix config flow: recreate default scenario when all scenarios deleted
+- Fix options update listener: reload config entry for dynamic entity creation
+- Fix double shutdown in `async_unload_entry`
+- Fix `set_scenario` service: proper logging with found/not-found tracking
+- Fix scenario select: validate active scenario against available options
+- 182 unit tests
 
 ### 1.0.19 (2026-01-04)
 

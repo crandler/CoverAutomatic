@@ -20,7 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 ALLOWED_CONFIG_PATHS = ["/config", "/homeassistant"]
 
 
-def _validate_config_path(path: str) -> Path | None:
+def _validate_config_path(path: str, extra_paths: list[str] | None = None) -> Path | None:
     """Validate that path is within allowed directories.
 
     Prevents path traversal attacks by ensuring the resolved path
@@ -33,8 +33,13 @@ def _validate_config_path(path: str) -> Path | None:
         # Resolve to absolute path (handles ../ etc.)
         resolved = Path(path).resolve()
 
+        # Combine static and dynamic allowed paths
+        all_allowed = list(ALLOWED_CONFIG_PATHS)
+        if extra_paths:
+            all_allowed.extend(extra_paths)
+
         # Check if path is within any allowed directory
-        for allowed_base in ALLOWED_CONFIG_PATHS:
+        for allowed_base in all_allowed:
             allowed_path = Path(allowed_base).resolve()
             if allowed_path.exists():
                 try:
@@ -46,7 +51,7 @@ def _validate_config_path(path: str) -> Path | None:
         _LOGGER.warning(
             "Path validation failed: %s is not within allowed directories %s",
             path,
-            ALLOWED_CONFIG_PATHS,
+            all_allowed,
         )
         return None
 
@@ -61,10 +66,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     if hass.services.has_service(DOMAIN, "pause"):
         return
 
+    def _get_entries() -> dict:
+        """Get all integration entries safely."""
+        return hass.data.get(DOMAIN, {})
+
     async def handle_pause(call: ServiceCall) -> None:
         """Handle pause service call."""
         entity_id = call.data.get("entity_id")
-        for entry_data in hass.data[DOMAIN].values():
+        for entry_data in _get_entries().values():
             coordinator = entry_data["coordinator"]
             if entity_id in coordinator.storage.covers:
                 coordinator._pause_cover(coordinator.storage.covers[entity_id])
@@ -73,7 +82,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     async def handle_resume(call: ServiceCall) -> None:
         """Handle resume service call."""
         entity_id = call.data.get("entity_id")
-        for entry_data in hass.data[DOMAIN].values():
+        for entry_data in _get_entries().values():
             coordinator = entry_data["coordinator"]
             if entity_id in coordinator.storage.covers:
                 coordinator.resume_cover(entity_id)
@@ -81,14 +90,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def handle_pause_all(call: ServiceCall) -> None:
         """Handle pause_all service call."""
-        for entry_data in hass.data[DOMAIN].values():
+        for entry_data in _get_entries().values():
             coordinator = entry_data["coordinator"]
             for cover in coordinator.storage.covers.values():
                 coordinator._pause_cover(cover)
 
     async def handle_resume_all(call: ServiceCall) -> None:
         """Handle resume_all service call."""
-        for entry_data in hass.data[DOMAIN].values():
+        for entry_data in _get_entries().values():
             coordinator = entry_data["coordinator"]
             for entity_id in coordinator.storage.covers:
                 coordinator.resume_cover(entity_id)
@@ -100,35 +109,46 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.error("set_scenario: No scenario provided")
             return
 
-        for entry_data in hass.data[DOMAIN].values():
+        found = False
+        for entry_data in _get_entries().values():
             storage = entry_data["storage"]
             coordinator = entry_data["coordinator"]
             if scenario in storage.scenarios:
                 storage.active_scenario = scenario
                 await storage.async_save()
                 await coordinator.async_request_refresh()
-                _LOGGER.info("Scenario changed to: %s", scenario)
-            else:
-                available = list(storage.scenarios.keys())
+                found = True
+
+        if found:
+            _LOGGER.info("Scenario changed to: %s", scenario)
+        else:
+            # Log error once with available scenarios from first entry
+            for entry_data in _get_entries().values():
+                available = list(entry_data["storage"].scenarios.keys())
                 _LOGGER.error(
                     "Unknown scenario '%s'. Available: %s",
                     scenario,
                     ", ".join(available),
                 )
+                break
 
     async def handle_export_config(call: ServiceCall) -> None:
         """Handle export_config service call."""
-        path_str = call.data.get("path", "/config/cover_automatic_backup.yaml")
+        path_str = call.data.get("path") or hass.config.path(
+            "cover_automatic_backup.yaml"
+        )
 
         # Validate path to prevent path traversal attacks
-        validated_path = _validate_config_path(path_str)
+        validated_path = _validate_config_path(
+            path_str, extra_paths=[hass.config.config_dir]
+        )
         if validated_path is None:
             _LOGGER.error(
                 "Export rejected: path '%s' is outside allowed directories", path_str
             )
             return
 
-        for entry_data in hass.data[DOMAIN].values():
+        for entry_data in _get_entries().values():
             storage = entry_data["storage"]
             data = storage.get_raw_data()
 
@@ -148,7 +168,9 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             return
 
         # Validate path to prevent path traversal attacks
-        validated_path = _validate_config_path(path_str)
+        validated_path = _validate_config_path(
+            path_str, extra_paths=[hass.config.config_dir]
+        )
         if validated_path is None:
             _LOGGER.error(
                 "Import rejected: path '%s' is outside allowed directories", path_str
@@ -165,10 +187,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         data = await hass.async_add_executor_job(read_yaml)
 
-        for entry_data in hass.data[DOMAIN].values():
+        for entry_data in _get_entries().values():
             storage = entry_data["storage"]
             coordinator = entry_data["coordinator"]
-            await storage.async_import_data(data)
+            try:
+                await storage.async_import_data(data)
+            except (ValueError, TypeError) as err:
+                _LOGGER.error("Import failed: invalid data format: %s", err)
+                return
             coordinator.refresh_state_tracking()
             await coordinator.async_request_refresh()
             _LOGGER.info("Configuration imported from %s", validated_path)

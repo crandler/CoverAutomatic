@@ -176,7 +176,8 @@
     },
     "error": {
       "name_required": "Name is required.",
-      "already_exists": "An item with this name already exists."
+      "already_exists": "An item with this name already exists.",
+      "min_must_be_less_than_max": "Minimum must be less than maximum."
     }
   },
   "entity": {

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -18,6 +19,9 @@ _LOGGER = logging.getLogger(__name__)
 # Debounce delay for runtime saves (seconds)
 SAVE_DEBOUNCE_DELAY = 2.0
 
+# Required top-level keys for import validation
+_REQUIRED_DICT_KEYS = ("facades", "covers", "rules", "scenarios")
+
 
 class CoverAutomaticStorage:
     """Manage persistent storage for CoverAutomatic."""
@@ -31,6 +35,18 @@ class CoverAutomaticStorage:
         self._data: dict[str, Any] = {}
         self._save_task: asyncio.Task | None = None
         self._save_lock = asyncio.Lock()
+        # Deserialization cache
+        self._cache_facades: dict[str, Facade] | None = None
+        self._cache_covers: dict[str, CoverConfig] | None = None
+        self._cache_rules: dict[str, Rule] | None = None
+        self._cache_scenarios: dict[str, Scenario] | None = None
+
+    def _invalidate_cache(self) -> None:
+        """Invalidate all deserialization caches."""
+        self._cache_facades = None
+        self._cache_covers = None
+        self._cache_rules = None
+        self._cache_scenarios = None
 
     async def async_load(self) -> None:
         """Load data from storage."""
@@ -50,6 +66,7 @@ class CoverAutomaticStorage:
             }
         else:
             self._data = data
+        self._invalidate_cache()
 
     async def async_save(self) -> None:
         """Save data to storage.
@@ -66,31 +83,39 @@ class CoverAutomaticStorage:
 
     @property
     def facades(self) -> dict[str, Facade]:
-        """Get all facades."""
-        return {
-            k: Facade.from_dict(v) for k, v in self._data.get("facades", {}).items()
-        }
+        """Get all facades (cached)."""
+        if self._cache_facades is None:
+            self._cache_facades = {
+                k: Facade.from_dict(v) for k, v in self._data.get("facades", {}).items()
+            }
+        return self._cache_facades
 
     @property
     def covers(self) -> dict[str, CoverConfig]:
-        """Get all cover configurations."""
-        return {
-            k: CoverConfig.from_dict(v) for k, v in self._data.get("covers", {}).items()
-        }
+        """Get all cover configurations (cached)."""
+        if self._cache_covers is None:
+            self._cache_covers = {
+                k: CoverConfig.from_dict(v) for k, v in self._data.get("covers", {}).items()
+            }
+        return self._cache_covers
 
     @property
     def rules(self) -> dict[str, Rule]:
-        """Get all rules."""
-        return {
-            k: Rule.from_dict(v) for k, v in self._data.get("rules", {}).items()
-        }
+        """Get all rules (cached)."""
+        if self._cache_rules is None:
+            self._cache_rules = {
+                k: Rule.from_dict(v) for k, v in self._data.get("rules", {}).items()
+            }
+        return self._cache_rules
 
     @property
     def scenarios(self) -> dict[str, Scenario]:
-        """Get all scenarios."""
-        return {
-            k: Scenario.from_dict(v) for k, v in self._data.get("scenarios", {}).items()
-        }
+        """Get all scenarios (cached)."""
+        if self._cache_scenarios is None:
+            self._cache_scenarios = {
+                k: Scenario.from_dict(v) for k, v in self._data.get("scenarios", {}).items()
+            }
+        return self._cache_scenarios
 
     @property
     def active_scenario(self) -> str:
@@ -157,12 +182,25 @@ class CoverAutomaticStorage:
         if "facades" not in self._data:
             self._data["facades"] = {}
         self._data["facades"][facade.id] = facade.to_dict()
+        self._cache_facades = None
         await self.async_save()
 
     async def async_remove_facade(self, facade_id: str) -> None:
-        """Remove a facade."""
+        """Remove a facade and clean up references."""
         if facade_id in self._data.get("facades", {}):
             del self._data["facades"][facade_id]
+            self._cache_facades = None
+            # Clean up cover references
+            for cover_data in self._data.get("covers", {}).values():
+                if cover_data.get("facade_id") == facade_id:
+                    cover_data["facade_id"] = None
+            self._cache_covers = None
+            # Clean up rule references
+            for rule_data in self._data.get("rules", {}).values():
+                fids = rule_data.get("facade_ids", [])
+                if facade_id in fids:
+                    fids.remove(facade_id)
+            self._cache_rules = None
             await self.async_save()
 
     async def async_add_cover(self, cover: CoverConfig) -> None:
@@ -170,12 +208,26 @@ class CoverAutomaticStorage:
         if "covers" not in self._data:
             self._data["covers"] = {}
         self._data["covers"][cover.entity_id] = cover.to_dict()
+        self._cache_covers = None
         await self.async_save()
 
     async def async_remove_cover(self, entity_id: str) -> None:
-        """Remove a cover configuration."""
+        """Remove a cover configuration and clean up references."""
         if entity_id in self._data.get("covers", {}):
             del self._data["covers"][entity_id]
+            self._cache_covers = None
+            # Clean up facade references
+            for facade_data in self._data.get("facades", {}).values():
+                cids = facade_data.get("cover_ids", [])
+                if entity_id in cids:
+                    cids.remove(entity_id)
+            self._cache_facades = None
+            # Clean up rule references
+            for rule_data in self._data.get("rules", {}).values():
+                cids = rule_data.get("cover_ids", [])
+                if entity_id in cids:
+                    cids.remove(entity_id)
+            self._cache_rules = None
             await self.async_save()
 
     async def async_add_rule(self, rule: Rule) -> None:
@@ -183,12 +235,20 @@ class CoverAutomaticStorage:
         if "rules" not in self._data:
             self._data["rules"] = {}
         self._data["rules"][rule.id] = rule.to_dict()
+        self._cache_rules = None
         await self.async_save()
 
     async def async_remove_rule(self, rule_id: str) -> None:
-        """Remove a rule."""
+        """Remove a rule and clean up scenario references."""
         if rule_id in self._data.get("rules", {}):
             del self._data["rules"][rule_id]
+            self._cache_rules = None
+            # Clean up scenario rules_disabled references
+            for scenario_data in self._data.get("scenarios", {}).values():
+                disabled = scenario_data.get("rules_disabled", [])
+                if rule_id in disabled:
+                    disabled.remove(rule_id)
+            self._cache_scenarios = None
             await self.async_save()
 
     async def async_add_scenario(self, scenario: Scenario) -> None:
@@ -196,21 +256,71 @@ class CoverAutomaticStorage:
         if "scenarios" not in self._data:
             self._data["scenarios"] = {}
         self._data["scenarios"][scenario.id] = scenario.to_dict()
+        self._cache_scenarios = None
         await self.async_save()
 
     async def async_remove_scenario(self, scenario_id: str) -> None:
         """Remove a scenario."""
         if scenario_id in self._data.get("scenarios", {}):
             del self._data["scenarios"][scenario_id]
+            self._cache_scenarios = None
             await self.async_save()
 
     def get_raw_data(self) -> dict[str, Any]:
-        """Get raw data for export."""
-        return self._data.copy()
+        """Get raw data for export (deep copy to prevent race conditions)."""
+        return copy.deepcopy(self._data)
 
     async def async_import_data(self, data: dict[str, Any]) -> None:
-        """Import data from dict."""
+        """Import data from dict with validation."""
+        if not isinstance(data, dict):
+            raise ValueError("Import data must be a dictionary")
+
+        for key in _REQUIRED_DICT_KEYS:
+            if key in data and not isinstance(data[key], dict):
+                raise ValueError(f"Import data key '{key}' must be a dictionary")
+
+        # Deep copy to prevent external mutation
+        data = copy.deepcopy(data)
+
+        # Ensure required keys exist
+        for key in _REQUIRED_DICT_KEYS:
+            data.setdefault(key, {})
+        data.setdefault("active_scenario", "everyday")
+
+        # Validate sub-elements can be deserialized (skip corrupt entries)
+        _validators: dict[str, type] = {
+            "facades": Facade,
+            "covers": CoverConfig,
+            "rules": Rule,
+            "scenarios": Scenario,
+        }
+        for section, model_cls in _validators.items():
+            valid: dict[str, Any] = {}
+            for k, v in data.get(section, {}).items():
+                try:
+                    model_cls.from_dict(v)
+                    valid[k] = v
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.warning(
+                        "Skipping invalid %s entry '%s' during import: %s",
+                        section, k, err,
+                    )
+            data[section] = valid
+
+        # Preserve global settings not present in import data
+        _global_keys = (
+            "outdoor_temp_sensor",
+            "indoor_temp_sensor",
+            "weather_entity",
+            "comfort_temp_min",
+            "comfort_temp_max",
+        )
+        for gkey in _global_keys:
+            if gkey not in data:
+                data[gkey] = self._data.get(gkey)
+
         self._data = data
+        self._invalidate_cache()
         await self.async_save()
 
     def update_cover_status(
@@ -223,6 +333,7 @@ class CoverAutomaticStorage:
         if entity_id in self._data.get("covers", {}):
             self._data["covers"][entity_id]["status"] = status
             self._data["covers"][entity_id]["pause_until"] = pause_until
+            self._cache_covers = None
             self._schedule_save()
 
     def get_cover_raw(self, entity_id: str) -> dict[str, Any] | None:
@@ -236,6 +347,7 @@ class CoverAutomaticStorage:
         """
         if entity_id in self._data.get("covers", {}):
             self._data["covers"][entity_id]["last_position_change"] = timestamp
+            self._cache_covers = None
             self._schedule_save()
 
     def _schedule_save(self) -> None:
@@ -260,3 +372,5 @@ class CoverAutomaticStorage:
             pass
         except Exception as err:
             _LOGGER.error("Failed to save runtime changes: %s", err)
+        finally:
+            self._save_task = None

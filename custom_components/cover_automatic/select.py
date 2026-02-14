@@ -54,12 +54,17 @@ class ScenarioSelect(CoordinatorEntity[CoverAutomaticCoordinator], SelectEntity)
     @property
     def options(self) -> list[str]:
         """Return available scenarios."""
-        return list(self.coordinator.storage.scenarios.keys())
+        scenarios = list(self.coordinator.storage.scenarios.keys())
+        return scenarios if scenarios else ["everyday"]
 
     @property
     def current_option(self) -> str | None:
-        """Return current scenario."""
-        return self.coordinator.storage.active_scenario
+        """Return current scenario (validated against available options)."""
+        current = self.coordinator.storage.active_scenario
+        available = self.options
+        if current and current in available:
+            return current
+        return available[0] if available else None
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected scenario."""

@@ -82,7 +82,10 @@ class CoverAutomaticStatusSensor(CoordinatorEntity[CoverAutomaticCoordinator], S
     @property
     def icon(self) -> str:
         """Return icon based on status."""
-        status = self.coordinator.get_cover_status(self._cover_entity_id)
+        try:
+            status = CoverStatus(self.native_value)
+        except ValueError:
+            return "mdi:help-circle"
         match status:
             case CoverStatus.AUTO:
                 return "mdi:robot"

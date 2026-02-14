@@ -31,9 +31,11 @@ def get_sun_position(hass: HomeAssistant) -> tuple[float, float] | None:
         return None
 
     try:
-        azimuth = float(sun_state.attributes.get("azimuth", 0))
-        elevation = float(sun_state.attributes.get("elevation", 0))
-        return (azimuth, elevation)
+        azimuth_val = sun_state.attributes.get("azimuth")
+        elevation_val = sun_state.attributes.get("elevation")
+        if azimuth_val is None or elevation_val is None:
+            return None
+        return (float(azimuth_val), float(elevation_val))
     except (ValueError, TypeError) as err:
         _LOGGER.error("Error reading sun position: %s", err)
         return None

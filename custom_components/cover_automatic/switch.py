@@ -9,6 +9,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import CoverAutomaticCoordinator
+from .models import CoverStatus
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -81,4 +82,5 @@ class CoverAutomaticAutoSwitch(CoordinatorEntity[CoverAutomaticCoordinator], Swi
         if cover:
             cover.auto_enabled = False
             await self.coordinator.storage.async_add_cover(cover)
+            self.coordinator._cover_states[self._cover_entity_id] = CoverStatus.MANUAL
             self.async_write_ha_state()

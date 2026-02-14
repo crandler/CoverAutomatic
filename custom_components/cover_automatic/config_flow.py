@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import voluptuous as vol
@@ -12,6 +13,23 @@ from homeassistant.helpers import selector
 from .const import DOMAIN, FACADE_PRESETS
 
 _LOGGER = logging.getLogger(__name__)
+
+# Umlaut replacement map for ID sanitization
+_UMLAUT_MAP = {
+    "\u00e4": "ae", "\u00f6": "oe", "\u00fc": "ue", "\u00df": "ss",
+    "\u00c4": "ae", "\u00d6": "oe", "\u00dc": "ue",
+}
+
+
+def _sanitize_id(name: str) -> str:
+    """Sanitize name to a valid ID (alphanumeric + underscore only)."""
+    result = name.lower().strip()
+    for char, replacement in _UMLAUT_MAP.items():
+        result = result.replace(char, replacement)
+    result = re.sub(r"[^a-z0-9_]", "_", result)
+    result = re.sub(r"_+", "_", result)
+    result = result.strip("_")
+    return result or "unnamed"
 
 
 class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -62,7 +80,7 @@ class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
                     preset = FACADE_PRESETS.get(facade_direction, FACADE_PRESETS["south"])
                     self._facades.append(
                         {
-                            "id": facade_name.lower().replace(" ", "_"),
+                            "id": _sanitize_id(facade_name),
                             "name": facade_name,
                             "direction": facade_direction,
                             "azimuth_start": preset["start"],
@@ -263,6 +281,37 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
         storage = self._get_storage()
 
         if user_input is not None:
+            # Validate comfort temp range
+            temp_min = user_input.get("comfort_temp_min", 21.0)
+            temp_max = user_input.get("comfort_temp_max", 25.0)
+            if temp_min >= temp_max:
+                return self.async_show_form(
+                    step_id="general",
+                    data_schema=vol.Schema(
+                        {
+                            vol.Optional("scan_interval", default=user_input.get("scan_interval", 60)): vol.All(
+                                vol.Coerce(int), vol.Range(min=10, max=600)
+                            ),
+                            vol.Optional("outdoor_temp_sensor", description={"suggested_value": user_input.get("outdoor_temp_sensor")}): selector.EntitySelector(
+                                selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
+                            ),
+                            vol.Optional("indoor_temp_sensor", description={"suggested_value": user_input.get("indoor_temp_sensor")}): selector.EntitySelector(
+                                selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
+                            ),
+                            vol.Optional("weather_entity", description={"suggested_value": user_input.get("weather_entity")}): selector.EntitySelector(
+                                selector.EntitySelectorConfig(domain="weather")
+                            ),
+                            vol.Optional("comfort_temp_min", default=temp_min): vol.All(
+                                vol.Coerce(float), vol.Range(min=10, max=30)
+                            ),
+                            vol.Optional("comfort_temp_max", default=temp_max): vol.All(
+                                vol.Coerce(float), vol.Range(min=15, max=35)
+                            ),
+                        }
+                    ),
+                    errors={"comfort_temp_min": "min_must_be_less_than_max"},
+                )
+
             # Save to options (scan_interval) and storage (sensors)
             new_options = dict(self.config_entry.options)
             new_options["scan_interval"] = user_input.get("scan_interval", 60)
@@ -271,8 +320,8 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 storage.outdoor_temp_sensor = user_input.get("outdoor_temp_sensor")
                 storage.indoor_temp_sensor = user_input.get("indoor_temp_sensor")
                 storage.weather_entity = user_input.get("weather_entity")
-                storage.comfort_temp_min = user_input.get("comfort_temp_min", 21.0)
-                storage.comfort_temp_max = user_input.get("comfort_temp_max", 25.0)
+                storage.comfort_temp_min = temp_min
+                storage.comfort_temp_max = temp_max
                 await storage.async_save()
 
             return self.async_create_entry(title="", data=new_options)
@@ -356,6 +405,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             cover_raw["min_position_change"] = user_input.get("min_position_change", 5)
             cover_raw["min_time_between_changes"] = user_input.get("min_time_between_changes", 300)
             cover_raw["pause_duration"] = user_input.get("pause_duration", 120)
+            storage._cache_covers = None
             await storage.async_save()
 
             # Refresh coordinator state tracking
@@ -493,7 +543,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             if not facade_name:
                 errors["name"] = "name_required"
             else:
-                facade_id = facade_name.lower().replace(" ", "_")
+                facade_id = _sanitize_id(facade_name)
                 if facade_id in storage.facades:
                     errors["name"] = "already_exists"
                 else:
@@ -649,7 +699,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             if not rule_name:
                 errors["name"] = "name_required"
             else:
-                rule_id = rule_name.lower().replace(" ", "_")
+                rule_id = _sanitize_id(rule_name)
                 if rule_id in storage.rules:
                     errors["name"] = "already_exists"
                 else:
@@ -771,10 +821,18 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             from .models import Condition, ConditionType
 
             condition_type = user_input.get("condition_type")
+            try:
+                ConditionType(condition_type)
+            except ValueError:
+                return await self.async_step_rule_condition()
+
             params: dict[str, Any] = {}
 
             # Build params based on condition type
-            if condition_type in ("sun_elevation_above", "sun_elevation_below"):
+            if condition_type == "sun_on_facade":
+                if facade_val := user_input.get("facade"):
+                    params["facade"] = facade_val
+            elif condition_type in ("sun_elevation_above", "sun_elevation_below"):
                 params["value"] = user_input.get("value", 0)
             elif condition_type in ("temperature_above", "temperature_below"):
                 params["sensor"] = user_input.get("sensor")
@@ -827,6 +885,12 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             {"value": "weather_is", "label": "Wetter ist"},
         ]
 
+        # Build facade options for sun_on_facade condition
+        facade_options = [{"value": "", "label": "-- Cover-Fassade --"}]
+        if storage:
+            for fid, f in storage.facades.items():
+                facade_options.append({"value": fid, "label": f.name})
+
         return self.async_show_form(
             step_id="rule_condition",
             description_placeholders={"rule_name": rule.name},
@@ -835,6 +899,12 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                     vol.Required("condition_type"): selector.SelectSelector(
                         selector.SelectSelectorConfig(
                             options=condition_types,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                    vol.Optional("facade", default=""): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=facade_options,
                             mode=selector.SelectSelectorMode.DROPDOWN,
                         )
                     ),
@@ -867,6 +937,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                                 {"value": "sunny", "label": "Sonnig"},
                                 {"value": "cloudy", "label": "Bewoelkt"},
                                 {"value": "rainy", "label": "Regnerisch"},
+                                {"value": "windy", "label": "Windig"},
                             ],
                             mode=selector.SelectSelectorMode.DROPDOWN,
                         )
@@ -930,7 +1001,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             if not scenario_name:
                 errors["name"] = "name_required"
             else:
-                scenario_id = scenario_name.lower().replace(" ", "_")
+                scenario_id = _sanitize_id(scenario_name)
                 if scenario_id in storage.scenarios:
                     errors["name"] = "already_exists"
                 else:
@@ -971,14 +1042,17 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 await storage.async_remove_scenario(scenario_id)
                 # Reset active scenario if deleted
                 if storage.active_scenario == scenario_id:
-                    # Find a valid fallback scenario
                     remaining = list(storage.scenarios.keys())
                     if "everyday" in remaining:
                         storage.active_scenario = "everyday"
                     elif remaining:
                         storage.active_scenario = remaining[0]
                     else:
-                        storage.active_scenario = ""
+                        # No scenarios left - recreate default
+                        from .models import Scenario
+                        default = Scenario(id="everyday", name="Everyday", icon="mdi:home")
+                        await storage.async_add_scenario(default)
+                        storage.active_scenario = "everyday"
                     await storage.async_save()
                 return self.async_create_entry(title="", data=self.config_entry.options)
 
@@ -987,13 +1061,13 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 await storage.async_save()
                 return self.async_create_entry(title="", data=self.config_entry.options)
 
-            # Update scenario
+            # Update scenario (preserve rules_disabled if field not in form)
             from .models import Scenario
             updated_scenario = Scenario(
                 id=scenario_id,
                 name=user_input.get("name", scenario.name),
                 icon=user_input.get("icon", scenario.icon),
-                rules_disabled=user_input.get("rules_disabled", []),
+                rules_disabled=user_input.get("rules_disabled", scenario.rules_disabled),
             )
             await storage.async_add_scenario(updated_scenario)
             return self.async_create_entry(title="", data=self.config_entry.options)
