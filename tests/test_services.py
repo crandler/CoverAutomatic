@@ -178,7 +178,7 @@ class TestPauseResumeServices:
         # Register services to capture handlers
         handlers = {}
 
-        def capture_register(domain, service, handler):
+        def capture_register(domain, service, handler, **kwargs):
             handlers[service] = handler
 
         hass.services.async_register = capture_register
@@ -203,7 +203,7 @@ class TestPauseResumeServices:
 
         handlers = {}
 
-        def capture_register(domain, service, handler):
+        def capture_register(domain, service, handler, **kwargs):
             handlers[service] = handler
 
         hass.services.async_register = capture_register
@@ -253,7 +253,7 @@ class TestScenarioService:
 
         handlers = {}
 
-        def capture_register(domain, service, handler):
+        def capture_register(domain, service, handler, **kwargs):
             handlers[service] = handler
 
         hass.services.async_register = capture_register
@@ -278,7 +278,7 @@ class TestScenarioService:
 
         handlers = {}
 
-        def capture_register(domain, service, handler):
+        def capture_register(domain, service, handler, **kwargs):
             handlers[service] = handler
 
         hass.services.async_register = capture_register
@@ -333,7 +333,7 @@ class TestExportImportServices:
 
         handlers = {}
 
-        def capture_register(domain, service, handler):
+        def capture_register(domain, service, handler, **kwargs):
             handlers[service] = handler
 
         hass.services.async_register = capture_register
@@ -359,7 +359,7 @@ class TestExportImportServices:
 
         handlers = {}
 
-        def capture_register(domain, service, handler):
+        def capture_register(domain, service, handler, **kwargs):
             handlers[service] = handler
 
         hass.services.async_register = capture_register
@@ -384,7 +384,7 @@ class TestExportImportServices:
 
         handlers = {}
 
-        def capture_register(domain, service, handler):
+        def capture_register(domain, service, handler, **kwargs):
             handlers[service] = handler
 
         hass.services.async_register = capture_register
@@ -401,3 +401,123 @@ class TestExportImportServices:
 
             mock_logger.error.assert_called()
             storage.async_import_data.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_import_rejects_oversized_file(
+        self, mock_hass_with_export_data
+    ) -> None:
+        """Test import_config rejects files exceeding MAX_IMPORT_FILE_SIZE."""
+        hass, storage, coordinator = mock_hass_with_export_data
+
+        handlers = {}
+
+        def capture_register(domain, service, handler, **kwargs):
+            handlers[service] = handler
+
+        hass.services.async_register = capture_register
+
+        await async_setup_services(hass)
+
+        call = MagicMock()
+        call.data = {"path": "/config/big.yaml"}
+
+        mock_stat = MagicMock()
+        mock_stat.st_size = 2_000_000  # 2 MB, over limit
+
+        mock_path = MagicMock()
+        mock_path.exists.return_value = True
+        mock_path.stat.return_value = mock_stat
+
+        with (
+            patch(
+                "custom_components.cover_automatic.services._validate_config_path",
+                return_value=mock_path,
+            ),
+            patch(
+                "custom_components.cover_automatic.services._LOGGER"
+            ) as mock_logger,
+        ):
+            await handlers["import_config"](call)
+
+            mock_logger.error.assert_called()
+            storage.async_import_data.assert_not_called()
+
+
+class TestPauseAllResumeAllServices:
+    """Tests for pause_all and resume_all services."""
+
+    @pytest.fixture
+    def mock_hass_with_multiple_covers(self):
+        """Create mock Home Assistant with multiple covers."""
+        hass = MagicMock()
+        hass.services = MagicMock()
+        hass.services.has_service = MagicMock(return_value=False)
+        hass.services.async_register = MagicMock()
+
+        cover1 = MagicMock()
+        cover1.entity_id = "cover.living"
+        cover2 = MagicMock()
+        cover2.entity_id = "cover.bedroom"
+
+        mock_storage = MagicMock()
+        mock_storage.covers = {
+            "cover.living": cover1,
+            "cover.bedroom": cover2,
+        }
+
+        mock_coordinator = MagicMock()
+        mock_coordinator.storage = mock_storage
+        mock_coordinator.pause_cover = MagicMock()
+        mock_coordinator.resume_cover = MagicMock()
+
+        mock_entry = _make_mock_entry(mock_coordinator, mock_storage)
+        hass.config_entries = MagicMock()
+        hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+        return hass, mock_coordinator, [cover1, cover2]
+
+    @pytest.mark.asyncio
+    async def test_pause_all_pauses_every_cover(
+        self, mock_hass_with_multiple_covers
+    ) -> None:
+        """Test pause_all calls pause_cover for every cover."""
+        hass, coordinator, covers = mock_hass_with_multiple_covers
+
+        handlers = {}
+
+        def capture_register(domain, service, handler, **kwargs):
+            handlers[service] = handler
+
+        hass.services.async_register = capture_register
+
+        await async_setup_services(hass)
+
+        call = MagicMock()
+        call.data = {}
+
+        await handlers["pause_all"](call)
+
+        assert coordinator.pause_cover.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_resume_all_resumes_every_cover(
+        self, mock_hass_with_multiple_covers
+    ) -> None:
+        """Test resume_all calls resume_cover for every cover."""
+        hass, coordinator, covers = mock_hass_with_multiple_covers
+
+        handlers = {}
+
+        def capture_register(domain, service, handler, **kwargs):
+            handlers[service] = handler
+
+        hass.services.async_register = capture_register
+
+        await async_setup_services(hass)
+
+        call = MagicMock()
+        call.data = {}
+
+        await handlers["resume_all"](call)
+
+        assert coordinator.resume_cover.call_count == 2

@@ -133,7 +133,9 @@ class Rule:
             name=data["name"],
             enabled=data.get("enabled", True),
             priority=data.get("priority", 10),
-            condition_operator=data.get("condition_operator", "and"),
+            condition_operator=data.get("condition_operator", "and")
+            if data.get("condition_operator") in ("and", "or")
+            else "and",
             facade_ids=data.get("facade_ids", []),
             cover_ids=data.get("cover_ids", []),
             conditions=[Condition.from_dict(c) for c in data.get("conditions", [])],

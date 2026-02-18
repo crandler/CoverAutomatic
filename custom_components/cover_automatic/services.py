@@ -5,11 +5,16 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import voluptuous as vol
 import yaml
 
+import homeassistant.helpers.config_validation as cv
 from homeassistant.core import ServiceCall
 
 from .const import DOMAIN
+
+# Max import file size (1 MB)
+MAX_IMPORT_FILE_SIZE = 1_048_576
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -184,6 +189,20 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.error("Import file not found: %s", validated_path)
             return
 
+        # Check file size before reading
+        try:
+            file_size = validated_path.stat().st_size
+            if file_size > MAX_IMPORT_FILE_SIZE:
+                _LOGGER.error(
+                    "Import rejected: file too large (%d bytes, max %d)",
+                    file_size,
+                    MAX_IMPORT_FILE_SIZE,
+                )
+                return
+        except OSError as err:
+            _LOGGER.error("Import failed: cannot stat file: %s", err)
+            return
+
         def read_yaml():
             with open(validated_path, encoding="utf-8") as f:
                 return yaml.safe_load(f)
@@ -205,13 +224,24 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.info("Configuration imported from %s", validated_path)
             break
 
-    hass.services.async_register(DOMAIN, "pause", handle_pause)
-    hass.services.async_register(DOMAIN, "resume", handle_resume)
+    schema_entity = vol.Schema({vol.Required("entity_id"): cv.entity_id})
+    schema_scenario = vol.Schema({vol.Required("scenario"): cv.string})
+    schema_path_required = vol.Schema({vol.Required("path"): cv.string})
+    schema_path_optional = vol.Schema({vol.Optional("path"): cv.string})
+
+    hass.services.async_register(DOMAIN, "pause", handle_pause, schema=schema_entity)
+    hass.services.async_register(DOMAIN, "resume", handle_resume, schema=schema_entity)
     hass.services.async_register(DOMAIN, "pause_all", handle_pause_all)
     hass.services.async_register(DOMAIN, "resume_all", handle_resume_all)
-    hass.services.async_register(DOMAIN, "set_scenario", handle_set_scenario)
-    hass.services.async_register(DOMAIN, "export_config", handle_export_config)
-    hass.services.async_register(DOMAIN, "import_config", handle_import_config)
+    hass.services.async_register(
+        DOMAIN, "set_scenario", handle_set_scenario, schema=schema_scenario
+    )
+    hass.services.async_register(
+        DOMAIN, "export_config", handle_export_config, schema=schema_path_optional
+    )
+    hass.services.async_register(
+        DOMAIN, "import_config", handle_import_config, schema=schema_path_required
+    )
 
 
 async def async_unload_services(hass: HomeAssistant) -> None:

@@ -415,7 +415,9 @@ class TestExportImport:
             },
             "covers": {},
             "rules": {},
-            "scenarios": {},
+            "scenarios": {
+                "winter": {"id": "winter", "name": "Winter"},
+            },
             "active_scenario": "winter",
         }
         await storage.async_import_data(import_data)
@@ -423,6 +425,41 @@ class TestExportImport:
         assert storage._data["active_scenario"] == "winter"
         assert "north" in storage._data["facades"]
         mock_store.async_save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_import_resets_invalid_active_scenario(
+        self, storage, mock_store
+    ) -> None:
+        """Test import resets active_scenario if it references a non-existent scenario."""
+        import_data = {
+            "facades": {},
+            "covers": {},
+            "rules": {},
+            "scenarios": {
+                "summer": {"id": "summer", "name": "Summer"},
+            },
+            "active_scenario": "nonexistent",
+        }
+        await storage.async_import_data(import_data)
+
+        assert storage._data["active_scenario"] == "summer"
+        mock_store.async_save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_import_empty_scenarios_resets_to_everyday(
+        self, storage, mock_store
+    ) -> None:
+        """Test import with no scenarios defaults active_scenario to 'everyday'."""
+        import_data = {
+            "facades": {},
+            "covers": {},
+            "rules": {},
+            "scenarios": {},
+            "active_scenario": "anything",
+        }
+        await storage.async_import_data(import_data)
+
+        assert storage._data["active_scenario"] == "everyday"
 
 
 class TestDebouncedSave:

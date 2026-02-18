@@ -207,6 +207,71 @@ class TestScenario:
         assert "comfort_rule" in scenario.rules_disabled
 
 
+class TestRuleConditionOperatorValidation:
+    """Tests for Rule.from_dict condition_operator validation."""
+
+    def test_valid_and_operator(self) -> None:
+        """Test valid 'and' operator is preserved."""
+        data = {"id": "r1", "name": "R", "condition_operator": "and"}
+        rule = Rule.from_dict(data)
+        assert rule.condition_operator == "and"
+
+    def test_valid_or_operator(self) -> None:
+        """Test valid 'or' operator is preserved."""
+        data = {"id": "r1", "name": "R", "condition_operator": "or"}
+        rule = Rule.from_dict(data)
+        assert rule.condition_operator == "or"
+
+    def test_invalid_operator_falls_back_to_and(self) -> None:
+        """Test invalid operator defaults to 'and'."""
+        data = {"id": "r1", "name": "R", "condition_operator": "xor"}
+        rule = Rule.from_dict(data)
+        assert rule.condition_operator == "and"
+
+    def test_empty_operator_falls_back_to_and(self) -> None:
+        """Test empty string operator defaults to 'and'."""
+        data = {"id": "r1", "name": "R", "condition_operator": ""}
+        rule = Rule.from_dict(data)
+        assert rule.condition_operator == "and"
+
+    def test_missing_operator_defaults_to_and(self) -> None:
+        """Test missing operator defaults to 'and'."""
+        data = {"id": "r1", "name": "R"}
+        rule = Rule.from_dict(data)
+        assert rule.condition_operator == "and"
+
+
+class TestFacadeAzimuthNormalization:
+    """Tests for Facade.from_dict azimuth normalization."""
+
+    def test_azimuth_above_360_normalized(self) -> None:
+        """Test azimuth values above 360 are normalized."""
+        data = {"id": "f1", "name": "F", "azimuth_start": 400.0, "azimuth_end": 500.0}
+        facade = Facade.from_dict(data)
+        assert facade.azimuth_start == 40.0
+        assert facade.azimuth_end == 140.0
+
+    def test_negative_azimuth_normalized(self) -> None:
+        """Test negative azimuth values are normalized to positive."""
+        data = {"id": "f1", "name": "F", "azimuth_start": -90.0, "azimuth_end": 180.0}
+        facade = Facade.from_dict(data)
+        assert facade.azimuth_start == 270.0
+        assert facade.azimuth_end == 180.0
+
+    def test_exact_360_becomes_zero(self) -> None:
+        """Test that azimuth 360 normalizes to 0."""
+        data = {"id": "f1", "name": "F", "azimuth_start": 0.0, "azimuth_end": 360.0}
+        facade = Facade.from_dict(data)
+        assert facade.azimuth_end == 0.0
+
+    def test_normal_values_unchanged(self) -> None:
+        """Test normal azimuth values pass through unchanged."""
+        data = {"id": "f1", "name": "F", "azimuth_start": 135.0, "azimuth_end": 225.0}
+        facade = Facade.from_dict(data)
+        assert facade.azimuth_start == 135.0
+        assert facade.azimuth_end == 225.0
+
+
 class TestCoverStatus:
     """Tests for CoverStatus enum."""
 

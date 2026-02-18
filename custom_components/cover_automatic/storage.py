@@ -310,6 +310,11 @@ class CoverAutomaticStorage:
                     )
             data[section] = valid
 
+        # Validate active_scenario exists in imported scenarios
+        if data.get("active_scenario") not in data.get("scenarios", {}):
+            first_scenario = next(iter(data.get("scenarios", {})), "everyday")
+            data["active_scenario"] = first_scenario
+
         # Preserve global settings not present in import data
         _global_keys = (
             "outdoor_temp_sensor",

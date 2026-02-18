@@ -144,7 +144,8 @@
           "time_end": "End time (HH:MM)",
           "offset": "Offset (minutes)",
           "comfort_mode": "Comfort mode",
-          "weather_state": "Weather condition"
+          "weather_state": "Weather condition",
+          "facade": "Facade"
         }
       },
       "scenarios": {

@@ -560,7 +560,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             step_id="facade_add",
             data_schema=vol.Schema(
                 {
-                    vol.Required("name"): str,
+                    vol.Required("name"): vol.All(str, vol.Length(max=255)),
                     vol.Required("direction", default="south"): selector.SelectSelector(
                         selector.SelectSelectorConfig(
                             options=[
@@ -754,7 +754,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             step_id="rule_add",
             data_schema=vol.Schema(
                 {
-                    vol.Required("name"): str,
+                    vol.Required("name"): vol.All(str, vol.Length(max=255)),
                     vol.Optional("enabled", default=True): bool,
                     vol.Optional("priority", default=10): vol.All(
                         vol.Coerce(int), vol.Range(min=1, max=100)
@@ -1052,7 +1052,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             step_id="scenario_add",
             data_schema=vol.Schema(
                 {
-                    vol.Required("name"): str,
+                    vol.Required("name"): vol.All(str, vol.Length(max=255)),
                     vol.Optional("icon", default="mdi:home"): selector.IconSelector(),
                 }
             ),

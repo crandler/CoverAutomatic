@@ -147,9 +147,22 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.26
+1.0.27
 
 ## Changelog
+
+### 1.0.27 (2026-02-19)
+
+- Validate active_scenario on import: reset to first available if referenced scenario missing
+- Add missing `facade` translation key in rule_condition step (en.json + de.json)
+- Add Voluptuous schemas for all service registrations (pause, resume, set_scenario, export, import)
+- Add file size limit (1 MB) for YAML import to prevent resource exhaustion
+- Add input length validation (max 255 chars) for name fields in config flow
+- Validate condition_operator in Rule.from_dict: reject invalid values, default to "and"
+- Extend CI ruff check to include tests/ directory
+- Bump min HA version to 2025.1.0 in hacs.json
+- Fix service test helpers to accept schema kwargs
+- Add 14 new tests: condition_operator validation, azimuth normalization, file size limit, pause_all/resume_all, import scenario validation (249 total)
 
 ### 1.0.26 (2026-02-19)
 
