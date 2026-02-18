@@ -68,6 +68,9 @@ class ScenarioSelect(CoordinatorEntity[CoverAutomaticCoordinator], SelectEntity)
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected scenario."""
+        if option not in self.coordinator.storage.scenarios:
+            _LOGGER.warning("Invalid scenario selected: %s", option)
+            return
         self.coordinator.storage.active_scenario = option
         await self.coordinator.storage.async_save()
         await self.coordinator.async_request_refresh()

@@ -147,9 +147,17 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.25
+1.0.26
 
 ## Changelog
+
+### 1.0.26 (2026-02-19)
+
+- Remove 10 unused constants from `const.py` (dead code cleanup)
+- Add scenario validation in `select.py`: reject invalid scenario selections
+- Fix German Umlaute in `config_flow.py` UI labels (10 labels corrected)
+- Add comprehensive `test_config_flow.py` (53 new tests for ConfigFlow + OptionsFlow)
+- Update existing select platform test for new validation behavior
 
 ### 1.0.25 (2026-02-19)
 

@@ -503,7 +503,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 return await self.async_step_facade_edit()
 
         storage = self._get_storage()
-        facade_options = [{"value": "add", "label": "+ Neue Fassade hinzufuegen"}]
+        facade_options = [{"value": "add", "label": "+ Neue Fassade hinzufügen"}]
 
         if storage:
             for facade_id, facade in storage.facades.items():
@@ -566,7 +566,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                             options=[
                                 {"value": "north", "label": "Nord"},
                                 {"value": "east", "label": "Ost"},
-                                {"value": "south", "label": "Sued"},
+                                {"value": "south", "label": "Süd"},
                                 {"value": "west", "label": "West"},
                             ],
                             mode=selector.SelectSelectorMode.DROPDOWN,
@@ -616,7 +616,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                                     options=[
                                         {"value": "north", "label": "Nord"},
                                         {"value": "east", "label": "Ost"},
-                                        {"value": "south", "label": "Sued"},
+                                        {"value": "south", "label": "Süd"},
                                         {"value": "west", "label": "West"},
                                     ],
                                     mode=selector.SelectSelectorMode.DROPDOWN,
@@ -659,7 +659,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                             options=[
                                 {"value": "north", "label": "Nord"},
                                 {"value": "east", "label": "Ost"},
-                                {"value": "south", "label": "Sued"},
+                                {"value": "south", "label": "Süd"},
                                 {"value": "west", "label": "West"},
                             ],
                             mode=selector.SelectSelectorMode.DROPDOWN,
@@ -696,7 +696,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 return await self.async_step_rule_edit()
 
         storage = self._get_storage()
-        rule_options = [{"value": "add", "label": "+ Neue Regel hinzufuegen"}]
+        rule_options = [{"value": "add", "label": "+ Neue Regel hinzufügen"}]
 
         if storage:
             for rule_id, rule in storage.rules.items():
@@ -907,9 +907,9 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
 
         condition_types = [
             {"value": "sun_on_facade", "label": "Sonne auf Fassade"},
-            {"value": "sun_elevation_above", "label": "Sonnenhoehe ueber"},
-            {"value": "sun_elevation_below", "label": "Sonnenhoehe unter"},
-            {"value": "temperature_above", "label": "Temperatur ueber"},
+            {"value": "sun_elevation_above", "label": "Sonnenhöhe über"},
+            {"value": "sun_elevation_below", "label": "Sonnenhöhe unter"},
+            {"value": "temperature_above", "label": "Temperatur über"},
             {"value": "temperature_below", "label": "Temperatur unter"},
             {"value": "temperature_comfort", "label": "Komfort-Modus"},
             {"value": "time_between", "label": "Zeit zwischen"},
@@ -958,7 +958,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                     vol.Optional("comfort_mode", default="cooling"): selector.SelectSelector(
                         selector.SelectSelectorConfig(
                             options=[
-                                {"value": "cooling", "label": "Kuehlung"},
+                                {"value": "cooling", "label": "Kühlung"},
                                 {"value": "heating", "label": "Heizung"},
                                 {"value": "neutral", "label": "Neutral"},
                             ],
@@ -969,7 +969,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                         selector.SelectSelectorConfig(
                             options=[
                                 {"value": "sunny", "label": "Sonnig"},
-                                {"value": "cloudy", "label": "Bewoelkt"},
+                                {"value": "cloudy", "label": "Bewölkt"},
                                 {"value": "rainy", "label": "Regnerisch"},
                                 {"value": "windy", "label": "Windig"},
                             ],
@@ -997,7 +997,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 return await self.async_step_scenario_edit()
 
         storage = self._get_storage()
-        scenario_options = [{"value": "add", "label": "+ Neues Szenario hinzufuegen"}]
+        scenario_options = [{"value": "add", "label": "+ Neues Szenario hinzufügen"}]
 
         if storage:
             active = storage.active_scenario

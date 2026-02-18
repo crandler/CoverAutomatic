@@ -310,6 +310,10 @@ class TestSelectPlatform:
         from custom_components.cover_automatic.select import ScenarioSelect
 
         mock_coordinator.storage.active_scenario = "everyday"
+        mock_coordinator.storage.scenarios = {
+            "everyday": Scenario(id="everyday", name="Everyday"),
+            "vacation": Scenario(id="vacation", name="Vacation"),
+        }
 
         select = ScenarioSelect(mock_coordinator, "entry123")
         select.hass = MagicMock()
@@ -320,6 +324,25 @@ class TestSelectPlatform:
         assert mock_coordinator.storage.active_scenario == "vacation"
         mock_coordinator.storage.async_save.assert_called_once()
         mock_coordinator.async_request_refresh.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_scenario_select_rejects_invalid(self, mock_coordinator) -> None:
+        """Test selecting an invalid scenario is rejected."""
+        from custom_components.cover_automatic.select import ScenarioSelect
+
+        mock_coordinator.storage.active_scenario = "everyday"
+        mock_coordinator.storage.scenarios = {
+            "everyday": Scenario(id="everyday", name="Everyday"),
+        }
+
+        select = ScenarioSelect(mock_coordinator, "entry123")
+        select.hass = MagicMock()
+        select.async_write_ha_state = MagicMock()
+
+        await select.async_select_option("nonexistent")
+
+        assert mock_coordinator.storage.active_scenario == "everyday"
+        mock_coordinator.storage.async_save.assert_not_called()
 
 
 class TestNumberPlatform:
