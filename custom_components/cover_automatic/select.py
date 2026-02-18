@@ -11,21 +11,21 @@ from .const import DOMAIN
 from .coordinator import CoverAutomaticCoordinator
 
 if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+    from . import CoverAutomaticConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: CoverAutomaticConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up select entities."""
-    data = hass.data[DOMAIN][entry.entry_id]
-    coordinator: CoverAutomaticCoordinator = data["coordinator"]
+    coordinator = entry.runtime_data.coordinator
 
     async_add_entities([ScenarioSelect(coordinator, entry.entry_id)])
 

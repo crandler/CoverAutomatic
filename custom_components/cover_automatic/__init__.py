@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
@@ -13,10 +14,18 @@ from .coordinator import CoverAutomaticCoordinator
 from .services import async_setup_services, async_unload_services
 from .storage import CoverAutomaticStorage
 
-if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
-
 _LOGGER = logging.getLogger(__name__)
+
+
+@dataclass
+class CoverAutomaticRuntimeData:
+    """Runtime data for CoverAutomatic integration."""
+
+    coordinator: CoverAutomaticCoordinator
+    storage: CoverAutomaticStorage
+
+
+type CoverAutomaticConfigEntry = ConfigEntry[CoverAutomaticRuntimeData]
 
 PLATFORMS_LIST: list[Platform] = [
     Platform.SWITCH,
@@ -31,13 +40,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntry) -> bool:
     """Set up CoverAutomatic from a config entry."""
-    hass.data.setdefault(DOMAIN, {})
-
     storage = CoverAutomaticStorage(hass)
     scan_interval = entry.options.get("scan_interval", 60)
-    coordinator = CoverAutomaticCoordinator(hass, storage, scan_interval)
+    coordinator = CoverAutomaticCoordinator(
+        hass, storage, scan_interval, config_entry=entry
+    )
 
     await coordinator.async_setup()
 
@@ -78,10 +87,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await coordinator.async_config_entry_first_refresh()
 
-    hass.data[DOMAIN][entry.entry_id] = {
-        "coordinator": coordinator,
-        "storage": storage,
-    }
+    entry.runtime_data = CoverAutomaticRuntimeData(
+        coordinator=coordinator,
+        storage=storage,
+    )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS_LIST)
 
@@ -92,21 +101,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS_LIST)
 
-    if unload_ok:
-        hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
-    else:
+    if not unload_ok:
         # Ensure coordinator shutdown even on failed platform unload
-        data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
-        if data:
-            coordinator = data.get("coordinator")
-            if coordinator:
-                await coordinator.async_shutdown()
+        if hasattr(entry, "runtime_data") and entry.runtime_data:
+            await entry.runtime_data.coordinator.async_shutdown()
 
-    if not hass.data.get(DOMAIN):
+    # Unload services if no entries remain
+    remaining = [
+        e for e in hass.config_entries.async_entries(DOMAIN)
+        if e.entry_id != entry.entry_id
+    ]
+    if not remaining:
         await async_unload_services(hass)
 
     return unload_ok

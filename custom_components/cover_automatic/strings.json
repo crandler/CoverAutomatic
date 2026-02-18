@@ -125,6 +125,7 @@
           "name": "Name",
           "enabled": "Enabled",
           "priority": "Priority",
+          "condition_operator": "Condition logic",
           "target_position": "Target position (%)",
           "add_condition": "Add condition",
           "delete": "Delete this rule"
@@ -167,6 +168,7 @@
         "data": {
           "name": "Name",
           "icon": "Icon",
+          "rules_disabled": "Disabled rules in this scenario",
           "activate": "Activate this scenario",
           "delete": "Delete this scenario"
         }
@@ -174,7 +176,9 @@
     },
     "error": {
       "name_required": "Name is required.",
-      "already_exists": "An item with this name already exists."
+      "already_exists": "An item with this name already exists.",
+      "min_must_be_less_than_max": "Minimum must be less than maximum.",
+      "invalid_azimuth_range": "Start and end azimuth must be different."
     }
   },
   "entity": {

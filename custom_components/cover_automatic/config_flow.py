@@ -202,27 +202,24 @@ class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
-        return CoverAutomaticOptionsFlow(config_entry)
+        return CoverAutomaticOptionsFlow()
 
 
 class CoverAutomaticOptionsFlow(OptionsFlow):
     """Handle options flow for CoverAutomatic."""
 
-    def __init__(self, config_entry) -> None:
+    def __init__(self) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
         self._selected_cover: str | None = None
         self._selected_facade: str | None = None
         self._selected_rule: str | None = None
         self._selected_scenario: str | None = None
 
     def _get_storage(self):
-        """Get storage from hass.data."""
-        if DOMAIN not in self.hass.data:
-            return None
-        for entry_data in self.hass.data[DOMAIN].values():
-            if "storage" in entry_data:
-                return entry_data["storage"]
+        """Get storage from config entry runtime_data."""
+        for entry in self.hass.config_entries.async_entries(DOMAIN):
+            if hasattr(entry, "runtime_data") and entry.runtime_data:
+                return entry.runtime_data.storage
         return None
 
     async def async_step_init(
@@ -409,9 +406,9 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             await storage.async_save()
 
             # Refresh coordinator state tracking
-            for entry_data in self.hass.data[DOMAIN].values():
-                if "coordinator" in entry_data:
-                    entry_data["coordinator"].refresh_state_tracking()
+            for entry in self.hass.config_entries.async_entries(DOMAIN):
+                if hasattr(entry, "runtime_data") and entry.runtime_data:
+                    entry.runtime_data.coordinator.refresh_state_tracking()
 
             return self.async_create_entry(title="", data=self.config_entry.options)
 

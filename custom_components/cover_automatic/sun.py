@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from homeassistant.components.sun import STATE_ABOVE_HORIZON
 from homeassistant.const import SUN_EVENT_SUNRISE, SUN_EVENT_SUNSET
 from homeassistant.helpers.sun import get_astral_event_date
 from homeassistant.util import dt as dt_util
@@ -39,14 +38,6 @@ def get_sun_position(hass: HomeAssistant) -> tuple[float, float] | None:
     except (ValueError, TypeError) as err:
         _LOGGER.error("Error reading sun position: %s", err)
         return None
-
-
-def is_sun_above_horizon(hass: HomeAssistant) -> bool:
-    """Check if sun is above horizon."""
-    sun_state = hass.states.get(SUN_ENTITY_ID)
-    if sun_state is None:
-        return False
-    return sun_state.state == STATE_ABOVE_HORIZON
 
 
 def is_sun_on_facade(hass: HomeAssistant, facade: Facade) -> bool:

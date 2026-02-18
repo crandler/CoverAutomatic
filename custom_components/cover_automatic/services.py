@@ -66,41 +66,43 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     if hass.services.has_service(DOMAIN, "pause"):
         return
 
-    def _get_entries() -> dict:
-        """Get all integration entries safely."""
-        return hass.data.get(DOMAIN, {})
+    def _get_entries():
+        """Get all integration entry runtime data safely."""
+        result = {}
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            if hasattr(entry, "runtime_data") and entry.runtime_data:
+                result[entry.entry_id] = entry.runtime_data
+        return result
 
     async def handle_pause(call: ServiceCall) -> None:
         """Handle pause service call."""
         entity_id = call.data.get("entity_id")
         for entry_data in _get_entries().values():
-            coordinator = entry_data["coordinator"]
-            if entity_id in coordinator.storage.covers:
-                coordinator.pause_cover(coordinator.storage.covers[entity_id])
+            if entity_id in entry_data.coordinator.storage.covers:
+                entry_data.coordinator.pause_cover(
+                    entry_data.coordinator.storage.covers[entity_id]
+                )
                 break
 
     async def handle_resume(call: ServiceCall) -> None:
         """Handle resume service call."""
         entity_id = call.data.get("entity_id")
         for entry_data in _get_entries().values():
-            coordinator = entry_data["coordinator"]
-            if entity_id in coordinator.storage.covers:
-                coordinator.resume_cover(entity_id)
+            if entity_id in entry_data.coordinator.storage.covers:
+                entry_data.coordinator.resume_cover(entity_id)
                 break
 
     async def handle_pause_all(call: ServiceCall) -> None:
         """Handle pause_all service call."""
         for entry_data in _get_entries().values():
-            coordinator = entry_data["coordinator"]
-            for cover in coordinator.storage.covers.values():
-                coordinator.pause_cover(cover)
+            for cover in entry_data.coordinator.storage.covers.values():
+                entry_data.coordinator.pause_cover(cover)
 
     async def handle_resume_all(call: ServiceCall) -> None:
         """Handle resume_all service call."""
         for entry_data in _get_entries().values():
-            coordinator = entry_data["coordinator"]
-            for entity_id in coordinator.storage.covers:
-                coordinator.resume_cover(entity_id)
+            for entity_id in entry_data.coordinator.storage.covers:
+                entry_data.coordinator.resume_cover(entity_id)
 
     async def handle_set_scenario(call: ServiceCall) -> None:
         """Handle set_scenario service call."""
@@ -111,12 +113,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         found = False
         for entry_data in _get_entries().values():
-            storage = entry_data["storage"]
-            coordinator = entry_data["coordinator"]
-            if scenario in storage.scenarios:
-                storage.active_scenario = scenario
-                await storage.async_save()
-                await coordinator.async_request_refresh()
+            if scenario in entry_data.storage.scenarios:
+                entry_data.storage.active_scenario = scenario
+                await entry_data.storage.async_save()
+                await entry_data.coordinator.async_request_refresh()
                 found = True
 
         if found:
@@ -124,7 +124,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         else:
             # Log error once with available scenarios from first entry
             for entry_data in _get_entries().values():
-                available = list(entry_data["storage"].scenarios.keys())
+                available = list(entry_data.storage.scenarios.keys())
                 _LOGGER.error(
                     "Unknown scenario '%s'. Available: %s",
                     scenario,
@@ -149,8 +149,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             return
 
         for entry_data in _get_entries().values():
-            storage = entry_data["storage"]
-            data = storage.get_raw_data()
+            data = entry_data.storage.get_raw_data()
 
             def write_yaml():
                 with open(validated_path, "w", encoding="utf-8") as f:
@@ -196,15 +195,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             return
 
         for entry_data in _get_entries().values():
-            storage = entry_data["storage"]
-            coordinator = entry_data["coordinator"]
             try:
-                await storage.async_import_data(data)
+                await entry_data.storage.async_import_data(data)
             except (ValueError, TypeError) as err:
                 _LOGGER.error("Import failed: invalid data format: %s", err)
                 return
-            coordinator.refresh_state_tracking()
-            await coordinator.async_request_refresh()
+            entry_data.coordinator.refresh_state_tracking()
+            await entry_data.coordinator.async_request_refresh()
             _LOGGER.info("Configuration imported from %s", validated_path)
             break
 

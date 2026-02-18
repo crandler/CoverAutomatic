@@ -18,6 +18,7 @@ from .storage import CoverAutomaticStorage
 from .sun import SUN_ENTITY_ID
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import Event, HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,7 +34,11 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinate data updates and rule evaluation."""
 
     def __init__(
-        self, hass: HomeAssistant, storage: CoverAutomaticStorage, scan_interval: int = DEFAULT_SCAN_INTERVAL
+        self,
+        hass: HomeAssistant,
+        storage: CoverAutomaticStorage,
+        scan_interval: int = DEFAULT_SCAN_INTERVAL,
+        config_entry: ConfigEntry | None = None,
     ) -> None:
         """Initialize coordinator."""
         super().__init__(
@@ -41,6 +46,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER,
             name=DOMAIN,
             update_interval=timedelta(seconds=scan_interval),
+            config_entry=config_entry,
         )
         self.storage = storage
         self.engine = RuleEngine(hass, storage)

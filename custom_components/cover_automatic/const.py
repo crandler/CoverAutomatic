@@ -26,12 +26,6 @@ CONDITION_TIME_AFTER_SUNRISE: Final = "time_after_sunrise"
 CONDITION_TIME_AFTER_SUNSET: Final = "time_after_sunset"
 CONDITION_STATE_IS: Final = "state_is"
 
-# Scenarios
-DEFAULT_SCENARIOS: Final = ["everyday", "summer", "winter", "vacation", "cinema", "manual"]
-
 # Storage
 STORAGE_KEY: Final = f"{DOMAIN}.storage"
 STORAGE_VERSION: Final = 1
-
-# Platforms
-PLATFORMS: Final = ["switch", "sensor", "select", "number"]

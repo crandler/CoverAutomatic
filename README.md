@@ -45,7 +45,7 @@ In no event shall the author be liable for any claim, damages or other liability
 
 ## Requirements
 
-- Home Assistant 2024.1.0 or newer
+- Home Assistant 2025.12.0 or newer
 - HACS (Home Assistant Community Store) installed
 - Existing cover entities to control
 
@@ -147,9 +147,19 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.24
+1.0.25
 
 ## Changelog
+
+### 1.0.25 (2026-02-19)
+
+- Fix OptionsFlow: remove deprecated manual `self.config_entry` assignment (HA 2025.12+ compatibility)
+- Fix DataUpdateCoordinator: pass `config_entry` explicitly to `super().__init__()` (HA 2026.8 deprecation)
+- Migrate `hass.data[DOMAIN]` to `entry.runtime_data` with typed dataclass
+- Add missing `strings.json` keys: `condition_operator`, `rules_disabled`, error messages
+- Fix `de.json` umlaut: `muessen` -> `müssen`
+- Remove dead code: `is_sun_above_horizon()`, `DEFAULT_SCENARIOS`, `PLATFORMS`
+- Update CI to Python 3.12/3.13
 
 ### 1.0.24 (2026-02-14)
 

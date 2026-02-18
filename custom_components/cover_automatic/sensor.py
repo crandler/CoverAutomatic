@@ -13,21 +13,21 @@ from .models import CoverStatus
 from .sun import get_facade_sun_times
 
 if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+    from . import CoverAutomaticConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: CoverAutomaticConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up sensor entities."""
-    data = hass.data[DOMAIN][entry.entry_id]
-    coordinator: CoverAutomaticCoordinator = data["coordinator"]
+    coordinator = entry.runtime_data.coordinator
 
     entities: list[SensorEntity] = []
 

@@ -1,6 +1,7 @@
 """Tests for CoverAutomatic services."""
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,6 +12,22 @@ from custom_components.cover_automatic.services import (
     async_setup_services,
     async_unload_services,
 )
+
+
+@dataclass
+class MockRuntimeData:
+    """Mock runtime data for tests."""
+
+    coordinator: MagicMock
+    storage: MagicMock
+
+
+def _make_mock_entry(coordinator, storage, entry_id="entry1"):
+    """Create a mock config entry with runtime_data."""
+    entry = MagicMock()
+    entry.entry_id = entry_id
+    entry.runtime_data = MockRuntimeData(coordinator=coordinator, storage=storage)
+    return entry
 
 
 class TestPathValidation:
@@ -66,7 +83,8 @@ class TestServiceSetup:
         hass.services.has_service = MagicMock(return_value=False)
         hass.services.async_register = MagicMock()
         hass.services.async_remove = MagicMock()
-        hass.data = {}
+        hass.config_entries = MagicMock()
+        hass.config_entries.async_entries = MagicMock(return_value=[])
         return hass
 
     @pytest.mark.asyncio
@@ -141,24 +159,20 @@ class TestPauseResumeServices:
 
         mock_coordinator = MagicMock()
         mock_coordinator.storage = mock_storage
-        mock_coordinator._pause_cover = MagicMock()
+        mock_coordinator.pause_cover = MagicMock()
         mock_coordinator.resume_cover = MagicMock()
 
-        hass.data = {
-            "cover_automatic": {
-                "entry1": {
-                    "coordinator": mock_coordinator,
-                    "storage": mock_storage,
-                }
-            }
-        }
+        mock_entry = _make_mock_entry(mock_coordinator, mock_storage)
+        hass.config_entries = MagicMock()
+        hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
         return hass, mock_coordinator, mock_cover
 
     @pytest.mark.asyncio
     async def test_pause_service_calls_coordinator(
         self, mock_hass_with_data
     ) -> None:
-        """Test pause service calls coordinator._pause_cover."""
+        """Test pause service calls coordinator.pause_cover."""
         hass, coordinator, cover = mock_hass_with_data
 
         # Register services to capture handlers
@@ -224,14 +238,10 @@ class TestScenarioService:
         mock_coordinator.storage = mock_storage
         mock_coordinator.async_request_refresh = AsyncMock()
 
-        hass.data = {
-            "cover_automatic": {
-                "entry1": {
-                    "coordinator": mock_coordinator,
-                    "storage": mock_storage,
-                }
-            }
-        }
+        mock_entry = _make_mock_entry(mock_coordinator, mock_storage)
+        hass.config_entries = MagicMock()
+        hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
         return hass, mock_storage, mock_coordinator
 
     @pytest.mark.asyncio
@@ -310,14 +320,10 @@ class TestExportImportServices:
         mock_coordinator.refresh_state_tracking = MagicMock()
         mock_coordinator.async_request_refresh = AsyncMock()
 
-        hass.data = {
-            "cover_automatic": {
-                "entry1": {
-                    "coordinator": mock_coordinator,
-                    "storage": mock_storage,
-                }
-            }
-        }
+        mock_entry = _make_mock_entry(mock_coordinator, mock_storage)
+        hass.config_entries = MagicMock()
+        hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
         return hass, mock_storage, mock_coordinator
 
     @pytest.mark.asyncio
