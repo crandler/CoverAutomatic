@@ -700,6 +700,185 @@ class TestScenarioIntegration:
         assert result["covers"]["cover.test"]["target_position"] == 50
 
 
+class TestTiltEndToEndIntegration:
+    """Integration tests for tilt control end-to-end flow."""
+
+    @pytest.mark.asyncio
+    async def test_rule_with_tilt_applies_both(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test complete flow: rule with tilt -> evaluation -> position + tilt commands."""
+        cover = CoverConfig(
+            entity_id="cover.raffstore",
+            name="Raffstore",
+            facade_id="south",
+            auto_enabled=True,
+            min_position_change=5,
+            min_time_between_changes=0,
+        )
+        rule = Rule(
+            id="sun_tilt",
+            name="Sun Tilt",
+            enabled=True,
+            priority=10,
+            conditions=[
+                Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.outdoor_temp", "value": 20},
+                ),
+            ],
+            target_position=30,
+            target_tilt_position=50,
+        )
+
+        mock_storage.facades = {}
+        mock_storage.covers = {"cover.raffstore": cover}
+        mock_storage.rules = {"sun_tilt": rule}
+        mock_storage._data = {
+            "covers": {
+                "cover.raffstore": {
+                    "auto_enabled": True,
+                    "min_position_change": 5,
+                    "min_time_between_changes": 0,
+                    "last_position_change": None,
+                    "inverted": False,
+                    "supports_tilt": True,
+                    "inverted_tilt": False,
+                }
+            },
+            "facades": {},
+            "rules": {},
+            "scenarios": {},
+        }
+        mock_storage.get_cover_raw.return_value = mock_storage._data["covers"]["cover.raffstore"]
+
+        mock_hass.states.get.side_effect = lambda entity_id: {
+            "sensor.outdoor_temp": MockState("25.0"),
+            "cover.raffstore": MockState(
+                "open", {"current_position": 100, "supported_features": 143}
+            ),
+        }.get(entity_id)
+
+        result = await coordinator._async_update_data()
+
+        # Verify rule evaluated with tilt
+        assert result["covers"]["cover.raffstore"]["target_position"] == 30
+        assert result["covers"]["cover.raffstore"]["target_tilt_position"] == 50
+
+        # Verify position service was called
+        mock_hass.services.async_call.assert_called_once_with(
+            "cover",
+            "set_cover_position",
+            {"entity_id": "cover.raffstore", "position": 30},
+            blocking=False,
+        )
+
+    @pytest.mark.asyncio
+    async def test_rule_without_tilt_no_tilt_sent(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test rule without tilt_position does not send tilt command."""
+        cover = CoverConfig(
+            entity_id="cover.basic",
+            name="Basic",
+            auto_enabled=True,
+            min_position_change=5,
+            min_time_between_changes=0,
+        )
+        rule = Rule(
+            id="basic_rule",
+            name="Basic Rule",
+            enabled=True,
+            conditions=[],
+            target_position=40,
+            # No target_tilt_position
+        )
+
+        mock_storage.facades = {}
+        mock_storage.covers = {"cover.basic": cover}
+        mock_storage.rules = {"basic_rule": rule}
+        mock_storage._data = {
+            "covers": {
+                "cover.basic": {
+                    "auto_enabled": True,
+                    "min_position_change": 5,
+                    "min_time_between_changes": 0,
+                    "last_position_change": None,
+                    "inverted": False,
+                    "supports_tilt": True,
+                    "inverted_tilt": False,
+                }
+            },
+            "facades": {},
+            "rules": {},
+            "scenarios": {},
+        }
+        mock_storage.get_cover_raw.return_value = mock_storage._data["covers"]["cover.basic"]
+
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 100, "supported_features": 143}
+        )
+
+        result = await coordinator._async_update_data()
+
+        assert result["covers"]["cover.basic"]["target_position"] == 40
+        assert result["covers"]["cover.basic"]["target_tilt_position"] is None
+
+        # Only position call, no tilt
+        mock_hass.services.async_call.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_tilt_inverted_end_to_end(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test inverted tilt end-to-end: 100 - target_tilt applied."""
+        cover = CoverConfig(
+            entity_id="cover.inv_tilt",
+            name="Inverted Tilt",
+            auto_enabled=True,
+            min_position_change=5,
+            min_time_between_changes=0,
+        )
+        rule = Rule(
+            id="inv_tilt_rule",
+            name="Inv Tilt",
+            enabled=True,
+            conditions=[],
+            target_position=30,
+            target_tilt_position=20,
+        )
+
+        mock_storage.facades = {}
+        mock_storage.covers = {"cover.inv_tilt": cover}
+        mock_storage.rules = {"inv_tilt_rule": rule}
+        mock_storage._data = {
+            "covers": {
+                "cover.inv_tilt": {
+                    "auto_enabled": True,
+                    "min_position_change": 5,
+                    "min_time_between_changes": 0,
+                    "last_position_change": None,
+                    "inverted": False,
+                    "supports_tilt": True,
+                    "inverted_tilt": True,
+                }
+            },
+            "facades": {},
+            "rules": {},
+            "scenarios": {},
+        }
+        mock_storage.get_cover_raw.return_value = mock_storage._data["covers"]["cover.inv_tilt"]
+
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 100, "supported_features": 143}
+        )
+
+        await coordinator._async_update_data()
+
+        # Tilt should be inverted: 100 - 20 = 80
+        assert coordinator._last_tilt_positions.get("cover.inv_tilt") == 80
+
+
 class TestInvertedCoverIntegration:
     """Integration tests for inverted covers."""
 

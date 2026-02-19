@@ -151,6 +151,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.0.33 (2026-02-19)
+
+- Add 31 new tests closing coverage gaps identified by code review (359 total)
+- Engine: sun elevation above/below, comfort mode string params and invalid fallback
+- Coordinator: tilt-only update (no position change), _schedule_tilt cancellation, _update_last_position_from_state error handling
+- Coordinator: vent sensor with tilt position, resume_cover assertions, _send_tilt_delayed timing
+- Integration: tilt end-to-end (rule -> evaluation -> position + tilt), inverted tilt flow
+- Fix misleading test comment in test_time_after_sunrise_false
+
 ### 1.0.32 (2026-02-19)
 
 - Fix target_tilt_position=0 silently discarded in rule add/edit (falsy `or None` pattern)

@@ -759,7 +759,7 @@ class TestTimeAfterSunriseCondition:
         """Test time_after_sunrise returns False when current time is before sunrise + offset."""
         sunrise_ts = 1_700_000_000.0
         mock_get_sunrise.return_value = sunrise_ts
-        # 10 minutes before sunrise+60 minutes offset
+        # 1 second before sunrise + 10-minute offset
         mock_dt_util.now.return_value.timestamp.return_value = sunrise_ts + 600.0 - 1
 
         condition = Condition(
@@ -844,6 +844,193 @@ class TestTimeAfterSunsetCondition:
 
         result = engine._eval_time_after_sun_event(condition, mock_get_sunset)
 
+        assert result is False
+
+
+class TestSunElevationCondition:
+    """Tests for sun elevation above/below condition."""
+
+    @patch("custom_components.cover_automatic.engine.get_sun_position")
+    def test_sun_elevation_above_true(
+        self, mock_get_sun, engine
+    ) -> None:
+        """Test sun_elevation_above returns True when elevation exceeds threshold."""
+        mock_get_sun.return_value = (180.0, 45.0)  # azimuth, elevation
+
+        condition = Condition(
+            type=ConditionType.SUN_ELEVATION_ABOVE,
+            params={"value": 30},
+        )
+        result = engine._eval_sun_elevation(condition, above=True)
+        assert result is True
+
+    @patch("custom_components.cover_automatic.engine.get_sun_position")
+    def test_sun_elevation_above_false(
+        self, mock_get_sun, engine
+    ) -> None:
+        """Test sun_elevation_above returns False when elevation is below threshold."""
+        mock_get_sun.return_value = (180.0, 15.0)
+
+        condition = Condition(
+            type=ConditionType.SUN_ELEVATION_ABOVE,
+            params={"value": 30},
+        )
+        result = engine._eval_sun_elevation(condition, above=True)
+        assert result is False
+
+    @patch("custom_components.cover_automatic.engine.get_sun_position")
+    def test_sun_elevation_below_true(
+        self, mock_get_sun, engine
+    ) -> None:
+        """Test sun_elevation_below returns True when elevation is below threshold."""
+        mock_get_sun.return_value = (180.0, 10.0)
+
+        condition = Condition(
+            type=ConditionType.SUN_ELEVATION_BELOW,
+            params={"value": 20},
+        )
+        result = engine._eval_sun_elevation(condition, above=False)
+        assert result is True
+
+    @patch("custom_components.cover_automatic.engine.get_sun_position")
+    def test_sun_elevation_below_false(
+        self, mock_get_sun, engine
+    ) -> None:
+        """Test sun_elevation_below returns False when elevation exceeds threshold."""
+        mock_get_sun.return_value = (180.0, 35.0)
+
+        condition = Condition(
+            type=ConditionType.SUN_ELEVATION_BELOW,
+            params={"value": 20},
+        )
+        result = engine._eval_sun_elevation(condition, above=False)
+        assert result is False
+
+    @patch("custom_components.cover_automatic.engine.get_sun_position")
+    def test_sun_elevation_no_position(
+        self, mock_get_sun, engine
+    ) -> None:
+        """Test sun elevation returns False when sun position is unavailable."""
+        mock_get_sun.return_value = None
+
+        condition = Condition(
+            type=ConditionType.SUN_ELEVATION_ABOVE,
+            params={"value": 10},
+        )
+        assert engine._eval_sun_elevation(condition, above=True) is False
+        assert engine._eval_sun_elevation(condition, above=False) is False
+
+    @patch("custom_components.cover_automatic.engine.get_sun_position")
+    def test_sun_elevation_at_exact_threshold(
+        self, mock_get_sun, engine
+    ) -> None:
+        """Test sun elevation at exact threshold returns False (strict > / <)."""
+        mock_get_sun.return_value = (180.0, 30.0)
+
+        condition = Condition(
+            type=ConditionType.SUN_ELEVATION_ABOVE,
+            params={"value": 30},
+        )
+        # 30 > 30 is False
+        assert engine._eval_sun_elevation(condition, above=True) is False
+        # 30 < 30 is False
+        assert engine._eval_sun_elevation(condition, above=False) is False
+
+
+class TestComfortModeEdgeCases:
+    """Tests for comfort mode string parameter and invalid fallback."""
+
+    def test_comfort_mode_string_cooling(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """Test comfort condition with string 'cooling' (from deserialized data)."""
+        mock_hass.states.get.return_value = MockState("28.0")
+
+        condition = Condition(
+            type=ConditionType.TEMPERATURE_COMFORT,
+            params={"mode": "cooling"},
+        )
+        result = engine._eval_temp_comfort(condition)
+        assert result is True
+
+    def test_comfort_mode_string_heating(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """Test comfort condition with string 'heating'."""
+        mock_hass.states.get.return_value = MockState("18.0")
+
+        condition = Condition(
+            type=ConditionType.TEMPERATURE_COMFORT,
+            params={"mode": "heating"},
+        )
+        result = engine._eval_temp_comfort(condition)
+        assert result is True
+
+    def test_comfort_mode_string_neutral(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """Test comfort condition with string 'neutral'."""
+        mock_hass.states.get.return_value = MockState("23.0")
+
+        condition = Condition(
+            type=ConditionType.TEMPERATURE_COMFORT,
+            params={"mode": "neutral"},
+        )
+        result = engine._eval_temp_comfort(condition)
+        assert result is True
+
+    def test_comfort_mode_invalid_string_falls_back_to_cooling(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """Test invalid mode string falls back to ComfortMode.COOLING."""
+        mock_hass.states.get.return_value = MockState("28.0")
+
+        condition = Condition(
+            type=ConditionType.TEMPERATURE_COMFORT,
+            params={"mode": "invalid_mode"},
+        )
+        # Falls back to COOLING; temp 28 >= comfort_max 25 -> COOLING matches
+        result = engine._eval_temp_comfort(condition)
+        assert result is True
+
+    def test_comfort_mode_invalid_string_no_match(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """Test invalid mode falls back to COOLING but doesn't match HEATING temp."""
+        mock_hass.states.get.return_value = MockState("18.0")
+
+        condition = Condition(
+            type=ConditionType.TEMPERATURE_COMFORT,
+            params={"mode": "invalid_mode"},
+        )
+        # Falls back to COOLING; temp 18 <= comfort_min 21 -> HEATING != COOLING
+        result = engine._eval_temp_comfort(condition)
+        assert result is False
+
+    def test_comfort_mode_no_sensor(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """Test comfort condition returns False when no sensor configured."""
+        mock_storage.indoor_temp_sensor = None
+
+        condition = Condition(
+            type=ConditionType.TEMPERATURE_COMFORT,
+            params={"mode": "cooling"},
+        )
+        result = engine._eval_temp_comfort(condition)
+        assert result is False
+
+    def test_comfort_mode_invalid_temp_state(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """Test comfort condition returns False when temp state is non-numeric."""
+        mock_hass.states.get.return_value = MockState("unavailable")
+
+        condition = Condition(
+            type=ConditionType.TEMPERATURE_COMFORT,
+            params={"mode": "cooling"},
+        )
+        result = engine._eval_temp_comfort(condition)
         assert result is False
 
 
