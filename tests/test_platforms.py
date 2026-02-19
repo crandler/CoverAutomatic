@@ -405,3 +405,138 @@ class TestNumberPlatform:
         assert number._attr_native_min_value == 0
         assert number._attr_native_max_value == 480
         assert number._attr_native_step == 5
+
+
+class TestSelectCurrentOptionFallback:
+    """Tests for ScenarioSelect fallback logic when active scenario is unavailable."""
+
+    def test_current_option_fallback_when_active_not_in_options(self, mock_coordinator) -> None:
+        """Test current_option falls back to first available when active_scenario is not in options."""
+        from custom_components.cover_automatic.select import ScenarioSelect
+
+        mock_coordinator.storage.active_scenario = "deleted_scenario"
+        mock_coordinator.storage.scenarios = {
+            "everyday": Scenario(id="everyday", name="Everyday"),
+            "summer": Scenario(id="summer", name="Summer"),
+        }
+
+        select = ScenarioSelect(mock_coordinator, "entry123")
+        select.hass = MagicMock()
+
+        current = select.current_option
+        available = select.options
+        assert current == available[0]
+        assert current != "deleted_scenario"
+
+    def test_options_empty_returns_everyday_fallback(self, mock_coordinator) -> None:
+        """Test options returns ['everyday'] and current_option returns 'everyday' when no scenarios exist."""
+        from custom_components.cover_automatic.select import ScenarioSelect
+
+        mock_coordinator.storage.scenarios = {}
+        mock_coordinator.storage.active_scenario = None
+
+        select = ScenarioSelect(mock_coordinator, "entry123")
+        select.hass = MagicMock()
+
+        assert select.options == ["everyday"]
+        assert select.current_option == "everyday"
+
+
+class TestFacadeSunSensorUnknown:
+    """Tests for FacadeSunSensor returning 'unknown' in edge cases."""
+
+    def test_facade_sun_sensor_unknown_when_no_data(self, mock_coordinator) -> None:
+        """Test facade sun sensor returns 'unknown' when coordinator.data is None."""
+        from custom_components.cover_automatic.sensor import FacadeSunSensor
+
+        mock_coordinator.data = None
+
+        sensor = FacadeSunSensor(mock_coordinator, "south", "South")
+        sensor.hass = MagicMock()
+
+        assert sensor.native_value == "unknown"
+
+    def test_facade_sun_sensor_unknown_when_facade_missing(self, mock_coordinator) -> None:
+        """Test facade sun sensor returns 'unknown' when facade_id is absent from data."""
+        from custom_components.cover_automatic.sensor import FacadeSunSensor
+
+        mock_coordinator.data = {
+            "facades": {
+                "north": {"sun_on_facade": True}
+            }
+        }
+
+        sensor = FacadeSunSensor(mock_coordinator, "south", "South")
+        sensor.hass = MagicMock()
+
+        assert sensor.native_value == "unknown"
+
+
+class TestFacadeSunTimeSensorExceptions:
+    """Tests for FacadeSunEntrySensor and FacadeSunExitSensor exception handling."""
+
+    def test_sun_entry_sensor_returns_none_on_exception(self, mock_coordinator, mock_hass) -> None:
+        """Test sun entry sensor returns None when get_facade_sun_times raises."""
+        from custom_components.cover_automatic.sensor import FacadeSunEntrySensor
+
+        mock_facade = Facade(
+            id="south",
+            name="South",
+            azimuth_start=135.0,
+            azimuth_end=225.0,
+            direction="south",
+        )
+        mock_coordinator.storage.facades = {"south": mock_facade}
+
+        sensor = FacadeSunEntrySensor(mock_coordinator, "south", "South")
+        sensor.hass = mock_hass
+
+        with patch(
+            "custom_components.cover_automatic.sensor.get_facade_sun_times",
+            side_effect=RuntimeError("test error"),
+        ):
+            assert sensor.native_value is None
+
+    def test_sun_exit_sensor_returns_none_on_exception(self, mock_coordinator, mock_hass) -> None:
+        """Test sun exit sensor returns None when get_facade_sun_times raises."""
+        from custom_components.cover_automatic.sensor import FacadeSunExitSensor
+
+        mock_facade = Facade(
+            id="south",
+            name="South",
+            azimuth_start=135.0,
+            azimuth_end=225.0,
+            direction="south",
+        )
+        mock_coordinator.storage.facades = {"south": mock_facade}
+
+        sensor = FacadeSunExitSensor(mock_coordinator, "south", "South")
+        sensor.hass = mock_hass
+
+        with patch(
+            "custom_components.cover_automatic.sensor.get_facade_sun_times",
+            side_effect=RuntimeError("test error"),
+        ):
+            assert sensor.native_value is None
+
+    def test_sun_entry_sensor_returns_none_when_facade_missing(self, mock_coordinator, mock_hass) -> None:
+        """Test sun entry sensor returns None when facade is not in storage."""
+        from custom_components.cover_automatic.sensor import FacadeSunEntrySensor
+
+        mock_coordinator.storage.facades = {}
+
+        sensor = FacadeSunEntrySensor(mock_coordinator, "south", "South")
+        sensor.hass = mock_hass
+
+        assert sensor.native_value is None
+
+    def test_sun_exit_sensor_returns_none_when_facade_missing(self, mock_coordinator, mock_hass) -> None:
+        """Test sun exit sensor returns None when facade is not in storage."""
+        from custom_components.cover_automatic.sensor import FacadeSunExitSensor
+
+        mock_coordinator.storage.facades = {}
+
+        sensor = FacadeSunExitSensor(mock_coordinator, "south", "South")
+        sensor.hass = mock_hass
+
+        assert sensor.native_value is None

@@ -521,3 +521,230 @@ class TestPauseAllResumeAllServices:
         await handlers["resume_all"](call)
 
         assert coordinator.resume_cover.call_count == 2
+
+
+class TestExportHappyPath:
+    """Tests for successful export_config execution."""
+
+    @pytest.fixture
+    def mock_hass_with_export_data(self):
+        """Create mock Home Assistant for export happy path."""
+        hass = MagicMock()
+        hass.services = MagicMock()
+        hass.services.has_service = MagicMock(return_value=False)
+        hass.services.async_register = MagicMock()
+        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *args: fn(*args) if not args else fn())
+        hass.config.path = MagicMock(return_value="/config/cover_automatic_backup.yaml")
+        hass.config.config_dir = "/config"
+
+        mock_storage = MagicMock()
+        mock_storage.get_raw_data = MagicMock(return_value={"facades": {}, "covers": {}})
+        mock_storage.async_import_data = AsyncMock()
+
+        mock_coordinator = MagicMock()
+        mock_coordinator.storage = mock_storage
+        mock_coordinator.refresh_state_tracking = MagicMock()
+        mock_coordinator.async_request_refresh = AsyncMock()
+
+        mock_entry = _make_mock_entry(mock_coordinator, mock_storage)
+        hass.config_entries = MagicMock()
+        hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+        return hass, mock_storage, mock_coordinator
+
+    @pytest.mark.asyncio
+    async def test_export_writes_yaml_file(self, mock_hass_with_export_data) -> None:
+        """Test export_config attempts to write the YAML file via executor job."""
+        hass, storage, coordinator = mock_hass_with_export_data
+
+        handlers = {}
+
+        def capture_register(domain, service, handler, **kwargs):
+            handlers[service] = handler
+
+        hass.services.async_register = capture_register
+
+        await async_setup_services(hass)
+
+        call = MagicMock()
+        call.data = {"path": "/config/backup.yaml"}
+
+        mock_path = MagicMock()
+        mock_path.exists.return_value = True
+
+        with patch(
+            "custom_components.cover_automatic.services._validate_config_path",
+            return_value=mock_path,
+        ):
+            await handlers["export_config"](call)
+
+        hass.async_add_executor_job.assert_called_once()
+
+
+class TestImportHappyPath:
+    """Tests for successful import_config execution."""
+
+    @pytest.fixture
+    def mock_hass_with_import_data(self):
+        """Create mock Home Assistant for import happy path."""
+        hass = MagicMock()
+        hass.services = MagicMock()
+        hass.services.has_service = MagicMock(return_value=False)
+        hass.services.async_register = MagicMock()
+
+        import_data = {"facades": {}, "covers": {}, "rules": {}, "scenarios": {}}
+        hass.async_add_executor_job = AsyncMock(return_value=import_data)
+        hass.config.config_dir = "/config"
+
+        mock_storage = MagicMock()
+        mock_storage.get_raw_data = MagicMock(return_value={"facades": {}, "covers": {}})
+        mock_storage.async_import_data = AsyncMock()
+
+        mock_coordinator = MagicMock()
+        mock_coordinator.storage = mock_storage
+        mock_coordinator.refresh_state_tracking = MagicMock()
+        mock_coordinator.async_request_refresh = AsyncMock()
+
+        mock_entry = _make_mock_entry(mock_coordinator, mock_storage)
+        hass.config_entries = MagicMock()
+        hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+        return hass, mock_storage, mock_coordinator, import_data
+
+    @pytest.mark.asyncio
+    async def test_import_reads_and_applies_data(
+        self, mock_hass_with_import_data
+    ) -> None:
+        """Test import_config reads the file and applies data to storage and coordinator."""
+        hass, storage, coordinator, import_data = mock_hass_with_import_data
+
+        handlers = {}
+
+        def capture_register(domain, service, handler, **kwargs):
+            handlers[service] = handler
+
+        hass.services.async_register = capture_register
+
+        await async_setup_services(hass)
+
+        call = MagicMock()
+        call.data = {"path": "/config/backup.yaml"}
+
+        mock_stat = MagicMock()
+        mock_stat.st_size = 100
+
+        mock_path = MagicMock()
+        mock_path.exists.return_value = True
+        mock_path.stat.return_value = mock_stat
+
+        with patch(
+            "custom_components.cover_automatic.services._validate_config_path",
+            return_value=mock_path,
+        ):
+            await handlers["import_config"](call)
+
+        storage.async_import_data.assert_called_once_with(import_data)
+        coordinator.refresh_state_tracking.assert_called_once()
+        coordinator.async_request_refresh.assert_called_once()
+
+
+class TestImportValidationErrors:
+    """Tests for import_config error handling from storage."""
+
+    @pytest.fixture
+    def mock_hass_for_import_errors(self):
+        """Create mock Home Assistant for import error scenarios."""
+        hass = MagicMock()
+        hass.services = MagicMock()
+        hass.services.has_service = MagicMock(return_value=False)
+        hass.services.async_register = MagicMock()
+
+        import_data = {"facades": {}, "covers": {}, "rules": {}, "scenarios": {}}
+        hass.async_add_executor_job = AsyncMock(return_value=import_data)
+        hass.config.config_dir = "/config"
+
+        mock_storage = MagicMock()
+        mock_storage.get_raw_data = MagicMock(return_value={"facades": {}, "covers": {}})
+
+        mock_coordinator = MagicMock()
+        mock_coordinator.storage = mock_storage
+        mock_coordinator.refresh_state_tracking = MagicMock()
+        mock_coordinator.async_request_refresh = AsyncMock()
+
+        mock_entry = _make_mock_entry(mock_coordinator, mock_storage)
+        hass.config_entries = MagicMock()
+        hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+        return hass, mock_storage, mock_coordinator
+
+    @pytest.mark.asyncio
+    async def test_import_value_error_from_storage(
+        self, mock_hass_for_import_errors
+    ) -> None:
+        """Test import_config catches ValueError from storage gracefully."""
+        hass, storage, coordinator = mock_hass_for_import_errors
+        storage.async_import_data = AsyncMock(side_effect=ValueError("bad data"))
+
+        handlers = {}
+
+        def capture_register(domain, service, handler, **kwargs):
+            handlers[service] = handler
+
+        hass.services.async_register = capture_register
+
+        await async_setup_services(hass)
+
+        call = MagicMock()
+        call.data = {"path": "/config/backup.yaml"}
+
+        mock_stat = MagicMock()
+        mock_stat.st_size = 100
+
+        mock_path = MagicMock()
+        mock_path.exists.return_value = True
+        mock_path.stat.return_value = mock_stat
+
+        with patch(
+            "custom_components.cover_automatic.services._validate_config_path",
+            return_value=mock_path,
+        ):
+            # Must not raise
+            await handlers["import_config"](call)
+
+        coordinator.refresh_state_tracking.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_import_type_error_from_storage(
+        self, mock_hass_for_import_errors
+    ) -> None:
+        """Test import_config catches TypeError from storage gracefully."""
+        hass, storage, coordinator = mock_hass_for_import_errors
+        storage.async_import_data = AsyncMock(side_effect=TypeError("wrong type"))
+
+        handlers = {}
+
+        def capture_register(domain, service, handler, **kwargs):
+            handlers[service] = handler
+
+        hass.services.async_register = capture_register
+
+        await async_setup_services(hass)
+
+        call = MagicMock()
+        call.data = {"path": "/config/backup.yaml"}
+
+        mock_stat = MagicMock()
+        mock_stat.st_size = 100
+
+        mock_path = MagicMock()
+        mock_path.exists.return_value = True
+        mock_path.stat.return_value = mock_stat
+
+        with patch(
+            "custom_components.cover_automatic.services._validate_config_path",
+            return_value=mock_path,
+        ):
+            # Must not raise
+            await handlers["import_config"](call)
+
+        coordinator.refresh_state_tracking.assert_not_called()

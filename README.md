@@ -147,9 +147,18 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.27
+1.0.28
 
 ## Changelog
+
+### 1.0.28 (2026-02-19)
+
+- Add 45 new tests closing coverage gaps across all modules (294 total)
+- Coordinator: state change routing, unlock restore, manual override detection, lock/vent transition, inverted lock, orphan cleanup, shutdown save flush
+- Engine: sun_on_facade facade resolution, time_after_sunrise/sunset, condition exception handling
+- Storage: corrupt entry import skip, global settings preservation, facade/cover/rule removal reference cleanup
+- Platforms: select fallback logic, facade sun sensor unknown states, sun time sensor exception handling
+- Services: export/import happy paths, import validation errors
 
 ### 1.0.27 (2026-02-19)
 

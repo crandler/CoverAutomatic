@@ -513,3 +513,298 @@ class TestDebouncedSave:
 
         with patch("asyncio.sleep", new_callable=AsyncMock):
             await storage._debounced_save()
+
+
+class TestImportCorruptEntries:
+    """Tests for async_import_data skipping corrupt entries."""
+
+    @pytest.mark.asyncio
+    async def test_import_skips_corrupt_facade(self, storage, mock_store) -> None:
+        """Corrupt facade entry (string instead of dict) is skipped; valid entry is kept."""
+        valid_facade = {
+            "id": "f1",
+            "name": "South",
+            "azimuth_start": 90.0,
+            "azimuth_end": 270.0,
+        }
+        import_data = {
+            "facades": {
+                "f1": valid_facade,
+                "corrupt_facade": "not_a_dict",
+            },
+            "covers": {},
+            "rules": {},
+            "scenarios": {"everyday": {"id": "everyday", "name": "Everyday"}},
+            "active_scenario": "everyday",
+        }
+
+        await storage.async_import_data(import_data)
+
+        assert "f1" in storage._data["facades"]
+        assert "corrupt_facade" not in storage._data["facades"]
+
+    @pytest.mark.asyncio
+    async def test_import_skips_corrupt_rule(self, storage, mock_store) -> None:
+        """Corrupt rule entry (string instead of dict) is skipped; valid entry is kept."""
+        valid_rule = {
+            "id": "r1",
+            "name": "Rule One",
+            "conditions": [],
+            "target_position": 50,
+        }
+        import_data = {
+            "facades": {},
+            "covers": {},
+            "rules": {
+                "r1": valid_rule,
+                "corrupt_rule": "not_a_dict",
+            },
+            "scenarios": {"everyday": {"id": "everyday", "name": "Everyday"}},
+            "active_scenario": "everyday",
+        }
+
+        await storage.async_import_data(import_data)
+
+        assert "r1" in storage._data["rules"]
+        assert "corrupt_rule" not in storage._data["rules"]
+
+
+class TestImportGlobalSettings:
+    """Tests for global settings preservation during async_import_data."""
+
+    @pytest.mark.asyncio
+    async def test_import_preserves_existing_global_settings(
+        self, storage, mock_store
+    ) -> None:
+        """Global settings absent from import data are preserved from existing _data."""
+        storage._data = {
+            "facades": {},
+            "covers": {},
+            "rules": {},
+            "scenarios": {},
+            "active_scenario": "everyday",
+            "outdoor_temp_sensor": "sensor.outdoor",
+            "indoor_temp_sensor": "sensor.indoor",
+            "weather_entity": "weather.home",
+            "comfort_temp_min": 18.0,
+            "comfort_temp_max": 26.0,
+        }
+        import_data = {
+            "scenarios": {"everyday": {"id": "everyday", "name": "Everyday"}},
+            "active_scenario": "everyday",
+        }
+
+        await storage.async_import_data(import_data)
+
+        assert storage._data["outdoor_temp_sensor"] == "sensor.outdoor"
+        assert storage._data["indoor_temp_sensor"] == "sensor.indoor"
+        assert storage._data["weather_entity"] == "weather.home"
+        assert storage._data["comfort_temp_min"] == 18.0
+        assert storage._data["comfort_temp_max"] == 26.0
+
+    @pytest.mark.asyncio
+    async def test_import_overwrites_global_settings_when_present(
+        self, storage, mock_store
+    ) -> None:
+        """Global settings present in import data overwrite existing values."""
+        storage._data = {
+            "facades": {},
+            "covers": {},
+            "rules": {},
+            "scenarios": {},
+            "active_scenario": "everyday",
+            "outdoor_temp_sensor": "sensor.old_outdoor",
+            "comfort_temp_min": 18.0,
+        }
+        import_data = {
+            "facades": {},
+            "covers": {},
+            "rules": {},
+            "scenarios": {"everyday": {"id": "everyday", "name": "Everyday"}},
+            "active_scenario": "everyday",
+            "outdoor_temp_sensor": "sensor.new_outdoor",
+            "comfort_temp_min": 20.0,
+        }
+
+        await storage.async_import_data(import_data)
+
+        assert storage._data["outdoor_temp_sensor"] == "sensor.new_outdoor"
+        assert storage._data["comfort_temp_min"] == 20.0
+
+
+class TestRemoveFacadeCleanup:
+    """Tests for cleanup side-effects of async_remove_facade."""
+
+    @pytest.mark.asyncio
+    async def test_remove_facade_cleans_cover_facade_references(
+        self, storage, mock_store
+    ) -> None:
+        """Covers that reference the removed facade have their facade_id set to None."""
+        storage._data = {
+            "facades": {
+                "f1": {
+                    "id": "f1",
+                    "name": "South",
+                    "azimuth_start": 90.0,
+                    "azimuth_end": 270.0,
+                    "cover_ids": ["cover.living_room"],
+                }
+            },
+            "covers": {
+                "cover.living_room": {
+                    "entity_id": "cover.living_room",
+                    "name": "Living Room",
+                    "facade_id": "f1",
+                },
+                "cover.bedroom": {
+                    "entity_id": "cover.bedroom",
+                    "name": "Bedroom",
+                    "facade_id": "f2",
+                },
+            },
+            "rules": {},
+            "scenarios": {},
+        }
+
+        await storage.async_remove_facade("f1")
+
+        assert "f1" not in storage._data["facades"]
+        assert storage._data["covers"]["cover.living_room"]["facade_id"] is None
+        # Unrelated cover must not be touched
+        assert storage._data["covers"]["cover.bedroom"]["facade_id"] == "f2"
+
+    @pytest.mark.asyncio
+    async def test_remove_facade_cleans_rule_facade_references(
+        self, storage, mock_store
+    ) -> None:
+        """Rules that reference the removed facade no longer contain its ID."""
+        storage._data = {
+            "facades": {
+                "f1": {
+                    "id": "f1",
+                    "name": "South",
+                    "azimuth_start": 90.0,
+                    "azimuth_end": 270.0,
+                    "cover_ids": [],
+                }
+            },
+            "covers": {},
+            "rules": {
+                "r1": {
+                    "id": "r1",
+                    "name": "Rule One",
+                    "facade_ids": ["f1", "f2"],
+                    "cover_ids": [],
+                    "conditions": [],
+                    "target_position": 50,
+                },
+                "r2": {
+                    "id": "r2",
+                    "name": "Rule Two",
+                    "facade_ids": ["f2"],
+                    "cover_ids": [],
+                    "conditions": [],
+                    "target_position": 0,
+                },
+            },
+            "scenarios": {},
+        }
+
+        await storage.async_remove_facade("f1")
+
+        assert "f1" not in storage._data["rules"]["r1"]["facade_ids"]
+        assert "f2" in storage._data["rules"]["r1"]["facade_ids"]
+        # Rule without the facade must remain untouched
+        assert storage._data["rules"]["r2"]["facade_ids"] == ["f2"]
+
+
+class TestRemoveCoverCleanup:
+    """Tests for cleanup side-effects of async_remove_cover."""
+
+    @pytest.mark.asyncio
+    async def test_remove_cover_cleans_rule_cover_references(
+        self, storage, mock_store
+    ) -> None:
+        """Rules that reference the removed cover no longer contain its ID."""
+        storage._data = {
+            "facades": {},
+            "covers": {
+                "cover.living_room": {
+                    "entity_id": "cover.living_room",
+                    "name": "Living Room",
+                    "facade_id": None,
+                }
+            },
+            "rules": {
+                "r1": {
+                    "id": "r1",
+                    "name": "Rule One",
+                    "facade_ids": [],
+                    "cover_ids": ["cover.living_room", "cover.bedroom"],
+                    "conditions": [],
+                    "target_position": 50,
+                },
+                "r2": {
+                    "id": "r2",
+                    "name": "Rule Two",
+                    "facade_ids": [],
+                    "cover_ids": ["cover.bedroom"],
+                    "conditions": [],
+                    "target_position": 0,
+                },
+            },
+            "scenarios": {},
+        }
+
+        await storage.async_remove_cover("cover.living_room")
+
+        assert "cover.living_room" not in storage._data["covers"]
+        assert "cover.living_room" not in storage._data["rules"]["r1"]["cover_ids"]
+        assert "cover.bedroom" in storage._data["rules"]["r1"]["cover_ids"]
+        # Rule without the cover must remain untouched
+        assert storage._data["rules"]["r2"]["cover_ids"] == ["cover.bedroom"]
+
+
+class TestRemoveRuleCleanup:
+    """Tests for cleanup side-effects of async_remove_rule."""
+
+    @pytest.mark.asyncio
+    async def test_remove_rule_cleans_scenario_disabled_references(
+        self, storage, mock_store
+    ) -> None:
+        """Scenarios that had the removed rule in rules_disabled no longer contain it."""
+        storage._data = {
+            "facades": {},
+            "covers": {},
+            "rules": {
+                "r1": {
+                    "id": "r1",
+                    "name": "Rule One",
+                    "facade_ids": [],
+                    "cover_ids": [],
+                    "conditions": [],
+                    "target_position": 0,
+                }
+            },
+            "scenarios": {
+                "vacation": {
+                    "id": "vacation",
+                    "name": "Vacation",
+                    "rules_disabled": ["r1", "r2"],
+                },
+                "everyday": {
+                    "id": "everyday",
+                    "name": "Everyday",
+                    "rules_disabled": ["r2"],
+                },
+            },
+        }
+
+        await storage.async_remove_rule("r1")
+
+        assert "r1" not in storage._data["rules"]
+        assert "r1" not in storage._data["scenarios"]["vacation"]["rules_disabled"]
+        # r2 must still be listed
+        assert "r2" in storage._data["scenarios"]["vacation"]["rules_disabled"]
+        # Scenario that never had r1 must be unchanged
+        assert storage._data["scenarios"]["everyday"]["rules_disabled"] == ["r2"]

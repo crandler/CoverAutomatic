@@ -630,3 +630,234 @@ class TestConditionOperator:
 
         assert engine._evaluate_conditions(rule_and, test_cover) is True
         assert engine._evaluate_conditions(rule_or, test_cover) is True
+
+
+class TestSunOnFacadeCondition:
+    """Tests for sun_on_facade condition evaluation."""
+
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_eval_sun_on_facade_with_explicit_facade_param(
+        self, mock_is_sun_on_facade, engine, mock_storage
+    ) -> None:
+        """Test sun_on_facade uses explicit facade param from condition."""
+        facade = Facade(
+            id="north",
+            name="North Facade",
+            azimuth_start=315.0,
+            azimuth_end=45.0,
+            direction="north",
+        )
+        mock_storage.facades = {"north": facade}
+        mock_is_sun_on_facade.return_value = True
+
+        condition = Condition(
+            type=ConditionType.SUN_ON_FACADE,
+            params={"facade": "north"},
+        )
+        cover = CoverConfig(
+            entity_id="cover.test",
+            name="Test",
+            facade_id="south",
+        )
+
+        result = engine._eval_sun_on_facade(condition, cover)
+
+        assert result is True
+        mock_is_sun_on_facade.assert_called_once_with(engine.hass, facade)
+
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_eval_sun_on_facade_falls_back_to_cover_facade(
+        self, mock_is_sun_on_facade, engine, mock_storage, test_cover
+    ) -> None:
+        """Test sun_on_facade falls back to cover.facade_id when no param given."""
+        facade = Facade(
+            id="south",
+            name="South Facade",
+            azimuth_start=135.0,
+            azimuth_end=225.0,
+            direction="south",
+        )
+        mock_storage.facades = {"south": facade}
+        mock_is_sun_on_facade.return_value = True
+
+        condition = Condition(
+            type=ConditionType.SUN_ON_FACADE,
+            params={},
+        )
+
+        result = engine._eval_sun_on_facade(condition, test_cover)
+
+        assert result is True
+        mock_is_sun_on_facade.assert_called_once_with(engine.hass, facade)
+
+    def test_eval_sun_on_facade_no_facade_returns_false(
+        self, engine, mock_storage
+    ) -> None:
+        """Test sun_on_facade returns False when no facade id available."""
+        mock_storage.facades = {}
+
+        condition = Condition(
+            type=ConditionType.SUN_ON_FACADE,
+            params={},
+        )
+        cover = CoverConfig(
+            entity_id="cover.test",
+            name="Test",
+            facade_id=None,
+        )
+
+        result = engine._eval_sun_on_facade(condition, cover)
+
+        assert result is False
+
+    def test_eval_sun_on_facade_facade_not_in_storage(
+        self, engine, mock_storage, test_cover
+    ) -> None:
+        """Test sun_on_facade returns False when facade_id not found in storage."""
+        mock_storage.facades = {}
+
+        condition = Condition(
+            type=ConditionType.SUN_ON_FACADE,
+            params={},
+        )
+
+        result = engine._eval_sun_on_facade(condition, test_cover)
+
+        assert result is False
+
+
+class TestTimeAfterSunriseCondition:
+    """Tests for time_after_sunrise condition evaluation."""
+
+    @patch("custom_components.cover_automatic.engine.dt_util")
+    @patch("custom_components.cover_automatic.engine.get_sunrise_time")
+    def test_time_after_sunrise_true(
+        self, mock_get_sunrise, mock_dt_util, engine
+    ) -> None:
+        """Test time_after_sunrise returns True when current time is past sunrise + offset."""
+        sunrise_ts = 1_700_000_000.0
+        mock_get_sunrise.return_value = sunrise_ts
+        mock_dt_util.now.return_value.timestamp.return_value = sunrise_ts + 3600.0
+
+        condition = Condition(
+            type=ConditionType.TIME_AFTER_SUNRISE,
+            params={"offset": 30},
+        )
+
+        result = engine._eval_time_after_sunrise(condition)
+
+        assert result is True
+
+    @patch("custom_components.cover_automatic.engine.dt_util")
+    @patch("custom_components.cover_automatic.engine.get_sunrise_time")
+    def test_time_after_sunrise_false(
+        self, mock_get_sunrise, mock_dt_util, engine
+    ) -> None:
+        """Test time_after_sunrise returns False when current time is before sunrise + offset."""
+        sunrise_ts = 1_700_000_000.0
+        mock_get_sunrise.return_value = sunrise_ts
+        # 10 minutes before sunrise+60 minutes offset
+        mock_dt_util.now.return_value.timestamp.return_value = sunrise_ts + 600.0 - 1
+
+        condition = Condition(
+            type=ConditionType.TIME_AFTER_SUNRISE,
+            params={"offset": 10},
+        )
+
+        result = engine._eval_time_after_sunrise(condition)
+
+        assert result is False
+
+    @patch("custom_components.cover_automatic.engine.get_sunrise_time")
+    def test_time_after_sunrise_no_sunrise(
+        self, mock_get_sunrise, engine
+    ) -> None:
+        """Test time_after_sunrise returns False when sunrise time is unavailable."""
+        mock_get_sunrise.return_value = None
+
+        condition = Condition(
+            type=ConditionType.TIME_AFTER_SUNRISE,
+            params={"offset": 0},
+        )
+
+        result = engine._eval_time_after_sunrise(condition)
+
+        assert result is False
+
+    @patch("custom_components.cover_automatic.engine.get_sunrise_time")
+    def test_time_after_sunrise_invalid_offset(
+        self, mock_get_sunrise, engine
+    ) -> None:
+        """Test time_after_sunrise returns False when offset is non-numeric."""
+        mock_get_sunrise.return_value = 1_700_000_000.0
+
+        condition = Condition(
+            type=ConditionType.TIME_AFTER_SUNRISE,
+            params={"offset": "abc"},
+        )
+
+        result = engine._eval_time_after_sunrise(condition)
+
+        assert result is False
+
+
+class TestTimeAfterSunsetCondition:
+    """Tests for time_after_sunset condition evaluation."""
+
+    @patch("custom_components.cover_automatic.engine.dt_util")
+    @patch("custom_components.cover_automatic.engine.get_sunset_time")
+    def test_time_after_sunset_true(
+        self, mock_get_sunset, mock_dt_util, engine
+    ) -> None:
+        """Test time_after_sunset returns True when current time is past sunset + offset."""
+        sunset_ts = 1_700_070_000.0
+        mock_get_sunset.return_value = sunset_ts
+        mock_dt_util.now.return_value.timestamp.return_value = sunset_ts + 1800.0
+
+        condition = Condition(
+            type=ConditionType.TIME_AFTER_SUNSET,
+            params={"offset": 15},
+        )
+
+        result = engine._eval_time_after_sunset(condition)
+
+        assert result is True
+
+    @patch("custom_components.cover_automatic.engine.dt_util")
+    @patch("custom_components.cover_automatic.engine.get_sunset_time")
+    def test_time_after_sunset_false(
+        self, mock_get_sunset, mock_dt_util, engine
+    ) -> None:
+        """Test time_after_sunset returns False when current time is before sunset + offset."""
+        sunset_ts = 1_700_070_000.0
+        mock_get_sunset.return_value = sunset_ts
+        # 5 seconds before sunset + 30-minute offset
+        mock_dt_util.now.return_value.timestamp.return_value = sunset_ts + 1800.0 - 5
+
+        condition = Condition(
+            type=ConditionType.TIME_AFTER_SUNSET,
+            params={"offset": 30},
+        )
+
+        result = engine._eval_time_after_sunset(condition)
+
+        assert result is False
+
+
+class TestConditionExceptionHandling:
+    """Tests for exception handling in condition evaluation."""
+
+    def test_evaluate_condition_exception_returns_false(
+        self, engine, mock_storage, test_cover
+    ) -> None:
+        """Test _evaluate_condition returns False when evaluation raises an exception."""
+        mock_storage.facades = None  # Causes AttributeError on .get()
+
+        condition = Condition(
+            type=ConditionType.SUN_ON_FACADE,
+            params={},
+        )
+
+        result = engine._evaluate_condition(condition, test_cover)
+
+        assert result is False
