@@ -110,12 +110,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEnt
         if hasattr(entry, "runtime_data") and entry.runtime_data:
             await entry.runtime_data.coordinator.async_shutdown()
 
-    # Unload services if no entries remain
-    remaining = [
-        e for e in hass.config_entries.async_entries(DOMAIN)
-        if e.entry_id != entry.entry_id
-    ]
-    if not remaining:
-        await async_unload_services(hass)
+    # Unload services only if unload succeeded and no entries remain
+    if unload_ok:
+        remaining = [
+            e for e in hass.config_entries.async_entries(DOMAIN)
+            if e.entry_id != entry.entry_id
+        ]
+        if not remaining:
+            await async_unload_services(hass)
 
     return unload_ok

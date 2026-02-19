@@ -443,10 +443,10 @@ class TestSelectCurrentOptionFallback:
 
 
 class TestFacadeSunSensorUnknown:
-    """Tests for FacadeSunSensor returning 'unknown' in edge cases."""
+    """Tests for FacadeSunSensor returning None in edge cases."""
 
     def test_facade_sun_sensor_unknown_when_no_data(self, mock_coordinator) -> None:
-        """Test facade sun sensor returns 'unknown' when coordinator.data is None."""
+        """Test facade sun sensor returns None when coordinator.data is None."""
         from custom_components.cover_automatic.sensor import FacadeSunSensor
 
         mock_coordinator.data = None
@@ -454,10 +454,10 @@ class TestFacadeSunSensorUnknown:
         sensor = FacadeSunSensor(mock_coordinator, "south", "South")
         sensor.hass = MagicMock()
 
-        assert sensor.native_value == "unknown"
+        assert sensor.native_value is None
 
     def test_facade_sun_sensor_unknown_when_facade_missing(self, mock_coordinator) -> None:
-        """Test facade sun sensor returns 'unknown' when facade_id is absent from data."""
+        """Test facade sun sensor returns None when facade_id is absent from data."""
         from custom_components.cover_automatic.sensor import FacadeSunSensor
 
         mock_coordinator.data = {
@@ -469,7 +469,7 @@ class TestFacadeSunSensorUnknown:
         sensor = FacadeSunSensor(mock_coordinator, "south", "South")
         sensor.hass = MagicMock()
 
-        assert sensor.native_value == "unknown"
+        assert sensor.native_value is None
 
 
 class TestFacadeSunTimeSensorExceptions:

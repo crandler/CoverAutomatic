@@ -117,15 +117,15 @@ class FacadeSunSensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorEntity
         }
 
     @property
-    def native_value(self) -> str:
+    def native_value(self) -> str | None:
         """Return if sun is on facade."""
         if self.coordinator.data:
             facades = self.coordinator.data.get("facades", {})
             facade_data = facades.get(self._facade_id)
             if facade_data is None:
-                return "unknown"
+                return None
             return "on" if facade_data.get("sun_on_facade", False) else "off"
-        return "unknown"
+        return None
 
     @property
     def icon(self) -> str:

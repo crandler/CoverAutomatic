@@ -161,9 +161,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ):
                 orphaned = set(state_dict.keys()) - current_covers
                 for entity_id in orphaned:
-                    task = state_dict.pop(entity_id)
-                    if isinstance(task, asyncio.Task) and not task.done():
-                        task.cancel()
+                    value = state_dict.pop(entity_id)
+                    if isinstance(value, asyncio.Task) and not value.done():
+                        value.cancel()
 
         entities_to_track: set[str] = {SUN_ENTITY_ID}
 
@@ -381,6 +381,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Restore MANUAL if cover was manual before lock
         if previous == CoverStatus.MANUAL:
             self._cover_states[entity_id] = CoverStatus.MANUAL
+            self.storage.update_cover_status(
+                entity_id, CoverStatus.MANUAL.value, None
+            )
             self._update_last_position_from_state(entity_id)
             self.async_set_updated_data(self.data)
             return
@@ -478,7 +481,12 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def resume_cover(self, entity_id: str) -> None:
         """Resume automation for a cover."""
-        if self.storage.get_cover_raw(entity_id):
+        cover_raw = self.storage.get_cover_raw(entity_id)
+        if cover_raw:
+            # Don't override LOCKED status if lock/vent sensor is still active
+            if self._cover_states.get(entity_id) == CoverStatus.LOCKED:
+                if self._is_sensor_open(cover_raw, "lock_sensor") or self._is_sensor_open(cover_raw, "vent_sensor"):
+                    return
             self._cover_states[entity_id] = CoverStatus.AUTO
             self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
             self.async_set_updated_data(self.data)

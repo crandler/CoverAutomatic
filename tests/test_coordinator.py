@@ -707,8 +707,11 @@ class TestUnlockCoverRestore:
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.MANUAL
         assert coordinator._last_positions["cover.test"] == 60
-        # Must NOT schedule refresh or update storage to AUTO
-        mock_storage.update_cover_status.assert_not_called()
+        # Must persist MANUAL status to storage
+        mock_storage.update_cover_status.assert_called_once_with(
+            "cover.test", CoverStatus.MANUAL.value, None
+        )
+        # Must NOT schedule refresh (stays MANUAL)
         coordinator.async_request_refresh.assert_not_awaited()
 
 

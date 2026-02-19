@@ -803,7 +803,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 priority=user_input.get("priority", rule.priority),
                 condition_operator=user_input.get("condition_operator", rule.condition_operator),
                 target_position=user_input.get("target_position", rule.target_position),
-                target_tilt_position=user_input.get("target_tilt_position"),
+                target_tilt_position=user_input.get("target_tilt_position", rule.target_tilt_position),
                 conditions=rule.conditions,
                 facade_ids=rule.facade_ids,
                 cover_ids=rule.cover_ids,

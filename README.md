@@ -151,6 +151,16 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.0.35 (2026-02-19)
+
+- Fix rule_edit: preserve target_tilt_position when field is not in user_input (silent data loss)
+- Fix _unlock_cover: persist MANUAL status to storage on unlock (was only set in memory)
+- Fix switch async_turn_off: set _cover_states to MANUAL and notify entities immediately (60s delay)
+- Fix resume_cover: skip resume when lock/vent sensor is still active (LOCKED override)
+- Fix FacadeSunSensor: return None instead of string "unknown" (HA convention)
+- Fix async_unload_entry: only remove services when platform unload succeeded
+- Fix orphan cleanup: rename misleading variable "task" to "value" for non-task dicts
+
 ### 1.0.34 (2026-02-19)
 
 - Sync strings.json with en.json: add 6 missing tilt translation keys (cover_details, rule_add, rule_edit)
