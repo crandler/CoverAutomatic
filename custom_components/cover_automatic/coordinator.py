@@ -378,6 +378,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.async_set_updated_data(self.data)
                 return
 
+        # Restore MANUAL if cover was manual before lock
+        if previous == CoverStatus.MANUAL:
+            self._cover_states[entity_id] = CoverStatus.MANUAL
+            self._update_last_position_from_state(entity_id)
+            self.async_set_updated_data(self.data)
+            return
+
         self._cover_states[entity_id] = CoverStatus.AUTO
         self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
         # Update expected position to current to prevent false override

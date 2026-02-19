@@ -147,9 +147,16 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.32
+1.0.34
 
 ## Changelog
+
+### 1.0.34 (2026-02-19)
+
+- Sync strings.json with en.json: add 6 missing tilt translation keys (cover_details, rule_add, rule_edit)
+- Fix _unlock_cover: restore MANUAL status when cover was manual before lock (previously fell through to AUTO)
+- Fix test mocks: patch time_mod instead of dt_util in lock_cover and manual_override tests (tests passed by coincidence)
+- Add test for MANUAL restore path in _unlock_cover (360 tests total)
 
 ### 1.0.33 (2026-02-19)
 

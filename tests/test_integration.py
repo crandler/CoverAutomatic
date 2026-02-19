@@ -276,8 +276,10 @@ class TestStateTransitionIntegration:
         old_state = MockState("open", {"current_position": 30})
         new_state = MockState("open", {"current_position": 80})  # Manual change
 
-        with patch("custom_components.cover_automatic.coordinator.dt_util") as mock_dt:
-            mock_dt.now.return_value.timestamp.return_value = 1000.0
+        with patch(
+            "custom_components.cover_automatic.coordinator.time_mod"
+        ) as mock_time:
+            mock_time.monotonic.return_value = 9999.0  # Well past SETTLE_TIME
             coordinator._handle_cover_state_change("cover.test", old_state, new_state)
 
         # Cover should be paused

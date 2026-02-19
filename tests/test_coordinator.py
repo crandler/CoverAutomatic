@@ -303,8 +303,7 @@ class TestContactSensorHandling:
         mock_hass.async_create_task = MagicMock()
         mock_storage.get_cover_raw.return_value = {"inverted": False}
 
-        with patch("custom_components.cover_automatic.coordinator.dt_util") as mock_dt:
-            mock_dt.now.return_value.timestamp.return_value = 1000.0
+        with patch("custom_components.cover_automatic.coordinator.time_mod"):
             coordinator._lock_cover("cover.test", 100)
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED
@@ -693,6 +692,24 @@ class TestUnlockCoverRestore:
         mock_storage.update_cover_status.assert_called_with(
             "cover.test", CoverStatus.AUTO.value, None
         )
+
+    def test_unlock_restores_manual_when_was_manual(
+        self, coordinator, mock_storage
+    ) -> None:
+        """When previous was MANUAL, restores MANUAL without scheduling refresh."""
+        coordinator._pre_lock_states["cover.test"] = CoverStatus.MANUAL
+        coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
+        coordinator.hass.states.get.return_value = MockState(
+            "open", {"current_position": 60}
+        )
+
+        coordinator._unlock_cover("cover.test")
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.MANUAL
+        assert coordinator._last_positions["cover.test"] == 60
+        # Must NOT schedule refresh or update storage to AUTO
+        mock_storage.update_cover_status.assert_not_called()
+        coordinator.async_request_refresh.assert_not_awaited()
 
 
 class TestManualOverrideDetection:
