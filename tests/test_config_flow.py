@@ -1,7 +1,7 @@
 """Tests for CoverAutomatic config flow."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -284,13 +284,13 @@ class TestOptionsFlowGetStorage:
         result = options_flow._get_storage()
         assert result is mock_storage
 
-    def test_get_storage_returns_none_when_no_entries(self) -> None:
-        """Test _get_storage returns None when no entries exist."""
+    def test_get_storage_returns_none_when_no_runtime_data(self) -> None:
+        """Test _get_storage returns None when config_entry has no runtime_data."""
         flow = CoverAutomaticOptionsFlow()
         flow.hass = MagicMock()
-        flow.hass.config_entries.async_entries.return_value = []
-
-        result = flow._get_storage()
+        mock_entry = MagicMock(spec=[])  # No attributes at all
+        with patch.object(type(flow), "config_entry", new_callable=PropertyMock, return_value=mock_entry):
+            result = flow._get_storage()
         assert result is None
 
 

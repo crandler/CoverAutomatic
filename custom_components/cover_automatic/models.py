@@ -76,7 +76,7 @@ class Facade:
             azimuth_end=float(data["azimuth_end"]) % 360,
             direction=data.get("direction", "south"),
             min_elevation=data.get("min_elevation", 0.0),
-            cover_ids=data.get("cover_ids", []),
+            cover_ids=list(data.get("cover_ids") or []),
         )
 
 
@@ -145,8 +145,8 @@ class Rule:
             condition_operator=data.get("condition_operator", "and")
             if data.get("condition_operator") in ("and", "or")
             else "and",
-            facade_ids=data.get("facade_ids", []),
-            cover_ids=data.get("cover_ids", []),
+            facade_ids=list(data.get("facade_ids") or []),
+            cover_ids=list(data.get("cover_ids") or []),
             conditions=conditions,
             target_position=data.get("target_position", 0),
         )
@@ -177,7 +177,7 @@ class Scenario:
             id=data["id"],
             name=data["name"],
             icon=data.get("icon", "mdi:home"),
-            rules_disabled=data.get("rules_disabled", []),
+            rules_disabled=list(data.get("rules_disabled") or []),
         )
 
 
@@ -209,7 +209,7 @@ class CoverConfig:
             "facade_id": self.facade_id,
             "auto_enabled": self.auto_enabled,
             "pause_duration": self.pause_duration,
-            "status": self.status.value if isinstance(self.status, CoverStatus) else self.status,
+            "status": self.status.value,
             "pause_until": self.pause_until,
             "lock_sensor": self.lock_sensor,
             "lock_position": self.lock_position,
@@ -226,7 +226,12 @@ class CoverConfig:
         """Create from dictionary."""
         status_val = data.get("status", CoverStatus.AUTO.value)
         try:
-            status = CoverStatus(status_val) if isinstance(status_val, str) else status_val
+            if isinstance(status_val, CoverStatus):
+                status = status_val
+            elif isinstance(status_val, str):
+                status = CoverStatus(status_val)
+            else:
+                status = CoverStatus.AUTO
         except ValueError:
             _LOGGER.warning("Unknown cover status '%s' for '%s', defaulting to AUTO", status_val, data.get("entity_id", "?"))
             status = CoverStatus.AUTO

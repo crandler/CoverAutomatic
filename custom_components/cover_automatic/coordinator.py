@@ -15,7 +15,7 @@ from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
 from .engine import RuleEngine
 from .models import CoverConfig, CoverStatus
 from .storage import CoverAutomaticStorage
-from .sun import SUN_ENTITY_ID
+from .sun import SUN_ENTITY_ID, is_sun_on_facade
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -234,7 +234,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if not lock_sensor:
             return False
         sensor_state = self.hass.states.get(lock_sensor)
-        if sensor_state is None or not hasattr(sensor_state, "state"):
+        if sensor_state is None:
             return False
         return sensor_state.state in ("on", "open", "true", "1")
 
@@ -247,7 +247,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         new_state: Any,
     ) -> None:
         """Handle contact sensor state changes (lock or vent)."""
-        if new_state is None or not hasattr(new_state, "state"):
+        if new_state is None:
             return
 
         is_open = new_state.state in ("on", "open", "true", "1")
@@ -262,7 +262,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if is_open:
                 # Always apply lock position (lock has priority over vent)
                 self._lock_cover(cover_id, cover_raw.get("lock_position", 100))
-            elif not is_open and self._cover_states.get(cover_id) == CoverStatus.LOCKED:
+            elif self._cover_states.get(cover_id) == CoverStatus.LOCKED:
                 # Only unlock if vent sensor is also not open
                 if not self._is_vent_sensor_open(cover_raw):
                     self._unlock_cover(cover_id)
@@ -293,7 +293,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if not vent_sensor:
             return False
         sensor_state = self.hass.states.get(vent_sensor)
-        if sensor_state is None or not hasattr(sensor_state, "state"):
+        if sensor_state is None:
             return False
         return sensor_state.state in ("on", "open", "true", "1")
 
@@ -380,7 +380,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
 
         # Ignore position changes while cover is moving
-        if hasattr(new_state, "state") and new_state.state in ("opening", "closing"):
+        if new_state.state in ("opening", "closing"):
             return
 
         # Ignore position changes during settle time after our own commands
@@ -442,7 +442,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Check lock sensor state (window contact) - highest priority
             if lock_sensor := cover_raw.get("lock_sensor"):
                 sensor_state = self.hass.states.get(lock_sensor)
-                if sensor_state and hasattr(sensor_state, "state") and sensor_state.state in ("on", "open", "true", "1"):
+                if sensor_state and sensor_state.state in ("on", "open", "true", "1"):
                     if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
                         # First detection (e.g. after restart) - send position
                         self._lock_cover(entity_id, cover_raw.get("lock_position", 100))
@@ -451,7 +451,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Check vent sensor state (ventilation contact)
             if vent_sensor := cover_raw.get("vent_sensor"):
                 sensor_state = self.hass.states.get(vent_sensor)
-                if sensor_state and hasattr(sensor_state, "state") and sensor_state.state in ("on", "open", "true", "1"):
+                if sensor_state and sensor_state.state in ("on", "open", "true", "1"):
                     if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
                         # First detection (e.g. after restart) - send position
                         self._lock_cover(entity_id, cover_raw.get("vent_position", 30))
@@ -493,8 +493,6 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         }
 
         for facade_id, facade in self.storage.facades.items():
-            from .sun import is_sun_on_facade
-
             result["facades"][facade_id] = {
                 "sun_on_facade": is_sun_on_facade(self.hass, facade),
             }

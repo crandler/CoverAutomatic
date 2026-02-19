@@ -228,7 +228,7 @@ class TestConditionEvaluation:
             type=ConditionType.TEMPERATURE_ABOVE,
             params={"sensor": "sensor.outdoor", "value": 25},
         )
-        result = engine._eval_temp_above(condition)
+        result = engine._eval_temp_threshold(condition, above=True)
         assert result is True
 
     def test_eval_temp_above_false(
@@ -241,7 +241,7 @@ class TestConditionEvaluation:
             type=ConditionType.TEMPERATURE_ABOVE,
             params={"sensor": "sensor.outdoor", "value": 25},
         )
-        result = engine._eval_temp_above(condition)
+        result = engine._eval_temp_threshold(condition, above=True)
         assert result is False
 
     def test_eval_temp_above_invalid_state(
@@ -254,7 +254,7 @@ class TestConditionEvaluation:
             type=ConditionType.TEMPERATURE_ABOVE,
             params={"sensor": "sensor.outdoor", "value": 25},
         )
-        result = engine._eval_temp_above(condition)
+        result = engine._eval_temp_threshold(condition, above=True)
         assert result is False
 
     def test_eval_temp_above_missing_sensor(
@@ -267,7 +267,7 @@ class TestConditionEvaluation:
             type=ConditionType.TEMPERATURE_ABOVE,
             params={"sensor": "sensor.outdoor", "value": 25},
         )
-        result = engine._eval_temp_above(condition)
+        result = engine._eval_temp_threshold(condition, above=True)
         assert result is False
 
     def test_eval_temp_below_true(
@@ -280,7 +280,7 @@ class TestConditionEvaluation:
             type=ConditionType.TEMPERATURE_BELOW,
             params={"sensor": "sensor.outdoor", "value": 20},
         )
-        result = engine._eval_temp_below(condition)
+        result = engine._eval_temp_threshold(condition, above=False)
         assert result is True
 
     def test_eval_state_is_true(
@@ -744,7 +744,7 @@ class TestTimeAfterSunriseCondition:
             params={"offset": 30},
         )
 
-        result = engine._eval_time_after_sunrise(condition)
+        result = engine._eval_time_after_sun_event(condition, mock_get_sunrise)
 
         assert result is True
 
@@ -764,7 +764,7 @@ class TestTimeAfterSunriseCondition:
             params={"offset": 10},
         )
 
-        result = engine._eval_time_after_sunrise(condition)
+        result = engine._eval_time_after_sun_event(condition, mock_get_sunrise)
 
         assert result is False
 
@@ -780,7 +780,7 @@ class TestTimeAfterSunriseCondition:
             params={"offset": 0},
         )
 
-        result = engine._eval_time_after_sunrise(condition)
+        result = engine._eval_time_after_sun_event(condition, mock_get_sunrise)
 
         assert result is False
 
@@ -796,7 +796,7 @@ class TestTimeAfterSunriseCondition:
             params={"offset": "abc"},
         )
 
-        result = engine._eval_time_after_sunrise(condition)
+        result = engine._eval_time_after_sun_event(condition, mock_get_sunrise)
 
         assert result is False
 
@@ -819,7 +819,7 @@ class TestTimeAfterSunsetCondition:
             params={"offset": 15},
         )
 
-        result = engine._eval_time_after_sunset(condition)
+        result = engine._eval_time_after_sun_event(condition, mock_get_sunset)
 
         assert result is True
 
@@ -839,7 +839,7 @@ class TestTimeAfterSunsetCondition:
             params={"offset": 30},
         )
 
-        result = engine._eval_time_after_sunset(condition)
+        result = engine._eval_time_after_sun_event(condition, mock_get_sunset)
 
         assert result is False
 

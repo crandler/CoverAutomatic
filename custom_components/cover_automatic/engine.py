@@ -17,6 +17,14 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+_WEATHER_MAP: dict[str, set[str]] = {
+    "sunny": {"sunny", "clear", "clear-night"},
+    "cloudy": {"cloudy", "fog", "hazy", "overcast", "partlycloudy", "partly-cloudy"},
+    "rainy": {"rainy", "pouring", "lightning", "lightning-rainy", "hail"},
+    "snowy": {"snowy", "snowy-rainy"},
+    "windy": {"windy", "exceptional"},
+}
+
 
 class RuleEngine:
     """Evaluate rules and determine cover positions."""
@@ -109,19 +117,19 @@ class RuleEngine:
                 case ConditionType.SUN_ON_FACADE:
                     return self._eval_sun_on_facade(condition, cover)
                 case ConditionType.SUN_ELEVATION_ABOVE:
-                    return self._eval_sun_elevation_above(condition)
+                    return self._eval_sun_elevation(condition, above=True)
                 case ConditionType.SUN_ELEVATION_BELOW:
-                    return self._eval_sun_elevation_below(condition)
+                    return self._eval_sun_elevation(condition, above=False)
                 case ConditionType.TEMPERATURE_ABOVE:
-                    return self._eval_temp_above(condition)
+                    return self._eval_temp_threshold(condition, above=True)
                 case ConditionType.TEMPERATURE_BELOW:
-                    return self._eval_temp_below(condition)
+                    return self._eval_temp_threshold(condition, above=False)
                 case ConditionType.TIME_BETWEEN:
                     return self._eval_time_between(condition)
                 case ConditionType.TIME_AFTER_SUNRISE:
-                    return self._eval_time_after_sunrise(condition)
+                    return self._eval_time_after_sun_event(condition, get_sunrise_time)
                 case ConditionType.TIME_AFTER_SUNSET:
-                    return self._eval_time_after_sunset(condition)
+                    return self._eval_time_after_sun_event(condition, get_sunset_time)
                 case ConditionType.STATE_IS:
                     return self._eval_state_is(condition)
                 case ConditionType.TEMPERATURE_COMFORT:
@@ -147,24 +155,16 @@ class RuleEngine:
 
         return is_sun_on_facade(self.hass, facade)
 
-    def _eval_sun_elevation_above(self, condition: Condition) -> bool:
-        """Evaluate sun_elevation_above condition."""
+    def _eval_sun_elevation(self, condition: Condition, *, above: bool) -> bool:
+        """Evaluate sun elevation above/below threshold."""
         threshold = condition.params.get("value", 0)
         position = get_sun_position(self.hass)
         if position is None:
             return False
-        return position[1] > threshold
+        return position[1] > threshold if above else position[1] < threshold
 
-    def _eval_sun_elevation_below(self, condition: Condition) -> bool:
-        """Evaluate sun_elevation_below condition."""
-        threshold = condition.params.get("value", 0)
-        position = get_sun_position(self.hass)
-        if position is None:
-            return False
-        return position[1] < threshold
-
-    def _eval_temp_above(self, condition: Condition) -> bool:
-        """Evaluate temperature_above condition."""
+    def _eval_temp_threshold(self, condition: Condition, *, above: bool) -> bool:
+        """Evaluate temperature above/below threshold."""
         sensor_id = condition.params.get("sensor")
         threshold = condition.params.get("value", 0)
 
@@ -177,25 +177,7 @@ class RuleEngine:
 
         try:
             temp = float(state.state)
-            return temp > threshold
-        except (ValueError, TypeError):
-            return False
-
-    def _eval_temp_below(self, condition: Condition) -> bool:
-        """Evaluate temperature_below condition."""
-        sensor_id = condition.params.get("sensor")
-        threshold = condition.params.get("value", 0)
-
-        if not sensor_id:
-            return False
-
-        state = self.hass.states.get(sensor_id)
-        if state is None:
-            return False
-
-        try:
-            temp = float(state.state)
-            return temp < threshold
+            return temp > threshold if above else temp < threshold
         except (ValueError, TypeError):
             return False
 
@@ -225,32 +207,18 @@ class RuleEngine:
         else:
             return now >= start_time or now <= end_time
 
-    def _eval_time_after_sunrise(self, condition: Condition) -> bool:
-        """Evaluate time_after_sunrise condition."""
+    def _eval_time_after_sun_event(self, condition: Condition, event_fn) -> bool:
+        """Evaluate time after sunrise/sunset with offset."""
         try:
             offset_minutes = int(condition.params.get("offset", 0))
         except (ValueError, TypeError):
             return False
-        sunrise = get_sunrise_time(self.hass)
 
-        if sunrise is None:
+        event_time = event_fn(self.hass)
+        if event_time is None:
             return False
 
-        target_time = sunrise + (offset_minutes * 60)
-        return dt_util.now().timestamp() >= target_time
-
-    def _eval_time_after_sunset(self, condition: Condition) -> bool:
-        """Evaluate time_after_sunset condition."""
-        try:
-            offset_minutes = int(condition.params.get("offset", 0))
-        except (ValueError, TypeError):
-            return False
-        sunset = get_sunset_time(self.hass)
-
-        if sunset is None:
-            return False
-
-        target_time = sunset + (offset_minutes * 60)
+        target_time = event_time + (offset_minutes * 60)
         return dt_util.now().timestamp() >= target_time
 
     def _eval_state_is(self, condition: Condition) -> bool:
@@ -273,7 +241,11 @@ class RuleEngine:
         Checks if current mode matches expected mode (cooling/heating/neutral).
         Uses indoor temp sensor and comfort range from storage.
         """
-        expected_mode = condition.params.get("mode", ComfortMode.COOLING)
+        mode_val = condition.params.get("mode", ComfortMode.COOLING.value)
+        try:
+            expected_mode = ComfortMode(mode_val) if isinstance(mode_val, str) else mode_val
+        except ValueError:
+            expected_mode = ComfortMode.COOLING
         sensor_id = condition.params.get("sensor") or self.storage.indoor_temp_sensor
 
         if not sensor_id:
@@ -320,26 +292,10 @@ class RuleEngine:
 
         current_weather = state.state.lower()
 
-        # Map common weather states
-        sunny_states = ["sunny", "clear", "clear-night"]
-        cloudy_states = ["cloudy", "fog", "hazy", "overcast", "partlycloudy", "partly-cloudy"]
-        rainy_states = ["rainy", "pouring", "lightning", "lightning-rainy", "hail"]
-        snowy_states = ["snowy", "snowy-rainy"]
-        windy_states = ["windy", "exceptional"]
-
         for expected in expected_states:
             expected = expected.lower()
-            if expected == "sunny" and current_weather in sunny_states:
-                return True
-            if expected == "cloudy" and current_weather in cloudy_states:
-                return True
-            if expected == "rainy" and current_weather in rainy_states:
-                return True
-            if expected == "snowy" and current_weather in snowy_states:
-                return True
-            if expected == "windy" and current_weather in windy_states:
-                return True
-            if expected == current_weather:
+            mapped = _WEATHER_MAP.get(expected, set())
+            if current_weather in mapped or expected == current_weather:
                 return True
 
         return False

@@ -371,6 +371,7 @@ class CoverAutomaticStorage:
 
     async def _debounced_save(self) -> None:
         """Perform debounced save after delay."""
+        current = asyncio.current_task()
         try:
             await asyncio.sleep(SAVE_DEBOUNCE_DELAY)
             async with self._save_lock:
@@ -381,4 +382,5 @@ class CoverAutomaticStorage:
         except Exception as err:
             _LOGGER.error("Failed to save runtime changes: %s", err)
         finally:
-            self._save_task = None
+            if self._save_task is current:
+                self._save_task = None

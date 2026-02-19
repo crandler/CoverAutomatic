@@ -151,6 +151,26 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.0.30 (2026-02-19)
+
+- Fix debounced save race: guard _save_task clearing with asyncio.current_task() to prevent stale overwrites
+- Harden models deserialization: validate list fields (cover_ids, facade_ids, rules_disabled) against None/non-list values
+- Harden CoverConfig.from_dict: explicit type dispatch for status field (CoverStatus, str, fallback)
+- Fix ComfortMode comparison in engine: explicit enum conversion prevents silent failures on value changes
+- Consolidate duplicate engine methods: merge temp_above/below, sunrise/sunset, extract weather map constants
+- Merge FacadeSunEntrySensor/ExitSensor into parameterized FacadeSunTimeSensor (saves ~50 lines)
+- Simplify status sensor icon via lookup dict instead of str-to-enum roundtrip
+- Extract direction options as module constant in config_flow (deduplicate 4 occurrences)
+- Move 9 inline model imports to top-level in config_flow
+- Remove dead code: unused facade_options in ConfigFlow covers step
+- Simplify _get_storage() and coordinator refresh to use self.config_entry directly
+- Remove 5x redundant hasattr(state, "state") checks in coordinator (HA guarantees attribute exists)
+- Remove redundant `not is_open` check in elif branch, prefix unused old_state parameter
+- Move is_sun_on_facade import from loop body to module top-level in coordinator
+- Use DEFAULT_SCAN_INTERVAL constant instead of hardcoded 60 in __init__.py
+- Simplify CoverConfig.to_dict: remove unnecessary isinstance check for status field
+- HA 2026.2 compatibility verified: no breaking changes, fully compatible
+
 ### 1.0.29 (2026-02-19)
 
 - Fix PAUSED cover status lost on HA restart (restore from persisted storage)

@@ -11,8 +11,16 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .const import DOMAIN, FACADE_PRESETS
+from .models import Condition, ConditionType, Facade, Rule, Scenario
 
 _LOGGER = logging.getLogger(__name__)
+
+_DIRECTION_OPTIONS = [
+    {"value": "north", "label": "Nord"},
+    {"value": "east", "label": "Ost"},
+    {"value": "south", "label": "S\u00fcd"},
+    {"value": "west", "label": "West"},
+]
 
 # Umlaut replacement map for ID sanitization
 _UMLAUT_MAP = {
@@ -138,10 +146,6 @@ class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
             self._data["covers"] = user_input.get("covers", [])
             return await self.async_step_sensors()
 
-        facade_options = [{"value": f["id"], "label": f["name"]} for f in self._facades]
-        if not facade_options:
-            facade_options = [{"value": "none", "label": "No facade"}]
-
         return self.async_show_form(
             step_id="covers",
             data_schema=vol.Schema(
@@ -217,9 +221,8 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
 
     def _get_storage(self):
         """Get storage from config entry runtime_data."""
-        for entry in self.hass.config_entries.async_entries(DOMAIN):
-            if hasattr(entry, "runtime_data") and entry.runtime_data:
-                return entry.runtime_data.storage
+        if hasattr(self.config_entry, "runtime_data") and self.config_entry.runtime_data:
+            return self.config_entry.runtime_data.storage
         return None
 
     async def async_step_init(
@@ -406,9 +409,8 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             await storage.async_save()
 
             # Refresh coordinator state tracking
-            for entry in self.hass.config_entries.async_entries(DOMAIN):
-                if hasattr(entry, "runtime_data") and entry.runtime_data:
-                    entry.runtime_data.coordinator.refresh_state_tracking()
+            if hasattr(self.config_entry, "runtime_data") and self.config_entry.runtime_data:
+                self.config_entry.runtime_data.coordinator.refresh_state_tracking()
 
             return self.async_create_entry(title="", data=self.config_entry.options)
 
@@ -544,7 +546,6 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 if facade_id in storage.facades:
                     errors["name"] = "already_exists"
                 else:
-                    from .models import Facade
                     preset = FACADE_PRESETS.get(facade_direction, FACADE_PRESETS["south"])
                     new_facade = Facade(
                         id=facade_id,
@@ -563,12 +564,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                     vol.Required("name"): vol.All(str, vol.Length(max=255)),
                     vol.Required("direction", default="south"): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=[
-                                {"value": "north", "label": "Nord"},
-                                {"value": "east", "label": "Ost"},
-                                {"value": "south", "label": "Süd"},
-                                {"value": "west", "label": "West"},
-                            ],
+                            options=_DIRECTION_OPTIONS,
                             mode=selector.SelectSelectorMode.DROPDOWN,
                         )
                     ),
@@ -613,12 +609,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                             vol.Required("name", default=new_name): str,
                             vol.Required("direction", default=new_direction): selector.SelectSelector(
                                 selector.SelectSelectorConfig(
-                                    options=[
-                                        {"value": "north", "label": "Nord"},
-                                        {"value": "east", "label": "Ost"},
-                                        {"value": "south", "label": "Süd"},
-                                        {"value": "west", "label": "West"},
-                                    ],
+                                    options=_DIRECTION_OPTIONS,
                                     mode=selector.SelectSelectorMode.DROPDOWN,
                                 )
                             ),
@@ -636,7 +627,6 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                     ),
                 )
 
-            from .models import Facade
             updated_facade = Facade(
                 id=facade_id,
                 name=new_name,
@@ -657,12 +647,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                     vol.Required("name", default=facade.name): str,
                     vol.Required("direction", default=facade.direction): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=[
-                                {"value": "north", "label": "Nord"},
-                                {"value": "east", "label": "Ost"},
-                                {"value": "south", "label": "Süd"},
-                                {"value": "west", "label": "West"},
-                            ],
+                            options=_DIRECTION_OPTIONS,
                             mode=selector.SelectSelectorMode.DROPDOWN,
                         )
                     ),
@@ -738,7 +723,6 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 if rule_id in storage.rules:
                     errors["name"] = "already_exists"
                 else:
-                    from .models import Rule
                     new_rule = Rule(
                         id=rule_id,
                         name=rule_name,
@@ -789,7 +773,6 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 return await self.async_step_rule_condition()
 
             # Update rule
-            from .models import Rule
             updated_rule = Rule(
                 id=rule_id,
                 name=user_input.get("name", rule.name),
@@ -853,8 +836,6 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
         rule = storage.rules[rule_id]
 
         if user_input is not None:
-            from .models import Condition, ConditionType
-
             condition_type = user_input.get("condition_type")
             try:
                 ConditionType(condition_type)
@@ -891,7 +872,6 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             )
 
             # Update rule with new condition
-            from .models import Rule
             updated_rule = Rule(
                 id=rule_id,
                 name=rule.name,
@@ -1040,7 +1020,6 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 if scenario_id in storage.scenarios:
                     errors["name"] = "already_exists"
                 else:
-                    from .models import Scenario
                     new_scenario = Scenario(
                         id=scenario_id,
                         name=scenario_name,
@@ -1084,7 +1063,6 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                         storage.active_scenario = remaining[0]
                     else:
                         # No scenarios left - recreate default
-                        from .models import Scenario
                         default = Scenario(id="everyday", name="Everyday", icon="mdi:home")
                         await storage.async_add_scenario(default)
                         storage.active_scenario = "everyday"
@@ -1097,7 +1075,6 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 return self.async_create_entry(title="", data=self.config_entry.options)
 
             # Update scenario (preserve rules_disabled if field not in form)
-            from .models import Scenario
             updated_scenario = Scenario(
                 id=scenario_id,
                 name=user_input.get("name", scenario.name),

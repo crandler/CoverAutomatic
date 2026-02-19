@@ -222,7 +222,7 @@ class TestSensorPlatform:
 
     def test_facade_sun_entry_sensor(self, mock_coordinator, mock_hass) -> None:
         """Test facade sun entry time sensor."""
-        from custom_components.cover_automatic.sensor import FacadeSunEntrySensor
+        from custom_components.cover_automatic.sensor import FacadeSunTimeSensor
 
         mock_facade = Facade(
             id="south",
@@ -233,7 +233,7 @@ class TestSensorPlatform:
         )
         mock_coordinator.storage.facades = {"south": mock_facade}
 
-        sensor = FacadeSunEntrySensor(mock_coordinator, "south", "South")
+        sensor = FacadeSunTimeSensor(mock_coordinator, "south", "South", is_entry=True)
         sensor.hass = mock_hass
 
         with patch(
@@ -245,7 +245,7 @@ class TestSensorPlatform:
 
     def test_facade_sun_exit_sensor(self, mock_coordinator, mock_hass) -> None:
         """Test facade sun exit time sensor."""
-        from custom_components.cover_automatic.sensor import FacadeSunExitSensor
+        from custom_components.cover_automatic.sensor import FacadeSunTimeSensor
 
         mock_facade = Facade(
             id="south",
@@ -256,7 +256,7 @@ class TestSensorPlatform:
         )
         mock_coordinator.storage.facades = {"south": mock_facade}
 
-        sensor = FacadeSunExitSensor(mock_coordinator, "south", "South")
+        sensor = FacadeSunTimeSensor(mock_coordinator, "south", "South", is_entry=False)
         sensor.hass = mock_hass
 
         with patch(
@@ -473,11 +473,11 @@ class TestFacadeSunSensorUnknown:
 
 
 class TestFacadeSunTimeSensorExceptions:
-    """Tests for FacadeSunEntrySensor and FacadeSunExitSensor exception handling."""
+    """Tests for FacadeSunTimeSensor exception handling."""
 
     def test_sun_entry_sensor_returns_none_on_exception(self, mock_coordinator, mock_hass) -> None:
         """Test sun entry sensor returns None when get_facade_sun_times raises."""
-        from custom_components.cover_automatic.sensor import FacadeSunEntrySensor
+        from custom_components.cover_automatic.sensor import FacadeSunTimeSensor
 
         mock_facade = Facade(
             id="south",
@@ -488,7 +488,7 @@ class TestFacadeSunTimeSensorExceptions:
         )
         mock_coordinator.storage.facades = {"south": mock_facade}
 
-        sensor = FacadeSunEntrySensor(mock_coordinator, "south", "South")
+        sensor = FacadeSunTimeSensor(mock_coordinator, "south", "South", is_entry=True)
         sensor.hass = mock_hass
 
         with patch(
@@ -499,7 +499,7 @@ class TestFacadeSunTimeSensorExceptions:
 
     def test_sun_exit_sensor_returns_none_on_exception(self, mock_coordinator, mock_hass) -> None:
         """Test sun exit sensor returns None when get_facade_sun_times raises."""
-        from custom_components.cover_automatic.sensor import FacadeSunExitSensor
+        from custom_components.cover_automatic.sensor import FacadeSunTimeSensor
 
         mock_facade = Facade(
             id="south",
@@ -510,7 +510,7 @@ class TestFacadeSunTimeSensorExceptions:
         )
         mock_coordinator.storage.facades = {"south": mock_facade}
 
-        sensor = FacadeSunExitSensor(mock_coordinator, "south", "South")
+        sensor = FacadeSunTimeSensor(mock_coordinator, "south", "South", is_entry=False)
         sensor.hass = mock_hass
 
         with patch(
@@ -521,22 +521,22 @@ class TestFacadeSunTimeSensorExceptions:
 
     def test_sun_entry_sensor_returns_none_when_facade_missing(self, mock_coordinator, mock_hass) -> None:
         """Test sun entry sensor returns None when facade is not in storage."""
-        from custom_components.cover_automatic.sensor import FacadeSunEntrySensor
+        from custom_components.cover_automatic.sensor import FacadeSunTimeSensor
 
         mock_coordinator.storage.facades = {}
 
-        sensor = FacadeSunEntrySensor(mock_coordinator, "south", "South")
+        sensor = FacadeSunTimeSensor(mock_coordinator, "south", "South", is_entry=True)
         sensor.hass = mock_hass
 
         assert sensor.native_value is None
 
     def test_sun_exit_sensor_returns_none_when_facade_missing(self, mock_coordinator, mock_hass) -> None:
         """Test sun exit sensor returns None when facade is not in storage."""
-        from custom_components.cover_automatic.sensor import FacadeSunExitSensor
+        from custom_components.cover_automatic.sensor import FacadeSunTimeSensor
 
         mock_coordinator.storage.facades = {}
 
-        sensor = FacadeSunExitSensor(mock_coordinator, "south", "South")
+        sensor = FacadeSunTimeSensor(mock_coordinator, "south", "South", is_entry=False)
         sensor.hass = mock_hass
 
         assert sensor.native_value is None
