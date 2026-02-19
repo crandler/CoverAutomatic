@@ -864,6 +864,123 @@ class TestSyncCoverStatuses:
         assert coordinator._cover_states["cover.test"] == CoverStatus.MANUAL
 
 
+class TestRestoreCoverStates:
+    """Tests for _restore_cover_states on startup."""
+
+    def test_restore_paused_with_valid_pause_until(self, coordinator, mock_storage) -> None:
+        """PAUSED covers with unexpired pause_until are restored."""
+        from homeassistant.util import dt as dt_util
+
+        future_ts = dt_util.now().timestamp() + 3600  # 1 hour from now
+        mock_storage._data = {
+            "covers": {
+                "cover.bedroom": {
+                    "entity_id": "cover.bedroom",
+                    "name": "Bedroom",
+                    "status": "paused",
+                    "pause_until": future_ts,
+                    "auto_enabled": True,
+                },
+            },
+            "facades": {},
+            "rules": {},
+            "scenarios": {},
+        }
+
+        coordinator._restore_cover_states()
+
+        assert coordinator._cover_states["cover.bedroom"] == CoverStatus.PAUSED
+        mock_storage.update_cover_status.assert_not_called()
+
+    def test_restore_paused_expired_resets_to_auto(self, coordinator, mock_storage) -> None:
+        """PAUSED covers with expired pause_until are reset to AUTO."""
+        from homeassistant.util import dt as dt_util
+
+        past_ts = dt_util.now().timestamp() - 100  # expired
+        mock_storage._data = {
+            "covers": {
+                "cover.living": {
+                    "entity_id": "cover.living",
+                    "name": "Living",
+                    "status": "paused",
+                    "pause_until": past_ts,
+                    "auto_enabled": True,
+                },
+            },
+            "facades": {},
+            "rules": {},
+            "scenarios": {},
+        }
+
+        coordinator._restore_cover_states()
+
+        assert coordinator._cover_states["cover.living"] == CoverStatus.AUTO
+        mock_storage.update_cover_status.assert_called_once_with(
+            "cover.living", "auto", None
+        )
+
+    def test_restore_locked_pre_populates(self, coordinator, mock_storage) -> None:
+        """LOCKED covers are pre-populated to avoid redundant motor commands."""
+        mock_storage._data = {
+            "covers": {
+                "cover.kitchen": {
+                    "entity_id": "cover.kitchen",
+                    "name": "Kitchen",
+                    "status": "locked",
+                    "auto_enabled": True,
+                },
+            },
+            "facades": {},
+            "rules": {},
+            "scenarios": {},
+        }
+
+        coordinator._restore_cover_states()
+
+        assert coordinator._cover_states["cover.kitchen"] == CoverStatus.LOCKED
+
+    def test_restore_auto_not_added(self, coordinator, mock_storage) -> None:
+        """AUTO covers are not pre-populated (default behavior)."""
+        mock_storage._data = {
+            "covers": {
+                "cover.office": {
+                    "entity_id": "cover.office",
+                    "name": "Office",
+                    "status": "auto",
+                    "auto_enabled": True,
+                },
+            },
+            "facades": {},
+            "rules": {},
+            "scenarios": {},
+        }
+
+        coordinator._restore_cover_states()
+
+        assert "cover.office" not in coordinator._cover_states
+
+    def test_restore_paused_no_pause_until(self, coordinator, mock_storage) -> None:
+        """PAUSED without pause_until is reset to AUTO."""
+        mock_storage._data = {
+            "covers": {
+                "cover.bath": {
+                    "entity_id": "cover.bath",
+                    "name": "Bath",
+                    "status": "paused",
+                    "pause_until": None,
+                    "auto_enabled": True,
+                },
+            },
+            "facades": {},
+            "rules": {},
+            "scenarios": {},
+        }
+
+        coordinator._restore_cover_states()
+
+        assert coordinator._cover_states["cover.bath"] == CoverStatus.AUTO
+
+
 class TestShutdownPendingSave:
     """Tests for async_shutdown pending-save flush."""
 

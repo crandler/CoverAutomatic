@@ -147,9 +147,20 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.28
+1.0.29
 
 ## Changelog
+
+### 1.0.29 (2026-02-19)
+
+- Fix PAUSED cover status lost on HA restart (restore from persisted storage)
+- Fix pre-populate LOCKED status on restart to avoid unnecessary motor commands
+- Harden Rule.from_dict: skip invalid conditions instead of crashing entire rules cache
+- Harden CoverConfig.from_dict: fallback to AUTO on unknown status values
+- Preserve cover_ids when editing facade in options flow
+- Add missing `facade` key to strings.json rule_condition step
+- Add `single_config_entry: true` to manifest.json
+- Update CI to Python 3.13/3.14 (drop 3.12, HA 2026.x requires >= 3.13.2)
 
 ### 1.0.28 (2026-02-19)
 

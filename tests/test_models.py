@@ -302,3 +302,72 @@ class TestComfortMode:
         assert ComfortMode.COOLING.value == "cooling"
         assert ComfortMode.HEATING.value == "heating"
         assert ComfortMode.NEUTRAL.value == "neutral"
+
+
+class TestRobustDeserialization:
+    """Tests for robust from_dict error handling."""
+
+    def test_rule_from_dict_skips_invalid_condition(self) -> None:
+        """Rule.from_dict skips conditions with unknown type instead of crashing."""
+        data = {
+            "id": "rule1",
+            "name": "Test Rule",
+            "conditions": [
+                {"type": "sun_on_facade", "params": {}},
+                {"type": "totally_unknown_type", "params": {}},
+                {"type": "temperature_above", "params": {"sensor": "sensor.temp", "value": 25}},
+            ],
+        }
+        rule = Rule.from_dict(data)
+        assert len(rule.conditions) == 2
+        assert rule.conditions[0].type == ConditionType.SUN_ON_FACADE
+        assert rule.conditions[1].type == ConditionType.TEMPERATURE_ABOVE
+
+    def test_rule_from_dict_skips_condition_missing_type(self) -> None:
+        """Rule.from_dict skips conditions with missing type key."""
+        data = {
+            "id": "rule2",
+            "name": "Test Rule",
+            "conditions": [
+                {"params": {"value": 10}},
+                {"type": "state_is", "params": {"entity": "switch.x", "state": "on"}},
+            ],
+        }
+        rule = Rule.from_dict(data)
+        assert len(rule.conditions) == 1
+        assert rule.conditions[0].type == ConditionType.STATE_IS
+
+    def test_rule_from_dict_all_conditions_invalid(self) -> None:
+        """Rule.from_dict returns rule with empty conditions if all are invalid."""
+        data = {
+            "id": "rule3",
+            "name": "Broken Rule",
+            "conditions": [
+                {"type": "fake_type"},
+                {"type": "another_fake"},
+            ],
+        }
+        rule = Rule.from_dict(data)
+        assert rule.conditions == []
+        assert rule.name == "Broken Rule"
+
+    def test_cover_config_from_dict_unknown_status(self) -> None:
+        """CoverConfig.from_dict falls back to AUTO on unknown status."""
+        data = {
+            "entity_id": "cover.test",
+            "name": "Test Cover",
+            "status": "nonexistent_status",
+        }
+        cover = CoverConfig.from_dict(data)
+        assert cover.status == CoverStatus.AUTO
+
+    def test_cover_config_from_dict_valid_status(self) -> None:
+        """CoverConfig.from_dict correctly parses valid status values."""
+        for status in CoverStatus:
+            data = {
+                "entity_id": "cover.test",
+                "name": "Test Cover",
+                "status": status.value,
+            }
+            cover = CoverConfig.from_dict(data)
+            assert cover.status == status

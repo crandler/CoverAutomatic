@@ -136,6 +136,7 @@
         "description": "Select condition type and parameters.",
         "data": {
           "condition_type": "Condition type",
+          "facade": "Facade",
           "value": "Value",
           "sensor": "Sensor",
           "entity": "Entity",

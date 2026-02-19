@@ -1,9 +1,12 @@
 """Data models for CoverAutomatic."""
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class CoverStatus(StrEnum):
@@ -128,6 +131,12 @@ class Rule:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Rule:
         """Create from dictionary."""
+        conditions: list[Condition] = []
+        for c in data.get("conditions", []):
+            try:
+                conditions.append(Condition.from_dict(c))
+            except (ValueError, KeyError) as err:
+                _LOGGER.warning("Skipping invalid condition in rule '%s': %s", data.get("name", "?"), err)
         return cls(
             id=data["id"],
             name=data["name"],
@@ -138,7 +147,7 @@ class Rule:
             else "and",
             facade_ids=data.get("facade_ids", []),
             cover_ids=data.get("cover_ids", []),
-            conditions=[Condition.from_dict(c) for c in data.get("conditions", [])],
+            conditions=conditions,
             target_position=data.get("target_position", 0),
         )
 
@@ -216,13 +225,18 @@ class CoverConfig:
     def from_dict(cls, data: dict[str, Any]) -> CoverConfig:
         """Create from dictionary."""
         status_val = data.get("status", CoverStatus.AUTO.value)
+        try:
+            status = CoverStatus(status_val) if isinstance(status_val, str) else status_val
+        except ValueError:
+            _LOGGER.warning("Unknown cover status '%s' for '%s', defaulting to AUTO", status_val, data.get("entity_id", "?"))
+            status = CoverStatus.AUTO
         return cls(
             entity_id=data["entity_id"],
             name=data["name"],
             facade_id=data.get("facade_id"),
             auto_enabled=data.get("auto_enabled", True),
             pause_duration=data.get("pause_duration", 120),
-            status=CoverStatus(status_val) if isinstance(status_val, str) else status_val,
+            status=status,
             pause_until=data.get("pause_until"),
             lock_sensor=data.get("lock_sensor"),
             lock_position=data.get("lock_position", 100),

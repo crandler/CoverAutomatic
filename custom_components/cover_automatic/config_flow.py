@@ -644,6 +644,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 azimuth_start=azimuth_start,
                 azimuth_end=azimuth_end,
                 min_elevation=user_input.get("min_elevation", 0.0),
+                cover_ids=facade.cover_ids,
             )
             await storage.async_add_facade(updated_facade)
             return self.async_create_entry(title="", data=self.config_entry.options)
