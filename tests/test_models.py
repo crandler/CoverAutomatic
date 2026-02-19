@@ -8,6 +8,7 @@ from custom_components.cover_automatic.models import (
     ConditionType,
     CoverConfig,
     CoverStatus,
+    CoverTarget,
     Facade,
     Rule,
     Scenario,
@@ -371,3 +372,124 @@ class TestRobustDeserialization:
             }
             cover = CoverConfig.from_dict(data)
             assert cover.status == status
+
+
+class TestCoverTarget:
+    """Tests for CoverTarget dataclass."""
+
+    def test_cover_target_defaults(self) -> None:
+        """Test CoverTarget with defaults."""
+        target = CoverTarget(position=50)
+        assert target.position == 50
+        assert target.tilt_position is None
+
+    def test_cover_target_with_tilt(self) -> None:
+        """Test CoverTarget with tilt value."""
+        target = CoverTarget(position=30, tilt_position=75)
+        assert target.position == 30
+        assert target.tilt_position == 75
+
+
+class TestCoverConfigTiltFields:
+    """Tests for CoverConfig tilt-related fields."""
+
+    def test_tilt_defaults(self) -> None:
+        """Test tilt fields default values."""
+        cover = CoverConfig(entity_id="cover.test", name="Test")
+        assert cover.supports_tilt is False
+        assert cover.lock_tilt_position is None
+        assert cover.vent_tilt_position is None
+        assert cover.inverted_tilt is False
+
+    def test_tilt_to_dict(self) -> None:
+        """Test tilt fields in to_dict output."""
+        cover = CoverConfig(
+            entity_id="cover.test",
+            name="Test",
+            supports_tilt=True,
+            lock_tilt_position=0,
+            vent_tilt_position=50,
+            inverted_tilt=True,
+        )
+        data = cover.to_dict()
+        assert data["supports_tilt"] is True
+        assert data["lock_tilt_position"] == 0
+        assert data["vent_tilt_position"] == 50
+        assert data["inverted_tilt"] is True
+
+    def test_tilt_from_dict(self) -> None:
+        """Test tilt fields in from_dict deserialization."""
+        data = {
+            "entity_id": "cover.test",
+            "name": "Test",
+            "supports_tilt": True,
+            "lock_tilt_position": 10,
+            "vent_tilt_position": 60,
+            "inverted_tilt": True,
+        }
+        cover = CoverConfig.from_dict(data)
+        assert cover.supports_tilt is True
+        assert cover.lock_tilt_position == 10
+        assert cover.vent_tilt_position == 60
+        assert cover.inverted_tilt is True
+
+    def test_tilt_from_dict_backward_compat(self) -> None:
+        """Test tilt fields absent in old data default gracefully."""
+        data = {
+            "entity_id": "cover.test",
+            "name": "Test",
+        }
+        cover = CoverConfig.from_dict(data)
+        assert cover.supports_tilt is False
+        assert cover.lock_tilt_position is None
+        assert cover.vent_tilt_position is None
+        assert cover.inverted_tilt is False
+
+    def test_tilt_roundtrip(self) -> None:
+        """Test tilt fields survive serialization roundtrip."""
+        cover = CoverConfig(
+            entity_id="cover.test",
+            name="Test",
+            supports_tilt=True,
+            lock_tilt_position=20,
+            vent_tilt_position=80,
+            inverted_tilt=True,
+        )
+        restored = CoverConfig.from_dict(cover.to_dict())
+        assert restored.supports_tilt == cover.supports_tilt
+        assert restored.lock_tilt_position == cover.lock_tilt_position
+        assert restored.vent_tilt_position == cover.vent_tilt_position
+        assert restored.inverted_tilt == cover.inverted_tilt
+
+
+class TestRuleTiltField:
+    """Tests for Rule target_tilt_position field."""
+
+    def test_rule_tilt_default(self) -> None:
+        """Test target_tilt_position defaults to None."""
+        rule = Rule(id="r1", name="R1")
+        assert rule.target_tilt_position is None
+
+    def test_rule_tilt_to_dict(self) -> None:
+        """Test target_tilt_position in to_dict."""
+        rule = Rule(id="r1", name="R1", target_tilt_position=75)
+        data = rule.to_dict()
+        assert data["target_tilt_position"] == 75
+
+    def test_rule_tilt_from_dict(self) -> None:
+        """Test target_tilt_position from from_dict."""
+        data = {"id": "r1", "name": "R1", "target_tilt_position": 50}
+        rule = Rule.from_dict(data)
+        assert rule.target_tilt_position == 50
+
+    def test_rule_tilt_from_dict_missing(self) -> None:
+        """Test target_tilt_position defaults to None when missing."""
+        data = {"id": "r1", "name": "R1"}
+        rule = Rule.from_dict(data)
+        assert rule.target_tilt_position is None
+
+    def test_rule_tilt_roundtrip(self) -> None:
+        """Test target_tilt_position survives roundtrip."""
+        rule = Rule(id="r1", name="R1", target_tilt_position=42)
+        restored = Rule.from_dict(rule.to_dict())
+        assert restored.target_tilt_position == 42

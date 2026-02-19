@@ -69,6 +69,10 @@
           "vent_sensor": "Lüftungs-Sensor (Lüftungskontakt)",
           "vent_position": "Position bei Lüftung (%)",
           "inverted": "Invertiert (100% = geschlossen)",
+          "supports_tilt": "Lamellensteuerung (Tilt/Raffstore)",
+          "lock_tilt_position": "Lamellenposition bei Sperre (%)",
+          "vent_tilt_position": "Lamellenposition bei Lüftung (%)",
+          "inverted_tilt": "Lamellen invertiert (100% = geschlossen)",
           "min_position_change": "Min. Positionsänderung (%)",
           "min_time_between_changes": "Min. Zeit zwischen Änderungen (Sek)",
           "pause_duration": "Pausendauer nach manuellem Eingriff (Min)"
@@ -115,7 +119,8 @@
           "name": "Name",
           "enabled": "Aktiviert",
           "priority": "Priorität (höher = wichtiger)",
-          "target_position": "Zielposition (%)"
+          "target_position": "Zielposition (%)",
+          "target_tilt_position": "Ziel-Lamellenposition (%)"
         }
       },
       "rule_edit": {
@@ -127,6 +132,7 @@
           "priority": "Priorität",
           "condition_operator": "Bedingungslogik",
           "target_position": "Zielposition (%)",
+          "target_tilt_position": "Ziel-Lamellenposition (%)",
           "add_condition": "Bedingung hinzufügen",
           "delete": "Diese Regel löschen"
         }

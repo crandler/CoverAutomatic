@@ -14,6 +14,12 @@ FACADE_PRESETS: Final = {
     "west": {"start": 225, "end": 315},
 }
 
+# Tilt / slat control
+DEFAULT_TILT_OPEN: Final = 100
+DEFAULT_TILT_CLOSED: Final = 0
+TILT_COMMAND_DELAY: Final = 1.5  # seconds between position and tilt command
+TILT_FEATURE_FLAG: Final = 128  # CoverEntityFeature.SET_TILT_POSITION
+
 # Storage
 STORAGE_KEY: Final = f"{DOMAIN}.storage"
 STORAGE_VERSION: Final = 1

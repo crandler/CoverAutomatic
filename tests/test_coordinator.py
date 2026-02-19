@@ -79,6 +79,7 @@ def coordinator(mock_hass, mock_storage):
         coord._unsub_state_change = []
         coord._cover_states = {}
         coord._last_positions = {}
+        coord._last_tilt_positions = {}
         coord._last_command_time = {}
         coord._pre_lock_states = {}
         coord.data = {}
@@ -766,6 +767,7 @@ class TestLockVentTransition:
             "lock_position": 100,
             "vent_position": 30,
             "vent_sensor": "binary_sensor.vent",
+            "vent_tilt_position": None,
             "inverted": False,
         }
         mock_storage.get_cover_raw.return_value = cover_raw
@@ -785,7 +787,7 @@ class TestLockVentTransition:
                 MockState("off"),
             )
             # Should switch to vent position, not unlock
-            mock_lock.assert_called_once_with("cover.test", 30)
+            mock_lock.assert_called_once_with("cover.test", 30, lock_tilt=None)
             mock_unlock.assert_not_called()
 
 
@@ -824,6 +826,8 @@ class TestOrphanCleanup:
         coordinator._cover_states["cover.active"] = CoverStatus.AUTO
         coordinator._last_positions["cover.gone"] = 50
         coordinator._last_positions["cover.active"] = 50
+        coordinator._last_tilt_positions["cover.gone"] = 40
+        coordinator._last_tilt_positions["cover.active"] = 60
         coordinator._pre_lock_states["cover.gone"] = CoverStatus.AUTO
         coordinator._last_command_time["cover.gone"] = 123.0
         coordinator._last_command_time["cover.active"] = 456.0
@@ -838,6 +842,8 @@ class TestOrphanCleanup:
         assert "cover.active" in coordinator._cover_states
         assert "cover.gone" not in coordinator._last_positions
         assert "cover.active" in coordinator._last_positions
+        assert "cover.gone" not in coordinator._last_tilt_positions
+        assert "cover.active" in coordinator._last_tilt_positions
         assert "cover.gone" not in coordinator._pre_lock_states
         assert "cover.gone" not in coordinator._last_command_time
         assert "cover.active" in coordinator._last_command_time
@@ -1014,3 +1020,223 @@ class TestShutdownPendingSave:
 
         mock_task.cancel.assert_called_once()
         mock_storage.async_save.assert_called_once()
+
+
+class TestTiltHandling:
+    """Tests for tilt/slat control in coordinator."""
+
+    @pytest.mark.asyncio
+    async def test_apply_positions_sends_tilt(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test tilt command is sent after position when tilt changes."""
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 30,
+                    "target_tilt_position": 50,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "last_position_change": None,
+            "inverted": False,
+            "supports_tilt": True,
+            "inverted_tilt": False,
+        }
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 80, "supported_features": 143}
+        )
+        mock_hass.async_create_task = MagicMock()
+
+        with patch("homeassistant.util.dt.now") as mock_now:
+            mock_now.return_value.timestamp.return_value = 1000
+
+            await coordinator.async_apply_positions()
+
+        # Position command was sent via async_call
+        mock_hass.services.async_call.assert_called_once()
+        # Tilt command was sent via async_create_task
+        mock_hass.async_create_task.assert_called()
+        assert coordinator._last_tilt_positions["cover.test"] == 50
+
+    @pytest.mark.asyncio
+    async def test_apply_positions_no_tilt_when_not_supported(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test tilt command is not sent when cover doesn't support tilt."""
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 30,
+                    "target_tilt_position": 50,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "last_position_change": None,
+            "inverted": False,
+            "supports_tilt": False,
+            "inverted_tilt": False,
+        }
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 80, "supported_features": 15}
+        )
+
+        with patch("homeassistant.util.dt.now") as mock_now:
+            mock_now.return_value.timestamp.return_value = 1000
+            await coordinator.async_apply_positions()
+
+        # Tilt should NOT have been tracked
+        assert "cover.test" not in coordinator._last_tilt_positions
+
+    @pytest.mark.asyncio
+    async def test_apply_positions_inverted_tilt(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test inverted tilt: 100 - target_tilt applied."""
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 30,
+                    "target_tilt_position": 20,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "last_position_change": None,
+            "inverted": False,
+            "supports_tilt": True,
+            "inverted_tilt": True,
+        }
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 80, "supported_features": 143}
+        )
+        mock_hass.async_create_task = MagicMock()
+
+        with patch("homeassistant.util.dt.now") as mock_now:
+            mock_now.return_value.timestamp.return_value = 1000
+            await coordinator.async_apply_positions()
+
+        # 100 - 20 = 80
+        assert coordinator._last_tilt_positions["cover.test"] == 80
+
+    def test_lock_cover_sends_tilt(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test _lock_cover sends tilt when configured."""
+        mock_storage.get_cover_raw.return_value = {
+            "inverted": False,
+            "supports_tilt": True,
+            "inverted_tilt": False,
+        }
+        mock_hass.async_create_task = MagicMock()
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod"):
+            coordinator._lock_cover("cover.test", 100, lock_tilt=0)
+
+        assert coordinator._last_tilt_positions["cover.test"] == 0
+        # Two async_create_task calls: position + tilt
+        assert mock_hass.async_create_task.call_count == 2
+
+    def test_lock_cover_no_tilt_when_none(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test _lock_cover skips tilt when lock_tilt is None."""
+        mock_storage.get_cover_raw.return_value = {
+            "inverted": False,
+            "supports_tilt": True,
+            "inverted_tilt": False,
+        }
+        mock_hass.async_create_task = MagicMock()
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod"):
+            coordinator._lock_cover("cover.test", 100, lock_tilt=None)
+
+        assert "cover.test" not in coordinator._last_tilt_positions
+        # Only one async_create_task call: position only
+        assert mock_hass.async_create_task.call_count == 1
+
+    def test_lock_cover_inverted_tilt(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test _lock_cover applies tilt inversion."""
+        mock_storage.get_cover_raw.return_value = {
+            "inverted": False,
+            "supports_tilt": True,
+            "inverted_tilt": True,
+        }
+        mock_hass.async_create_task = MagicMock()
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod"):
+            coordinator._lock_cover("cover.test", 100, lock_tilt=30)
+
+        # 100 - 30 = 70
+        assert coordinator._last_tilt_positions["cover.test"] == 70
+
+    def test_supports_tilt_check(self, coordinator, mock_hass) -> None:
+        """Test _supports_tilt helper checks feature flag."""
+        # With tilt support (bit 7 = 128)
+        mock_hass.states.get.return_value = MockState(
+            "open", {"supported_features": 143}
+        )
+        assert coordinator._supports_tilt("cover.test") is True
+
+        # Without tilt support
+        mock_hass.states.get.return_value = MockState(
+            "open", {"supported_features": 15}
+        )
+        assert coordinator._supports_tilt("cover.test") is False
+
+        # No state
+        mock_hass.states.get.return_value = None
+        assert coordinator._supports_tilt("cover.test") is False
+
+    def test_manual_override_tilt_mismatch(
+        self, coordinator, mock_storage
+    ) -> None:
+        """Test tilt mismatch triggers manual override detection."""
+        from custom_components.cover_automatic.models import CoverConfig
+
+        cover = MagicMock(spec=CoverConfig)
+        cover.entity_id = "cover.test"
+        cover.auto_enabled = True
+        cover.pause_duration = 30
+
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 50
+        coordinator._last_tilt_positions["cover.test"] = 80
+        coordinator._last_command_time["cover.test"] = 0.0
+
+        # Position matches but tilt changed significantly
+        new_state = MockState("open", {"current_position": 50, "current_tilt_position": 20})
+
+        with patch.object(coordinator, "pause_cover") as mock_pause:
+            with patch(
+                "custom_components.cover_automatic.coordinator.time_mod"
+            ) as mock_time:
+                mock_time.monotonic.return_value = 9999.0
+                coordinator._handle_cover_state_change("cover.test", None, new_state)
+            mock_pause.assert_called_once_with(cover)
+
+    @pytest.mark.asyncio
+    async def test_send_tilt_delayed(self, coordinator, mock_hass) -> None:
+        """Test _send_tilt_delayed sends tilt command."""
+        await coordinator._send_tilt_delayed("cover.test", 50, 0)
+
+        mock_hass.services.async_call.assert_called_once_with(
+            "cover",
+            "set_cover_tilt_position",
+            {"entity_id": "cover.test", "tilt_position": 50},
+            blocking=False,
+        )

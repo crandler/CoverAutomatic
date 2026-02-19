@@ -69,6 +69,10 @@
           "vent_sensor": "Vent sensor (ventilation contact)",
           "vent_position": "Position when venting (%)",
           "inverted": "Inverted (100% = closed)",
+          "supports_tilt": "Supports tilt/slat control",
+          "lock_tilt_position": "Tilt position when locked (%)",
+          "vent_tilt_position": "Tilt position when venting (%)",
+          "inverted_tilt": "Inverted tilt (100% = closed slats)",
           "min_position_change": "Min. position change (%)",
           "min_time_between_changes": "Min. time between changes (sec)",
           "pause_duration": "Pause duration after manual override (min)"
@@ -115,7 +119,8 @@
           "name": "Name",
           "enabled": "Enabled",
           "priority": "Priority (higher = more important)",
-          "target_position": "Target position (%)"
+          "target_position": "Target position (%)",
+          "target_tilt_position": "Target tilt position (%)"
         }
       },
       "rule_edit": {
@@ -127,6 +132,7 @@
           "priority": "Priority",
           "condition_operator": "Condition logic",
           "target_position": "Target position (%)",
+          "target_tilt_position": "Target tilt position (%)",
           "add_condition": "Add condition",
           "delete": "Delete this rule"
         }

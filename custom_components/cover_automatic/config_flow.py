@@ -402,6 +402,12 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             cover_raw["vent_sensor"] = user_input.get("vent_sensor") or None
             cover_raw["vent_position"] = user_input.get("vent_position", 30)
             cover_raw["inverted"] = user_input.get("inverted", False)
+            cover_raw["supports_tilt"] = user_input.get("supports_tilt", False)
+            lock_tilt = user_input.get("lock_tilt_position")
+            cover_raw["lock_tilt_position"] = lock_tilt if lock_tilt is not None else None
+            vent_tilt = user_input.get("vent_tilt_position")
+            cover_raw["vent_tilt_position"] = vent_tilt if vent_tilt is not None else None
+            cover_raw["inverted_tilt"] = user_input.get("inverted_tilt", False)
             cover_raw["min_position_change"] = user_input.get("min_position_change", 5)
             cover_raw["min_time_between_changes"] = user_input.get("min_time_between_changes", 300)
             cover_raw["pause_duration"] = user_input.get("pause_duration", 120)
@@ -426,6 +432,10 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
         current_vent_sensor = cover_raw.get("vent_sensor")
         current_vent_position = cover_raw.get("vent_position", 30)
         current_inverted = cover_raw.get("inverted", False)
+        current_supports_tilt = cover_raw.get("supports_tilt", False)
+        current_lock_tilt = cover_raw.get("lock_tilt_position")
+        current_vent_tilt = cover_raw.get("vent_tilt_position")
+        current_inverted_tilt = cover_raw.get("inverted_tilt", False)
         current_min_change = cover_raw.get("min_position_change", 5)
         current_min_time = cover_raw.get("min_time_between_changes", 300)
         current_pause = cover_raw.get("pause_duration", 120)
@@ -471,6 +481,22 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                     vol.Optional(
                         "inverted",
                         default=current_inverted,
+                    ): bool,
+                    vol.Optional(
+                        "supports_tilt",
+                        default=current_supports_tilt,
+                    ): bool,
+                    vol.Optional(
+                        "lock_tilt_position",
+                        description={"suggested_value": current_lock_tilt},
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+                    vol.Optional(
+                        "vent_tilt_position",
+                        description={"suggested_value": current_vent_tilt},
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+                    vol.Optional(
+                        "inverted_tilt",
+                        default=current_inverted_tilt,
                     ): bool,
                     vol.Optional(
                         "min_position_change",
@@ -729,6 +755,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                         enabled=user_input.get("enabled", True),
                         priority=user_input.get("priority", 10),
                         target_position=user_input.get("target_position", 0),
+                        target_tilt_position=user_input.get("target_tilt_position") or None,
                     )
                     await storage.async_add_rule(new_rule)
                     # Go to rule edit to add conditions
@@ -745,6 +772,9 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                         vol.Coerce(int), vol.Range(min=1, max=100)
                     ),
                     vol.Optional("target_position", default=0): vol.All(
+                        vol.Coerce(int), vol.Range(min=0, max=100)
+                    ),
+                    vol.Optional("target_tilt_position"): vol.All(
                         vol.Coerce(int), vol.Range(min=0, max=100)
                     ),
                 }
@@ -780,6 +810,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 priority=user_input.get("priority", rule.priority),
                 condition_operator=user_input.get("condition_operator", rule.condition_operator),
                 target_position=user_input.get("target_position", rule.target_position),
+                target_tilt_position=user_input.get("target_tilt_position") or None,
                 conditions=rule.conditions,
                 facade_ids=rule.facade_ids,
                 cover_ids=rule.cover_ids,
@@ -817,6 +848,10 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                     vol.Optional("target_position", default=rule.target_position): vol.All(
                         vol.Coerce(int), vol.Range(min=0, max=100)
                     ),
+                    vol.Optional(
+                        "target_tilt_position",
+                        description={"suggested_value": rule.target_tilt_position},
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
                     vol.Optional("add_condition", default=False): bool,
                     vol.Optional("delete", default=False): bool,
                 }

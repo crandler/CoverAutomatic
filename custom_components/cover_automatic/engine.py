@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.util import dt as dt_util
 
-from .models import ComfortMode, Condition, ConditionType, CoverConfig, Rule
+from .models import ComfortMode, Condition, ConditionType, CoverConfig, CoverTarget, Rule
 from .sun import get_sun_position, get_sunrise_time, get_sunset_time, is_sun_on_facade
 
 if TYPE_CHECKING:
@@ -34,14 +34,14 @@ class RuleEngine:
         self.hass = hass
         self.storage = storage
 
-    def evaluate_cover(self, cover: CoverConfig) -> int | None:
-        """Evaluate rules for a cover and return target position.
+    def evaluate_cover(self, cover: CoverConfig) -> CoverTarget | None:
+        """Evaluate rules for a cover and return target position/tilt.
 
         Returns:
-            Target position (0-100) or None if no rule matches.
+            CoverTarget with position (and optional tilt) or None if no rule matches.
         """
         active_scenario = self.storage.active_scenario
-        matching_rules: list[tuple[int, str, int]] = []
+        matching_rules: list[tuple[int, str, Rule]] = []
 
         for rule in self.storage.rules.values():
             if not rule.enabled:
@@ -54,14 +54,18 @@ class RuleEngine:
                 continue
 
             if self._evaluate_conditions(rule, cover):
-                matching_rules.append((rule.priority, rule.id, rule.target_position))
+                matching_rules.append((rule.priority, rule.id, rule))
 
         if not matching_rules:
             return None
 
         # Sort by priority desc, then by rule ID asc for deterministic order
         matching_rules.sort(key=lambda x: (-x[0], x[1]))
-        return matching_rules[0][2]
+        winner = matching_rules[0][2]
+        return CoverTarget(
+            position=winner.target_position,
+            tilt_position=winner.target_tilt_position,
+        )
 
     def _rule_applies_to_cover(self, rule: Rule, cover: CoverConfig) -> bool:
         """Check if rule applies to cover."""

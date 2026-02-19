@@ -722,6 +722,10 @@ class TestOptionsFlowCoverDetails:
             "vent_sensor": None,
             "vent_position": 30,
             "inverted": True,
+            "supports_tilt": True,
+            "lock_tilt_position": 0,
+            "vent_tilt_position": 50,
+            "inverted_tilt": True,
             "min_position_change": 10,
             "min_time_between_changes": 600,
             "pause_duration": 180,
@@ -731,6 +735,10 @@ class TestOptionsFlowCoverDetails:
         assert cover_raw["facade_id"] == "south"
         assert cover_raw["lock_sensor"] == "binary_sensor.window"
         assert cover_raw["inverted"] is True
+        assert cover_raw["supports_tilt"] is True
+        assert cover_raw["lock_tilt_position"] == 0
+        assert cover_raw["vent_tilt_position"] == 50
+        assert cover_raw["inverted_tilt"] is True
         assert cover_raw["min_position_change"] == 10
         assert cover_raw["pause_duration"] == 180
         mock_storage.async_save.assert_called_once()

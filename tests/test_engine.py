@@ -12,6 +12,7 @@ from custom_components.cover_automatic.models import (
     Condition,
     ConditionType,
     CoverConfig,
+    CoverTarget,
     Facade,
     Rule,
     Scenario,
@@ -109,7 +110,7 @@ class TestRuleEngine:
     def test_evaluate_matching_rule(
         self, engine, mock_storage, test_cover
     ) -> None:
-        """Test matching rule returns target position."""
+        """Test matching rule returns CoverTarget with target position."""
         rule = Rule(
             id="test_rule",
             name="Test Rule",
@@ -120,7 +121,9 @@ class TestRuleEngine:
         mock_storage.rules = {"test_rule": rule}
 
         result = engine.evaluate_cover(test_cover)
-        assert result == 30
+        assert isinstance(result, CoverTarget)
+        assert result.position == 30
+        assert result.tilt_position is None
 
     def test_evaluate_priority_ordering(
         self, engine, mock_storage, test_cover
@@ -143,7 +146,7 @@ class TestRuleEngine:
         mock_storage.rules = {"low": low_priority, "high": high_priority}
 
         result = engine.evaluate_cover(test_cover)
-        assert result == 80
+        assert result.position == 80
 
 
 class TestRuleApplies:
@@ -861,3 +864,69 @@ class TestConditionExceptionHandling:
         result = engine._evaluate_condition(condition, test_cover)
 
         assert result is False
+
+
+class TestTiltInEngine:
+    """Tests for tilt support in rule engine."""
+
+    def test_evaluate_returns_tilt_when_set(
+        self, engine, mock_storage, test_cover
+    ) -> None:
+        """Test evaluate_cover returns CoverTarget with tilt_position."""
+        rule = Rule(
+            id="tilt_rule",
+            name="Tilt Rule",
+            enabled=True,
+            target_position=30,
+            target_tilt_position=50,
+            conditions=[],
+        )
+        mock_storage.rules = {"tilt_rule": rule}
+
+        result = engine.evaluate_cover(test_cover)
+        assert isinstance(result, CoverTarget)
+        assert result.position == 30
+        assert result.tilt_position == 50
+
+    def test_evaluate_returns_none_tilt_when_not_set(
+        self, engine, mock_storage, test_cover
+    ) -> None:
+        """Test evaluate_cover returns None tilt when not configured."""
+        rule = Rule(
+            id="no_tilt",
+            name="No Tilt",
+            enabled=True,
+            target_position=70,
+            conditions=[],
+        )
+        mock_storage.rules = {"no_tilt": rule}
+
+        result = engine.evaluate_cover(test_cover)
+        assert result.position == 70
+        assert result.tilt_position is None
+
+    def test_priority_with_tilt(
+        self, engine, mock_storage, test_cover
+    ) -> None:
+        """Test higher priority rule's tilt wins."""
+        low = Rule(
+            id="low",
+            name="Low",
+            enabled=True,
+            priority=5,
+            target_position=20,
+            target_tilt_position=10,
+        )
+        high = Rule(
+            id="high",
+            name="High",
+            enabled=True,
+            priority=15,
+            target_position=80,
+            target_tilt_position=90,
+        )
+        mock_storage.rules = {"low": low, "high": high}
+
+        result = engine.evaluate_cover(test_cover)
+        assert result.position == 80
+        assert result.tilt_position == 90

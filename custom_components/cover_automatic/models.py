@@ -43,6 +43,14 @@ class ComfortMode(StrEnum):
 
 
 @dataclass
+class CoverTarget:
+    """Target position and optional tilt for a cover."""
+
+    position: int
+    tilt_position: int | None = None
+
+
+@dataclass
 class Facade:
     """Represents a building facade with sun exposure settings."""
 
@@ -113,6 +121,7 @@ class Rule:
     cover_ids: list[str] = field(default_factory=list)
     conditions: list[Condition] = field(default_factory=list)
     target_position: int = 0
+    target_tilt_position: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -126,6 +135,7 @@ class Rule:
             "cover_ids": self.cover_ids,
             "conditions": [c.to_dict() for c in self.conditions],
             "target_position": self.target_position,
+            "target_tilt_position": self.target_tilt_position,
         }
 
     @classmethod
@@ -149,6 +159,7 @@ class Rule:
             cover_ids=list(data.get("cover_ids") or []),
             conditions=conditions,
             target_position=data.get("target_position", 0),
+            target_tilt_position=data.get("target_tilt_position"),
         )
 
 
@@ -197,6 +208,10 @@ class CoverConfig:
     vent_sensor: str | None = None
     vent_position: int = 30
     inverted: bool = False
+    supports_tilt: bool = False
+    lock_tilt_position: int | None = None
+    vent_tilt_position: int | None = None
+    inverted_tilt: bool = False
     min_position_change: int = 5
     min_time_between_changes: int = 300
     last_position_change: float | None = None
@@ -216,6 +231,10 @@ class CoverConfig:
             "vent_sensor": self.vent_sensor,
             "vent_position": self.vent_position,
             "inverted": self.inverted,
+            "supports_tilt": self.supports_tilt,
+            "lock_tilt_position": self.lock_tilt_position,
+            "vent_tilt_position": self.vent_tilt_position,
+            "inverted_tilt": self.inverted_tilt,
             "min_position_change": self.min_position_change,
             "min_time_between_changes": self.min_time_between_changes,
             "last_position_change": self.last_position_change,
@@ -248,6 +267,10 @@ class CoverConfig:
             vent_sensor=data.get("vent_sensor"),
             vent_position=data.get("vent_position", 30),
             inverted=data.get("inverted", False),
+            supports_tilt=data.get("supports_tilt", False),
+            lock_tilt_position=data.get("lock_tilt_position"),
+            vent_tilt_position=data.get("vent_tilt_position"),
+            inverted_tilt=data.get("inverted_tilt", False),
             min_position_change=data.get("min_position_change", 5),
             min_time_between_changes=data.get("min_time_between_changes", 300),
             last_position_change=data.get("last_position_change"),

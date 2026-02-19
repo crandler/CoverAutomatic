@@ -147,9 +147,23 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.29
+1.0.31
 
 ## Changelog
+
+### 1.0.31 (2026-02-19)
+
+- Add tilt/slat control for Raffstores/Jalousien (Venetian blinds)
+- Auto-detect tilt capability via HA supported_features (SET_TILT_POSITION)
+- New CoverTarget dataclass: engine returns position + optional tilt_position
+- Sequential command: position first, tilt via fire-and-forget task with 1.5s delay
+- Per-cover tilt settings: lock_tilt_position, vent_tilt_position, inverted_tilt
+- Tilt inversion support (100 - target) for covers where 100% = closed slats
+- Manual override detection extended to include tilt position mismatch
+- Lock/vent sensor handlers send tilt after position when configured
+- Rule engine supports optional target_tilt_position per rule
+- Config flow UI: tilt fields in cover details, target tilt in rule add/edit
+- Full backward compatibility: all new fields have defaults, no storage migration needed
 
 ### 1.0.30 (2026-02-19)
 
