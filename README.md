@@ -147,9 +147,22 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.31
+1.0.32
 
 ## Changelog
+
+### 1.0.32 (2026-02-19)
+
+- Fix target_tilt_position=0 silently discarded in rule add/edit (falsy `or None` pattern)
+- Fix target_tilt_position lost when adding condition to existing rule
+- Fix stale tilt task firing after cover status change (cancel pending tilt on new command)
+- Update _last_command_time after tilt delay to prevent false manual override detection
+- Consolidate duplicate tilt-sending logic in async_apply_positions into single block
+- Merge _is_lock_sensor_open / _is_vent_sensor_open into parameterized _is_sensor_open
+- Extract BINARY_SENSOR_ON_STATES constant (replaces 5x duplicated string tuple)
+- Simplify _evaluate_conditions to use any()/all() instead of manual loops
+- Use _DIRECTION_OPTIONS constant in ConfigFlow initial setup (was EN, now consistent DE)
+- Simplify tautological ternary for tilt position assignment in cover_details
 
 ### 1.0.31 (2026-02-19)
 

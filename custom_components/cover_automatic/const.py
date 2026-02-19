@@ -20,6 +20,9 @@ DEFAULT_TILT_CLOSED: Final = 0
 TILT_COMMAND_DELAY: Final = 1.5  # seconds between position and tilt command
 TILT_FEATURE_FLAG: Final = 128  # CoverEntityFeature.SET_TILT_POSITION
 
+# Binary sensor on-states for contact sensors
+BINARY_SENSOR_ON_STATES: Final = frozenset({"on", "open", "true", "1"})
+
 # Storage
 STORAGE_KEY: Final = f"{DOMAIN}.storage"
 STORAGE_VERSION: Final = 1

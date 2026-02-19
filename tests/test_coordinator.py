@@ -1,6 +1,7 @@
 """Tests for CoverAutomatic coordinator."""
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -80,6 +81,7 @@ def coordinator(mock_hass, mock_storage):
         coord._cover_states = {}
         coord._last_positions = {}
         coord._last_tilt_positions = {}
+        coord._tilt_tasks = {}
         coord._last_command_time = {}
         coord._pre_lock_states = {}
         coord.data = {}
@@ -828,6 +830,7 @@ class TestOrphanCleanup:
         coordinator._last_positions["cover.active"] = 50
         coordinator._last_tilt_positions["cover.gone"] = 40
         coordinator._last_tilt_positions["cover.active"] = 60
+        coordinator._tilt_tasks["cover.gone"] = MagicMock(spec=asyncio.Task, done=MagicMock(return_value=False))
         coordinator._pre_lock_states["cover.gone"] = CoverStatus.AUTO
         coordinator._last_command_time["cover.gone"] = 123.0
         coordinator._last_command_time["cover.active"] = 456.0

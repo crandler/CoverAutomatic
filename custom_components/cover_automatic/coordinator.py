@@ -12,7 +12,13 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, TILT_COMMAND_DELAY, TILT_FEATURE_FLAG
+from .const import (
+    BINARY_SENSOR_ON_STATES,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    TILT_COMMAND_DELAY,
+    TILT_FEATURE_FLAG,
+)
 from .engine import RuleEngine
 from .models import CoverConfig, CoverStatus
 from .storage import CoverAutomaticStorage
@@ -56,6 +62,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._cover_states: dict[str, CoverStatus] = {}
         self._last_positions: dict[str, int | None] = {}
         self._last_tilt_positions: dict[str, int | None] = {}
+        self._tilt_tasks: dict[str, asyncio.Task[None]] = {}
         self._last_command_time: dict[str, float] = {}
         self._pre_lock_states: dict[str, CoverStatus] = {}
 
@@ -150,10 +157,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._last_tilt_positions,
                 self._pre_lock_states,
                 self._last_command_time,
+                self._tilt_tasks,
             ):
                 orphaned = set(state_dict.keys()) - current_covers
                 for entity_id in orphaned:
-                    del state_dict[entity_id]
+                    task = state_dict.pop(entity_id)
+                    if isinstance(task, asyncio.Task) and not task.done():
+                        task.cancel()
 
         entities_to_track: set[str] = {SUN_ENTITY_ID}
 
@@ -231,15 +241,15 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 self.hass.async_create_task(self.async_request_refresh())
 
-    def _is_lock_sensor_open(self, cover_raw: dict[str, Any]) -> bool:
-        """Check if the lock sensor for a cover is open."""
-        lock_sensor = cover_raw.get("lock_sensor")
-        if not lock_sensor:
+    def _is_sensor_open(self, cover_raw: dict[str, Any], key: str) -> bool:
+        """Check if a binary sensor (lock/vent) for a cover is open."""
+        sensor = cover_raw.get(key)
+        if not sensor:
             return False
-        sensor_state = self.hass.states.get(lock_sensor)
+        sensor_state = self.hass.states.get(sensor)
         if sensor_state is None:
             return False
-        return sensor_state.state in ("on", "open", "true", "1")
+        return sensor_state.state in BINARY_SENSOR_ON_STATES
 
     def _handle_contact_sensor_change(
         self,
@@ -253,7 +263,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if new_state is None:
             return
 
-        is_open = new_state.state in ("on", "open", "true", "1")
+        is_open = new_state.state in BINARY_SENSOR_ON_STATES
 
         # Handle lock sensor covers (window open -> fully open)
         # Lock sensor always has priority - override even if already locked by vent
@@ -288,7 +298,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
 
             # Skip if lock sensor is open (lock has priority)
-            if self._is_lock_sensor_open(cover_raw):
+            if self._is_sensor_open(cover_raw, "lock_sensor"):
                 continue
 
             current_status = self._cover_states.get(cover_id, CoverStatus.AUTO)
@@ -304,13 +314,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _is_vent_sensor_open(self, cover_raw: dict[str, Any]) -> bool:
         """Check if the vent sensor for a cover is open."""
-        vent_sensor = cover_raw.get("vent_sensor")
-        if not vent_sensor:
-            return False
-        sensor_state = self.hass.states.get(vent_sensor)
-        if sensor_state is None:
-            return False
-        return sensor_state.state in ("on", "open", "true", "1")
+        return self._is_sensor_open(cover_raw, "vent_sensor")
 
     def _lock_cover(
         self, entity_id: str, lock_position: int, *, lock_tilt: int | None = None
@@ -351,9 +355,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if cover_raw.get("inverted_tilt", False):
                 actual_tilt = 100 - lock_tilt
             self._last_tilt_positions[entity_id] = actual_tilt
-            self.hass.async_create_task(
-                self._send_tilt_delayed(entity_id, actual_tilt, TILT_COMMAND_DELAY)
-            )
+            self._schedule_tilt(entity_id, actual_tilt, TILT_COMMAND_DELAY)
 
         self.async_set_updated_data(self.data)
 
@@ -490,30 +492,26 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
 
             # Check lock sensor state (window contact) - highest priority
-            if lock_sensor := cover_raw.get("lock_sensor"):
-                sensor_state = self.hass.states.get(lock_sensor)
-                if sensor_state and sensor_state.state in ("on", "open", "true", "1"):
-                    if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
-                        # First detection (e.g. after restart) - send position
-                        self._lock_cover(
-                            entity_id,
-                            cover_raw.get("lock_position", 100),
-                            lock_tilt=cover_raw.get("lock_tilt_position"),
-                        )
-                    continue
+            if self._is_sensor_open(cover_raw, "lock_sensor"):
+                if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
+                    # First detection (e.g. after restart) - send position
+                    self._lock_cover(
+                        entity_id,
+                        cover_raw.get("lock_position", 100),
+                        lock_tilt=cover_raw.get("lock_tilt_position"),
+                    )
+                continue
 
             # Check vent sensor state (ventilation contact)
-            if vent_sensor := cover_raw.get("vent_sensor"):
-                sensor_state = self.hass.states.get(vent_sensor)
-                if sensor_state and sensor_state.state in ("on", "open", "true", "1"):
-                    if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
-                        # First detection (e.g. after restart) - send position
-                        self._lock_cover(
-                            entity_id,
-                            cover_raw.get("vent_position", 30),
-                            lock_tilt=cover_raw.get("vent_tilt_position"),
-                        )
-                    continue
+            if self._is_sensor_open(cover_raw, "vent_sensor"):
+                if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
+                    # First detection (e.g. after restart) - send position
+                    self._lock_cover(
+                        entity_id,
+                        cover_raw.get("vent_position", 30),
+                        lock_tilt=cover_raw.get("vent_tilt_position"),
+                    )
+                continue
 
             # If was locked but both sensors now closed, unlock
             if self._cover_states.get(entity_id) == CoverStatus.LOCKED:
@@ -647,9 +645,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if cover_raw.get("inverted_tilt", False):
                     actual_tilt = 100 - target_tilt
 
-            if current != target:
+            position_changed = current != target
+            if position_changed:
                 _LOGGER.debug("Setting %s to position %s", entity_id, target)
-                # Store physical position and command time BEFORE issuing command
                 self._last_positions[entity_id] = target
                 self._last_command_time[entity_id] = time_mod.monotonic()
                 await self.hass.services.async_call(
@@ -658,30 +656,19 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     {"entity_id": entity_id, "position": target},
                     blocking=False,
                 )
-                # Update last change timestamp
                 self.storage.update_cover_last_change(entity_id, now)
-
-                # Send tilt after position if tilt changed
-                if actual_tilt is not None:
-                    last_tilt = self._last_tilt_positions.get(entity_id)
-                    if last_tilt is None or abs(actual_tilt - last_tilt) > MANUAL_OVERRIDE_TOLERANCE:
-                        self._last_tilt_positions[entity_id] = actual_tilt
-                        self.hass.async_create_task(
-                            self._send_tilt_delayed(entity_id, actual_tilt, TILT_COMMAND_DELAY)
-                        )
             else:
-                # Position matches, update expected
                 self._last_positions[entity_id] = current
 
-                # Still check if tilt needs updating even when position unchanged
-                if actual_tilt is not None:
-                    last_tilt = self._last_tilt_positions.get(entity_id)
-                    if last_tilt is None or abs(actual_tilt - last_tilt) > MANUAL_OVERRIDE_TOLERANCE:
-                        self._last_tilt_positions[entity_id] = actual_tilt
+            # Send tilt if changed (after position with delay, or immediately)
+            if actual_tilt is not None:
+                last_tilt = self._last_tilt_positions.get(entity_id)
+                if last_tilt is None or abs(actual_tilt - last_tilt) > MANUAL_OVERRIDE_TOLERANCE:
+                    self._last_tilt_positions[entity_id] = actual_tilt
+                    tilt_delay = TILT_COMMAND_DELAY if position_changed else 0
+                    if not position_changed:
                         self._last_command_time[entity_id] = time_mod.monotonic()
-                        self.hass.async_create_task(
-                            self._send_tilt_delayed(entity_id, actual_tilt, 0)
-                        )
+                    self._schedule_tilt(entity_id, actual_tilt, tilt_delay)
 
     def _supports_tilt(self, entity_id: str) -> bool:
         """Check if a cover entity supports tilt via HA features."""
@@ -691,12 +678,24 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         features = state.attributes.get("supported_features", 0)
         return bool(features & TILT_FEATURE_FLAG)
 
+    def _schedule_tilt(
+        self, entity_id: str, tilt: int, delay: float
+    ) -> None:
+        """Schedule a tilt command, cancelling any pending one for the same cover."""
+        old_task = self._tilt_tasks.get(entity_id)
+        if old_task and not old_task.done():
+            old_task.cancel()
+        self._tilt_tasks[entity_id] = self.hass.async_create_task(
+            self._send_tilt_delayed(entity_id, tilt, delay)
+        )
+
     async def _send_tilt_delayed(
         self, entity_id: str, tilt: int, delay: float
     ) -> None:
         """Send tilt command after optional delay."""
         if delay > 0:
             await asyncio.sleep(delay)
+        self._last_command_time[entity_id] = time_mod.monotonic()
         await self.hass.services.async_call(
             "cover",
             "set_cover_tilt_position",

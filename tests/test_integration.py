@@ -91,6 +91,7 @@ def coordinator(mock_hass, mock_storage):
         coord._cover_states = {}
         coord._last_positions = {}
         coord._last_tilt_positions = {}
+        coord._tilt_tasks = {}
         coord._last_command_time = {}
         coord._pre_lock_states = {}
         coord.data = {}

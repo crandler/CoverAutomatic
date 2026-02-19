@@ -111,12 +111,7 @@ class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Optional("facade_name"): str,
                     vol.Optional("facade_direction", default="south"): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=[
-                                {"value": "north", "label": "North"},
-                                {"value": "east", "label": "East"},
-                                {"value": "south", "label": "South"},
-                                {"value": "west", "label": "West"},
-                            ],
+                            options=_DIRECTION_OPTIONS,
                             mode=selector.SelectSelectorMode.DROPDOWN,
                         )
                     ),
@@ -403,10 +398,8 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             cover_raw["vent_position"] = user_input.get("vent_position", 30)
             cover_raw["inverted"] = user_input.get("inverted", False)
             cover_raw["supports_tilt"] = user_input.get("supports_tilt", False)
-            lock_tilt = user_input.get("lock_tilt_position")
-            cover_raw["lock_tilt_position"] = lock_tilt if lock_tilt is not None else None
-            vent_tilt = user_input.get("vent_tilt_position")
-            cover_raw["vent_tilt_position"] = vent_tilt if vent_tilt is not None else None
+            cover_raw["lock_tilt_position"] = user_input.get("lock_tilt_position")
+            cover_raw["vent_tilt_position"] = user_input.get("vent_tilt_position")
             cover_raw["inverted_tilt"] = user_input.get("inverted_tilt", False)
             cover_raw["min_position_change"] = user_input.get("min_position_change", 5)
             cover_raw["min_time_between_changes"] = user_input.get("min_time_between_changes", 300)
@@ -755,7 +748,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                         enabled=user_input.get("enabled", True),
                         priority=user_input.get("priority", 10),
                         target_position=user_input.get("target_position", 0),
-                        target_tilt_position=user_input.get("target_tilt_position") or None,
+                        target_tilt_position=user_input.get("target_tilt_position"),
                     )
                     await storage.async_add_rule(new_rule)
                     # Go to rule edit to add conditions
@@ -810,7 +803,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 priority=user_input.get("priority", rule.priority),
                 condition_operator=user_input.get("condition_operator", rule.condition_operator),
                 target_position=user_input.get("target_position", rule.target_position),
-                target_tilt_position=user_input.get("target_tilt_position") or None,
+                target_tilt_position=user_input.get("target_tilt_position"),
                 conditions=rule.conditions,
                 facade_ids=rule.facade_ids,
                 cover_ids=rule.cover_ids,
@@ -914,6 +907,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 priority=rule.priority,
                 condition_operator=rule.condition_operator,
                 target_position=rule.target_position,
+                target_tilt_position=rule.target_tilt_position,
                 conditions=list(rule.conditions) + [new_condition],
                 facade_ids=rule.facade_ids,
                 cover_ids=rule.cover_ids,
