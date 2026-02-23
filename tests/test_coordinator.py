@@ -1028,15 +1028,14 @@ class TestShutdownPendingSave:
     async def test_shutdown_flushes_pending_save(
         self, coordinator, mock_storage
     ) -> None:
-        """When _save_task is not None it is cancelled and async_save is called."""
+        """When _save_task is not None it is cancelled via flush_pending_save and async_save is called."""
         mock_task = MagicMock()
         mock_storage._save_task = mock_task
         coordinator._unsub_state_change = []
 
         await coordinator.async_shutdown()
 
-        mock_task.cancel.assert_called_once()
-        assert mock_storage._save_task is None
+        mock_storage.flush_pending_save.assert_called_once()
         mock_storage.async_save.assert_called_once()
 
     @pytest.mark.asyncio
@@ -1044,16 +1043,29 @@ class TestShutdownPendingSave:
         self, coordinator, mock_storage
     ) -> None:
         """When async_save raises during shutdown, no exception propagates."""
-        mock_task = MagicMock()
-        mock_storage._save_task = mock_task
         mock_storage.async_save.side_effect = OSError("disk full")
         coordinator._unsub_state_change = []
 
         # Must not raise
         await coordinator.async_shutdown()
 
-        mock_task.cancel.assert_called_once()
+        mock_storage.flush_pending_save.assert_called_once()
         mock_storage.async_save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_cancels_tilt_tasks(
+        self, coordinator, mock_storage
+    ) -> None:
+        """Shutdown cancels all pending tilt tasks."""
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        coordinator._tilt_tasks = {"cover.test": mock_task}
+        coordinator._unsub_state_change = []
+
+        await coordinator.async_shutdown()
+
+        mock_task.cancel.assert_called_once()
+        assert coordinator._tilt_tasks == {}
 
 
 class TestTiltHandling:

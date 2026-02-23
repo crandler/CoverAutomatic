@@ -45,7 +45,7 @@ In no event shall the author be liable for any claim, damages or other liability
 
 ## Requirements
 
-- Home Assistant 2025.12.0 or newer
+- Home Assistant 2025.1.0 or newer
 - HACS (Home Assistant Community Store) installed
 - Existing cover entities to control
 
@@ -147,9 +147,33 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.34
+1.0.36
 
 ## Changelog
+
+### 1.0.36 (2026-02-23)
+
+- Fix _sync_cover_statuses: lock/vent sensors now override even when auto_enabled=False (safety)
+- Fix _send_tilt_delayed: clean up _tilt_tasks reference after completion (memory leak)
+- Fix async_shutdown: cancel all pending tilt tasks before teardown
+- Fix scenario deletion: capture active_scenario state before removing to avoid dangling reference
+- Fix Condition.from_dict: validate params is dict, shallow copy to prevent mutation
+- Fix _eval_temp_comfort: always convert mode_val via str() for robust enum comparison
+- Fix _eval_weather_is: resolve shadow variable in for-loop
+- Add "clear" entry to _WEATHER_MAP for explicit weather matching
+- Add set_cover_manual() public API, replace direct _cover_states access in switch
+- Add flush_pending_save() public API, replace direct _save_task access in coordinator
+- Replace storage._cache_covers with storage._invalidate_cache() in config_flow
+- Replace all hasattr(entry, "runtime_data") with getattr pattern
+- Add ConfigEntry type hint to async_get_options_flow signature
+- Add vol.Length(max=255) to setup wizard facade name input
+- Add debug logging to FacadeSunTimeSensor exception handler
+- Replace TILT_FEATURE_FLAG magic number with CoverEntityFeature.SET_TILT_POSITION
+- Coerce Facade.min_elevation with float() in from_dict
+- Guard async_set_updated_data calls against None data
+- Add homeassistant minimum version to manifest.json
+- Add named tasks for async_create_task calls (debuggability)
+- Add test for tilt task cancellation during shutdown (361 tests)
 
 ### 1.0.35 (2026-02-19)
 

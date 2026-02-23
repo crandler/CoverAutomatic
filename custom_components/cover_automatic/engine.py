@@ -19,6 +19,7 @@ _LOGGER = logging.getLogger(__name__)
 
 _WEATHER_MAP: dict[str, set[str]] = {
     "sunny": {"sunny", "clear", "clear-night"},
+    "clear": {"clear", "clear-night"},
     "cloudy": {"cloudy", "fog", "hazy", "overcast", "partlycloudy", "partly-cloudy"},
     "rainy": {"rainy", "pouring", "lightning", "lightning-rainy", "hail"},
     "snowy": {"snowy", "snowy-rainy"},
@@ -238,7 +239,7 @@ class RuleEngine:
         """
         mode_val = condition.params.get("mode", ComfortMode.COOLING.value)
         try:
-            expected_mode = ComfortMode(mode_val) if isinstance(mode_val, str) else mode_val
+            expected_mode = ComfortMode(str(mode_val))
         except ValueError:
             expected_mode = ComfortMode.COOLING
         sensor_id = condition.params.get("sensor") or self.storage.indoor_temp_sensor
@@ -287,8 +288,8 @@ class RuleEngine:
 
         current_weather = state.state.lower()
 
-        for expected in expected_states:
-            expected = expected.lower()
+        for raw_expected in expected_states:
+            expected = raw_expected.lower()
             mapped = _WEATHER_MAP.get(expected, set())
             if current_weather in mapped or expected == current_weather:
                 return True

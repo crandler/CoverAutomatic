@@ -1,6 +1,8 @@
 """Constants for CoverAutomatic integration."""
 from typing import Final
 
+from homeassistant.components.cover import CoverEntityFeature
+
 DOMAIN: Final = "cover_automatic"
 
 # Defaults
@@ -18,7 +20,7 @@ FACADE_PRESETS: Final = {
 DEFAULT_TILT_OPEN: Final = 100
 DEFAULT_TILT_CLOSED: Final = 0
 TILT_COMMAND_DELAY: Final = 1.5  # seconds between position and tilt command
-TILT_FEATURE_FLAG: Final = 128  # CoverEntityFeature.SET_TILT_POSITION
+TILT_FEATURE_FLAG: Final = CoverEntityFeature.SET_TILT_POSITION
 
 # Binary sensor on-states for contact sensors
 BINARY_SENSOR_ON_STATES: Final = frozenset({"on", "open", "true", "1"})

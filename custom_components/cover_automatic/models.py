@@ -83,7 +83,7 @@ class Facade:
             azimuth_start=float(data["azimuth_start"]) % 360,
             azimuth_end=float(data["azimuth_end"]) % 360,
             direction=data.get("direction", "south"),
-            min_elevation=data.get("min_elevation", 0.0),
+            min_elevation=float(data.get("min_elevation", 0.0)),
             cover_ids=list(data.get("cover_ids") or []),
         )
 
@@ -102,9 +102,12 @@ class Condition:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Condition:
         """Create from dictionary."""
+        raw_params = data.get("params", {})
+        if not isinstance(raw_params, dict):
+            raise ValueError(f"params must be a dict, got {type(raw_params).__name__}")
         return cls(
             type=ConditionType(data["type"]),
-            params=data.get("params", {}),
+            params=dict(raw_params),
         )
 
 

@@ -358,6 +358,12 @@ class CoverAutomaticStorage:
             self._cache_covers = None
             self._schedule_save()
 
+    def flush_pending_save(self) -> None:
+        """Cancel pending debounced save task (public API for coordinator shutdown)."""
+        if self._save_task is not None:
+            self._save_task.cancel()
+            self._save_task = None
+
     def _schedule_save(self) -> None:
         """Schedule a debounced save operation.
 
@@ -367,7 +373,10 @@ class CoverAutomaticStorage:
         if self._save_task is not None:
             self._save_task.cancel()
 
-        self._save_task = self.hass.async_create_task(self._debounced_save())
+        self._save_task = self.hass.async_create_task(
+            self._debounced_save(),
+            name="cover_automatic_debounced_save",
+        )
 
     async def _debounced_save(self) -> None:
         """Perform debounced save after delay."""

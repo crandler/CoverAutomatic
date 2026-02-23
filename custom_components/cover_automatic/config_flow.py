@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
@@ -108,7 +108,7 @@ class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="facades",
             data_schema=vol.Schema(
                 {
-                    vol.Optional("facade_name"): str,
+                    vol.Optional("facade_name"): vol.All(str, vol.Length(max=255)),
                     vol.Optional("facade_direction", default="south"): selector.SelectSelector(
                         selector.SelectSelectorConfig(
                             options=_DIRECTION_OPTIONS,
@@ -199,7 +199,9 @@ class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(
+        config_entry: ConfigEntry,
+    ) -> CoverAutomaticOptionsFlow:
         """Get the options flow for this handler."""
         return CoverAutomaticOptionsFlow()
 
@@ -216,8 +218,9 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
 
     def _get_storage(self):
         """Get storage from config entry runtime_data."""
-        if hasattr(self.config_entry, "runtime_data") and self.config_entry.runtime_data:
-            return self.config_entry.runtime_data.storage
+        runtime_data = getattr(self.config_entry, "runtime_data", None)
+        if runtime_data:
+            return runtime_data.storage
         return None
 
     async def async_step_init(
@@ -404,12 +407,13 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             cover_raw["min_position_change"] = user_input.get("min_position_change", 5)
             cover_raw["min_time_between_changes"] = user_input.get("min_time_between_changes", 300)
             cover_raw["pause_duration"] = user_input.get("pause_duration", 120)
-            storage._cache_covers = None
+            storage._invalidate_cache()
             await storage.async_save()
 
             # Refresh coordinator state tracking
-            if hasattr(self.config_entry, "runtime_data") and self.config_entry.runtime_data:
-                self.config_entry.runtime_data.coordinator.refresh_state_tracking()
+            runtime_data = getattr(self.config_entry, "runtime_data", None)
+            if runtime_data:
+                runtime_data.coordinator.refresh_state_tracking()
 
             return self.async_create_entry(title="", data=self.config_entry.options)
 
@@ -1082,9 +1086,10 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
 
         if user_input is not None:
             if user_input.get("delete"):
+                # Fix active_scenario BEFORE removing to avoid dangling reference
+                needs_active_fix = storage.active_scenario == scenario_id
                 await storage.async_remove_scenario(scenario_id)
-                # Reset active scenario if deleted
-                if storage.active_scenario == scenario_id:
+                if needs_active_fix:
                     remaining = list(storage.scenarios.keys())
                     if "everyday" in remaining:
                         storage.active_scenario = "everyday"

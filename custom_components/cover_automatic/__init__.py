@@ -107,8 +107,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEnt
 
     if not unload_ok:
         # Ensure coordinator shutdown even on failed platform unload
-        if hasattr(entry, "runtime_data") and entry.runtime_data:
-            await entry.runtime_data.coordinator.async_shutdown()
+        runtime_data = getattr(entry, "runtime_data", None)
+        if runtime_data:
+            await runtime_data.coordinator.async_shutdown()
 
     # Unload services only if unload succeeded and no entries remain
     if unload_ok:

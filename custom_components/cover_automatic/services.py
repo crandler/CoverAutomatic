@@ -75,8 +75,9 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         """Get all integration entry runtime data safely."""
         result = {}
         for entry in hass.config_entries.async_entries(DOMAIN):
-            if hasattr(entry, "runtime_data") and entry.runtime_data:
-                result[entry.entry_id] = entry.runtime_data
+            runtime_data = getattr(entry, "runtime_data", None)
+            if runtime_data:
+                result[entry.entry_id] = runtime_data
         return result
 
     async def handle_pause(call: ServiceCall) -> None:

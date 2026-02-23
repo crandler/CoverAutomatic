@@ -357,7 +357,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._last_tilt_positions[entity_id] = actual_tilt
             self._schedule_tilt(entity_id, actual_tilt, TILT_COMMAND_DELAY)
 
-        self.async_set_updated_data(self.data)
+        if self.data is not None:
+            self.async_set_updated_data(self.data)
 
     def _unlock_cover(self, entity_id: str) -> None:
         """Unlock a cover when contact sensor closes."""
@@ -375,7 +376,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
                 # Update expected position to current to prevent false override
                 self._update_last_position_from_state(entity_id)
-                self.async_set_updated_data(self.data)
+                if self.data is not None:
+                    self.async_set_updated_data(self.data)
                 return
 
         # Restore MANUAL if cover was manual before lock
@@ -385,7 +387,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 entity_id, CoverStatus.MANUAL.value, None
             )
             self._update_last_position_from_state(entity_id)
-            self.async_set_updated_data(self.data)
+            if self.data is not None:
+                self.async_set_updated_data(self.data)
             return
 
         self._cover_states[entity_id] = CoverStatus.AUTO
@@ -477,7 +480,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.storage.update_cover_status(
             cover.entity_id, CoverStatus.PAUSED.value, pause_until
         )
-        self.async_set_updated_data(self.data)
+        if self.data is not None:
+            self.async_set_updated_data(self.data)
 
     def resume_cover(self, entity_id: str) -> None:
         """Resume automation for a cover."""
@@ -489,27 +493,25 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     return
             self._cover_states[entity_id] = CoverStatus.AUTO
             self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
-            self.async_set_updated_data(self.data)
+            if self.data is not None:
+                self.async_set_updated_data(self.data)
 
     def _sync_cover_statuses(self) -> None:
         """Sync cover statuses from sensor states.
 
         Updates _cover_states and storage for all covers. Called once per
         update cycle to avoid side effects in property accessors.
+        Lock/vent sensors always have highest priority (safety feature),
+        even when auto_enabled is False.
         """
         for entity_id in list(self.storage._data.get("covers", {}).keys()):
             cover_raw = self.storage.get_cover_raw(entity_id)
             if cover_raw is None:
                 continue
 
-            if not cover_raw.get("auto_enabled", True):
-                self._cover_states[entity_id] = CoverStatus.MANUAL
-                continue
-
-            # Check lock sensor state (window contact) - highest priority
+            # Check lock sensor state (window contact) - always highest priority
             if self._is_sensor_open(cover_raw, "lock_sensor"):
                 if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
-                    # First detection (e.g. after restart) - send position
                     self._lock_cover(
                         entity_id,
                         cover_raw.get("lock_position", 100),
@@ -517,10 +519,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     )
                 continue
 
-            # Check vent sensor state (ventilation contact)
+            # Check vent sensor state - also above auto_enabled
             if self._is_sensor_open(cover_raw, "vent_sensor"):
                 if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
-                    # First detection (e.g. after restart) - send position
                     self._lock_cover(
                         entity_id,
                         cover_raw.get("vent_position", 30),
@@ -531,6 +532,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # If was locked but both sensors now closed, unlock
             if self._cover_states.get(entity_id) == CoverStatus.LOCKED:
                 self._unlock_cover(entity_id)
+                continue
+
+            if not cover_raw.get("auto_enabled", True):
+                self._cover_states[entity_id] = CoverStatus.MANUAL
                 continue
 
             # Check pause expiry
@@ -708,27 +713,40 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self, entity_id: str, tilt: int, delay: float
     ) -> None:
         """Send tilt command after optional delay."""
-        if delay > 0:
-            await asyncio.sleep(delay)
-        self._last_command_time[entity_id] = time_mod.monotonic()
-        await self.hass.services.async_call(
-            "cover",
-            "set_cover_tilt_position",
-            {"entity_id": entity_id, "tilt_position": tilt},
-            blocking=False,
-        )
+        try:
+            if delay > 0:
+                await asyncio.sleep(delay)
+            self._last_command_time[entity_id] = time_mod.monotonic()
+            await self.hass.services.async_call(
+                "cover",
+                "set_cover_tilt_position",
+                {"entity_id": entity_id, "tilt_position": tilt},
+                blocking=False,
+            )
+        finally:
+            # Clean up task reference (guard against cancelled task clearing new ref)
+            if self._tilt_tasks.get(entity_id) is asyncio.current_task():
+                del self._tilt_tasks[entity_id]
+
+    def set_cover_manual(self, entity_id: str) -> None:
+        """Set a cover's status to MANUAL (public API for platforms)."""
+        self._cover_states[entity_id] = CoverStatus.MANUAL
+        self.storage.update_cover_status(entity_id, CoverStatus.MANUAL.value, None)
 
     async def async_shutdown(self) -> None:
         """Shut down coordinator."""
+        # Cancel pending tilt tasks
+        for task in self._tilt_tasks.values():
+            if not task.done():
+                task.cancel()
+        self._tilt_tasks.clear()
+
         for unsub in self._unsub_state_change:
             unsub()
         self._unsub_state_change.clear()
         # Flush pending debounced save to prevent data loss
-        if self.storage._save_task is not None:
-            self.storage._save_task.cancel()
-            self.storage._save_task = None
-            # Immediate save to persist any pending runtime changes
-            try:
-                await self.storage.async_save()
-            except Exception:
-                _LOGGER.warning("Failed to flush pending save during shutdown")
+        self.storage.flush_pending_save()
+        try:
+            await self.storage.async_save()
+        except Exception:
+            _LOGGER.warning("Failed to flush pending save during shutdown")
