@@ -1,7 +1,6 @@
 """Number platform for CoverAutomatic."""
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from homeassistant.components.number import NumberEntity, NumberMode
@@ -16,8 +15,6 @@ if TYPE_CHECKING:
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
     from . import CoverAutomaticConfigEntry
-
-_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(

@@ -342,6 +342,7 @@ class TestExportImportServices:
 
         call = MagicMock()
         call.data = {"path": "/etc/passwd"}
+        call.context.user_id = None
 
         with patch(
             "custom_components.cover_automatic.services._validate_config_path",
@@ -368,6 +369,7 @@ class TestExportImportServices:
 
         call = MagicMock()
         call.data = {"path": "/etc/passwd"}
+        call.context.user_id = None
 
         with patch(
             "custom_components.cover_automatic.services._validate_config_path",
@@ -393,6 +395,7 @@ class TestExportImportServices:
 
         call = MagicMock()
         call.data = {}
+        call.context.user_id = None
 
         with patch(
             "custom_components.cover_automatic.services._LOGGER"
@@ -420,6 +423,7 @@ class TestExportImportServices:
 
         call = MagicMock()
         call.data = {"path": "/config/big.yaml"}
+        call.context.user_id = None
 
         mock_stat = MagicMock()
         mock_stat.st_size = 2_000_000  # 2 MB, over limit
@@ -568,6 +572,7 @@ class TestExportHappyPath:
 
         call = MagicMock()
         call.data = {"path": "/config/backup.yaml"}
+        call.context.user_id = None
 
         mock_path = MagicMock()
         mock_path.exists.return_value = True
@@ -629,6 +634,7 @@ class TestImportHappyPath:
 
         call = MagicMock()
         call.data = {"path": "/config/backup.yaml"}
+        call.context.user_id = None
 
         mock_stat = MagicMock()
         mock_stat.st_size = 100
@@ -696,6 +702,7 @@ class TestImportValidationErrors:
 
         call = MagicMock()
         call.data = {"path": "/config/backup.yaml"}
+        call.context.user_id = None
 
         mock_stat = MagicMock()
         mock_stat.st_size = 100
@@ -732,6 +739,7 @@ class TestImportValidationErrors:
 
         call = MagicMock()
         call.data = {"path": "/config/backup.yaml"}
+        call.context.user_id = None
 
         mock_stat = MagicMock()
         mock_stat.st_size = 100
@@ -748,3 +756,147 @@ class TestImportValidationErrors:
             await handlers["import_config"](call)
 
         coordinator.refresh_state_tracking.assert_not_called()
+
+
+class TestAdminRequirement:
+    """Tests for admin-only service access control."""
+
+    @pytest.fixture
+    def mock_hass_with_auth(self):
+        """Create mock Home Assistant with auth support."""
+        hass = MagicMock()
+        hass.services = MagicMock()
+        hass.services.has_service = MagicMock(return_value=False)
+        hass.services.async_register = MagicMock()
+        hass.config.path = MagicMock(return_value="/config/cover_automatic_backup.yaml")
+        hass.config.config_dir = "/config"
+
+        mock_storage = MagicMock()
+        mock_storage.get_raw_data = MagicMock(return_value={"facades": {}, "covers": {}})
+        mock_storage.async_import_data = AsyncMock()
+
+        mock_coordinator = MagicMock()
+        mock_coordinator.storage = mock_storage
+        mock_coordinator.refresh_state_tracking = MagicMock()
+        mock_coordinator.async_request_refresh = AsyncMock()
+
+        mock_entry = _make_mock_entry(mock_coordinator, mock_storage)
+        hass.config_entries = MagicMock()
+        hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+        return hass, mock_storage, mock_coordinator
+
+    @pytest.mark.asyncio
+    async def test_export_rejects_non_admin_user(self, mock_hass_with_auth) -> None:
+        """Test export_config rejects non-admin users."""
+        from homeassistant.exceptions import HomeAssistantError
+
+        hass, storage, coordinator = mock_hass_with_auth
+
+        mock_user = MagicMock()
+        mock_user.is_admin = False
+        hass.auth = MagicMock()
+        hass.auth.async_get_user = AsyncMock(return_value=mock_user)
+
+        handlers = {}
+
+        def capture_register(domain, service, handler, **kwargs):
+            handlers[service] = handler
+
+        hass.services.async_register = capture_register
+        await async_setup_services(hass)
+
+        call = MagicMock()
+        call.data = {"path": "/config/backup.yaml"}
+        call.context.user_id = "non_admin_user_123"
+
+        with pytest.raises(HomeAssistantError, match="Admin access required"):
+            await handlers["export_config"](call)
+
+    @pytest.mark.asyncio
+    async def test_import_rejects_non_admin_user(self, mock_hass_with_auth) -> None:
+        """Test import_config rejects non-admin users."""
+        from homeassistant.exceptions import HomeAssistantError
+
+        hass, storage, coordinator = mock_hass_with_auth
+
+        mock_user = MagicMock()
+        mock_user.is_admin = False
+        hass.auth = MagicMock()
+        hass.auth.async_get_user = AsyncMock(return_value=mock_user)
+
+        handlers = {}
+
+        def capture_register(domain, service, handler, **kwargs):
+            handlers[service] = handler
+
+        hass.services.async_register = capture_register
+        await async_setup_services(hass)
+
+        call = MagicMock()
+        call.data = {"path": "/config/backup.yaml"}
+        call.context.user_id = "non_admin_user_123"
+
+        with pytest.raises(HomeAssistantError, match="Admin access required"):
+            await handlers["import_config"](call)
+
+    @pytest.mark.asyncio
+    async def test_export_allows_admin_user(self, mock_hass_with_auth) -> None:
+        """Test export_config allows admin users."""
+        hass, storage, coordinator = mock_hass_with_auth
+
+        mock_user = MagicMock()
+        mock_user.is_admin = True
+        hass.auth = MagicMock()
+        hass.auth.async_get_user = AsyncMock(return_value=mock_user)
+        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *args: fn(*args) if not args else fn())
+
+        handlers = {}
+
+        def capture_register(domain, service, handler, **kwargs):
+            handlers[service] = handler
+
+        hass.services.async_register = capture_register
+        await async_setup_services(hass)
+
+        call = MagicMock()
+        call.data = {"path": "/config/backup.yaml"}
+        call.context.user_id = "admin_user_123"
+
+        mock_path = MagicMock()
+        mock_path.exists.return_value = True
+
+        with patch(
+            "custom_components.cover_automatic.services._validate_config_path",
+            return_value=mock_path,
+        ):
+            # Should not raise
+            await handlers["export_config"](call)
+
+    @pytest.mark.asyncio
+    async def test_export_allows_internal_call(self, mock_hass_with_auth) -> None:
+        """Test export_config allows internal calls without user context."""
+        hass, storage, coordinator = mock_hass_with_auth
+        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *args: fn(*args) if not args else fn())
+
+        handlers = {}
+
+        def capture_register(domain, service, handler, **kwargs):
+            handlers[service] = handler
+
+        hass.services.async_register = capture_register
+        await async_setup_services(hass)
+
+        call = MagicMock()
+        call.data = {"path": "/config/backup.yaml"}
+        call.context.user_id = None
+
+        mock_path = MagicMock()
+        mock_path.exists.return_value = True
+
+        with patch(
+            "custom_components.cover_automatic.services._validate_config_path",
+            return_value=mock_path,
+        ):
+            # Should not raise -- internal/automation calls pass through
+            await handlers["export_config"](call)

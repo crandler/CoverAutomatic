@@ -17,8 +17,6 @@ FACADE_PRESETS: Final = {
 }
 
 # Tilt / slat control
-DEFAULT_TILT_OPEN: Final = 100
-DEFAULT_TILT_CLOSED: Final = 0
 TILT_COMMAND_DELAY: Final = 1.5  # seconds between position and tilt command
 TILT_FEATURE_FLAG: Final = CoverEntityFeature.SET_TILT_POSITION
 

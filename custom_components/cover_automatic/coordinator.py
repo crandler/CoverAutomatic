@@ -281,7 +281,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
             elif self._cover_states.get(cover_id) == CoverStatus.LOCKED:
                 # Only unlock if vent sensor is also not open
-                if not self._is_vent_sensor_open(cover_raw):
+                if not self._is_sensor_open(cover_raw, "vent_sensor"):
                     self._unlock_cover(cover_id)
                 else:
                     # Lock sensor closed but vent still open -> switch to vent position
@@ -311,10 +311,6 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
             elif not is_open and current_status == CoverStatus.LOCKED:
                 self._unlock_cover(cover_id)
-
-    def _is_vent_sensor_open(self, cover_raw: dict[str, Any]) -> bool:
-        """Check if the vent sensor for a cover is open."""
-        return self._is_sensor_open(cover_raw, "vent_sensor")
 
     def _lock_cover(
         self, entity_id: str, lock_position: int, *, lock_tilt: int | None = None

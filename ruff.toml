@@ -1,0 +1,12 @@
+line-length = 120
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["E501"]

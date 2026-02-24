@@ -255,7 +255,10 @@ class CoverConfig:
             else:
                 status = CoverStatus.AUTO
         except ValueError:
-            _LOGGER.warning("Unknown cover status '%s' for '%s', defaulting to AUTO", status_val, data.get("entity_id", "?"))
+            _LOGGER.warning(
+                "Unknown cover status '%s' for '%s', defaulting to AUTO",
+                status_val, data.get("entity_id", "?"),
+            )
             status = CoverStatus.AUTO
         return cls(
             entity_id=data["entity_id"],

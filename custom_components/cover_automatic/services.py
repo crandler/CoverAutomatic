@@ -10,6 +10,7 @@ import yaml
 
 import homeassistant.helpers.config_validation as cv
 from homeassistant.core import ServiceCall
+from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN
 
@@ -138,8 +139,17 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 )
                 break
 
+    async def _require_admin(call: ServiceCall) -> None:
+        """Verify caller has admin privileges."""
+        if not call.context.user_id:
+            return  # Internal/automation call -- no user context
+        user = await hass.auth.async_get_user(call.context.user_id)
+        if not user or not user.is_admin:
+            raise HomeAssistantError("Admin access required for this service")
+
     async def handle_export_config(call: ServiceCall) -> None:
         """Handle export_config service call."""
+        await _require_admin(call)
         path_str = call.data.get("path") or hass.config.path(
             "cover_automatic_backup.yaml"
         )
@@ -157,9 +167,9 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         for entry_data in _get_entries().values():
             data = entry_data.storage.get_raw_data()
 
-            def write_yaml():
+            def write_yaml(export_data=data):
                 with open(validated_path, "w", encoding="utf-8") as f:
-                    yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+                    yaml.dump(export_data, f, default_flow_style=False, allow_unicode=True)
 
             try:
                 await hass.async_add_executor_job(write_yaml)
@@ -171,6 +181,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def handle_import_config(call: ServiceCall) -> None:
         """Handle import_config service call."""
+        await _require_admin(call)
         path_str = call.data.get("path")
         if not path_str:
             _LOGGER.error("Import rejected: no path provided")
@@ -232,8 +243,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     hass.services.async_register(DOMAIN, "pause", handle_pause, schema=schema_entity)
     hass.services.async_register(DOMAIN, "resume", handle_resume, schema=schema_entity)
-    hass.services.async_register(DOMAIN, "pause_all", handle_pause_all)
-    hass.services.async_register(DOMAIN, "resume_all", handle_resume_all)
+    hass.services.async_register(DOMAIN, "pause_all", handle_pause_all, schema=vol.Schema({}))
+    hass.services.async_register(DOMAIN, "resume_all", handle_resume_all, schema=vol.Schema({}))
     hass.services.async_register(
         DOMAIN, "set_scenario", handle_set_scenario, schema=schema_scenario
     )

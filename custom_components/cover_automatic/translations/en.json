@@ -185,7 +185,8 @@
       "name_required": "Name is required.",
       "already_exists": "An item with this name already exists.",
       "min_must_be_less_than_max": "Minimum must be less than maximum.",
-      "invalid_azimuth_range": "Start and end azimuth must be different."
+      "invalid_azimuth_range": "Start and end azimuth must be different.",
+      "too_many_conditions": "Maximum number of conditions reached."
     }
   },
   "entity": {

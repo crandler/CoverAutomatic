@@ -147,9 +147,27 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.36
+1.0.37
 
 ## Changelog
+
+### 1.0.37 (2026-02-24)
+
+- Remove unused constants DEFAULT_TILT_OPEN, DEFAULT_TILT_CLOSED from const.py
+- Remove unused logger instances from switch.py and number.py
+- Inline single-use _is_vent_sensor_open wrapper in coordinator.py
+- Add vol.Length(max=255) to all name fields in edit forms (facade, rule, scenario, setup)
+- Add vol.Length(max=5) to time_start/time_end and vol.Length(max=255) to state field in rule conditions
+- Add MAX_CONDITIONS_PER_RULE (20) limit to prevent unbounded condition growth
+- Add admin-only check for import_config and export_config services
+- Add empty schema for pause_all and resume_all services
+- Add .env to .gitignore for secret file prevention
+- Add ruff.toml with explicit rule sets (E, F, UP, B)
+- Add too_many_conditions error to all translation files
+- Fix B023 loop variable binding in export_config write_yaml
+- Fix 4 pre-existing E501 line-length violations (config_flow, models)
+- Fix CLAUDE.md: update test count (361), add 3 missing test files, fix CI Python versions
+- Add 4 admin access control tests (365 tests)
 
 ### 1.0.36 (2026-02-23)
 

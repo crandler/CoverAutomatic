@@ -23,6 +23,9 @@ _DIRECTION_OPTIONS = [
 ]
 
 # Umlaut replacement map for ID sanitization
+# Max conditions per rule (prevent unbounded growth)
+MAX_CONDITIONS_PER_RULE = 20
+
 _UMLAUT_MAP = {
     "\u00e4": "ae", "\u00f6": "oe", "\u00fc": "ue", "\u00df": "ss",
     "\u00c4": "ae", "\u00d6": "oe", "\u00dc": "ue",
@@ -67,7 +70,7 @@ class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Optional("name", default="CoverAutomatic"): str,
+                    vol.Optional("name", default="CoverAutomatic"): vol.All(str, vol.Length(max=255)),
                 }
             ),
             errors=errors,
@@ -290,13 +293,22 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                             vol.Optional("scan_interval", default=user_input.get("scan_interval", 60)): vol.All(
                                 vol.Coerce(int), vol.Range(min=10, max=600)
                             ),
-                            vol.Optional("outdoor_temp_sensor", description={"suggested_value": user_input.get("outdoor_temp_sensor")}): selector.EntitySelector(
+                            vol.Optional(
+                                "outdoor_temp_sensor",
+                                description={"suggested_value": user_input.get("outdoor_temp_sensor")},
+                            ): selector.EntitySelector(
                                 selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
                             ),
-                            vol.Optional("indoor_temp_sensor", description={"suggested_value": user_input.get("indoor_temp_sensor")}): selector.EntitySelector(
+                            vol.Optional(
+                                "indoor_temp_sensor",
+                                description={"suggested_value": user_input.get("indoor_temp_sensor")},
+                            ): selector.EntitySelector(
                                 selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
                             ),
-                            vol.Optional("weather_entity", description={"suggested_value": user_input.get("weather_entity")}): selector.EntitySelector(
+                            vol.Optional(
+                                "weather_entity",
+                                description={"suggested_value": user_input.get("weather_entity")},
+                            ): selector.EntitySelector(
                                 selector.EntitySelectorConfig(domain="weather")
                             ),
                             vol.Optional("comfort_temp_min", default=temp_min): vol.All(
@@ -629,7 +641,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                     description_placeholders={"facade_name": facade.name},
                     data_schema=vol.Schema(
                         {
-                            vol.Required("name", default=new_name): str,
+                            vol.Required("name", default=new_name): vol.All(str, vol.Length(max=255)),
                             vol.Required("direction", default=new_direction): selector.SelectSelector(
                                 selector.SelectSelectorConfig(
                                     options=_DIRECTION_OPTIONS,
@@ -667,7 +679,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             description_placeholders={"facade_name": facade.name},
             data_schema=vol.Schema(
                 {
-                    vol.Required("name", default=facade.name): str,
+                    vol.Required("name", default=facade.name): vol.All(str, vol.Length(max=255)),
                     vol.Required("direction", default=facade.direction): selector.SelectSelector(
                         selector.SelectSelectorConfig(
                             options=_DIRECTION_OPTIONS,
@@ -826,7 +838,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             },
             data_schema=vol.Schema(
                 {
-                    vol.Required("name", default=rule.name): str,
+                    vol.Required("name", default=rule.name): vol.All(str, vol.Length(max=255)),
                     vol.Optional("enabled", default=rule.enabled): bool,
                     vol.Optional("priority", default=rule.priority): vol.All(
                         vol.Coerce(int), vol.Range(min=1, max=100)
@@ -866,6 +878,9 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             return await self.async_step_rules()
 
         rule = storage.rules[rule_id]
+
+        if len(rule.conditions) >= MAX_CONDITIONS_PER_RULE:
+            return await self.async_step_rule_edit()
 
         if user_input is not None:
             condition_type = user_input.get("condition_type")
@@ -963,9 +978,9 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                     vol.Optional("entity"): selector.EntitySelector(
                         selector.EntitySelectorConfig()
                     ),
-                    vol.Optional("state"): str,
-                    vol.Optional("time_start", default="08:00"): str,
-                    vol.Optional("time_end", default="20:00"): str,
+                    vol.Optional("state"): vol.All(str, vol.Length(max=255)),
+                    vol.Optional("time_start", default="08:00"): vol.All(str, vol.Length(max=5)),
+                    vol.Optional("time_end", default="20:00"): vol.All(str, vol.Length(max=5)),
                     vol.Optional("offset", default=0): vol.All(
                         vol.Coerce(int), vol.Range(min=-180, max=180)
                     ),
@@ -1126,7 +1141,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
 
         # Build schema - only show rules_disabled if rules exist
         schema_dict: dict[Any, Any] = {
-            vol.Required("name", default=scenario.name): str,
+            vol.Required("name", default=scenario.name): vol.All(str, vol.Length(max=255)),
             vol.Optional("icon", default=scenario.icon or "mdi:home"): selector.IconSelector(),
         }
 
