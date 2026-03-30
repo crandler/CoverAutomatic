@@ -1,6 +1,10 @@
-# CoverAutomatic
+<p align="center">
+  <img src="custom_components/cover_automatic/brand/logo.png" alt="CoverAutomatic Logo" width="400">
+</p>
 
-**Custom HACS integration for Home Assistant - intelligent, automated control of covers (shutters, blinds, roller blinds).**
+<h1 align="center">CoverAutomatic</h1>
+
+<p align="center"><strong>Custom HACS integration for Home Assistant - intelligent, automated control of covers (shutters, blinds, roller blinds).</strong></p>
 
 ---
 
