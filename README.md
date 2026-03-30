@@ -155,6 +155,19 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.1.0 (2026-03-30)
+
+- Add custom config panel as sidebar entry, replacing Options Flow for all configuration
+- Full CRUD for covers, facades, rules, scenarios and settings in a single-page panel
+- Drag & drop rule priority ordering
+- Inline condition editor with add, edit and delete support for all 11 condition types
+- Slide-out cover detail editor with auto-save
+- Dark/light mode support via HA CSS custom properties
+- Responsive design (desktop table + slide-out, mobile stacked cards)
+- WebSocket API backend for panel communication (13 commands)
+- Config Flow simplified to zero-config (panel handles everything)
+- i18n support (English default, German translation)
+
 ### 1.0.41 (2026-03-30)
 
 - Fix covers not created in storage when no facades configured during initial setup

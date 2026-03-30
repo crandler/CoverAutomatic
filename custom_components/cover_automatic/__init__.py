@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import pathlib
 from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
@@ -9,6 +10,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
+from .api import async_setup_api
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
 from .coordinator import CoverAutomaticCoordinator
 from .services import async_setup_services, async_unload_services
@@ -92,6 +94,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntr
 
     await async_setup_services(hass)
 
+    # Setup WebSocket API for config panel
+    async_setup_api(hass, storage, coordinator)
+
+    # Register custom panel
+    panel_path = pathlib.Path(__file__).parent / "panel" / "cover-automatic-panel.js"
+    hass.http.register_static_path(
+        "/cover_automatic/panel.js",
+        str(panel_path),
+        cache_headers=False,
+    )
+    hass.components.frontend.async_register_built_in_panel(
+        component_name="custom",
+        sidebar_title="CoverAutomatic",
+        sidebar_icon="mdi:blinds",
+        frontend_url_path="cover-automatic",
+        require_admin=True,
+        config={
+            "_panel_custom": {
+                "name": "cover-automatic-panel",
+                "js_url": "/cover_automatic/panel.js",
+                "embed_iframe": False,
+            }
+        },
+    )
+
     entry.async_on_unload(coordinator.async_shutdown)
 
     return True
@@ -115,5 +142,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEnt
         ]
         if not remaining:
             await async_unload_services(hass)
+            hass.components.frontend.async_remove_panel("cover-automatic")
 
     return unload_ok

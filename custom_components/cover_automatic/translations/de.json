@@ -2,173 +2,20 @@
   "config": {
     "step": {
       "user": {
-        "title": "CoverAutomatic Einrichtung",
-        "description": "Beschattungen und optional einen Außentemperatur-Sensor auswählen.",
-        "data": {
-          "covers": "Zu verwaltende Beschattungen",
-          "outdoor_temp_sensor": "Außentemperatur-Sensor"
-        }
+        "title": "CoverAutomatic",
+        "description": "CoverAutomatic Integration hinzufügen. Konfiguration erfolgt im CoverAutomatic Panel (Seitenleiste) nach der Einrichtung."
       }
     },
     "abort": {
-      "already_configured": "CoverAutomatic ist bereits konfiguriert.",
-      "no_covers": "Keine Beschattungen gefunden."
+      "already_configured": "CoverAutomatic ist bereits konfiguriert."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "CoverAutomatic Optionen",
-        "description": "Wähle aus, was konfiguriert werden soll.",
-        "data": {
-          "menu_option": "Konfiguration"
-        }
-      },
-      "general": {
-        "title": "Allgemeine Einstellungen",
-        "description": "Globale Einstellungen für CoverAutomatic konfigurieren.",
-        "data": {
-          "scan_interval": "Aktualisierungsintervall (Sekunden)",
-          "outdoor_temp_sensor": "Außentemperatur-Sensor",
-          "indoor_temp_sensor": "Innentemperatur-Sensor",
-          "weather_entity": "Wetter-Entität",
-          "comfort_temp_min": "Komfort-Temperatur Min (°C)",
-          "comfort_temp_max": "Komfort-Temperatur Max (°C)"
-        }
-      },
-      "cover_details": {
-        "title": "Beschattung: {cover_name}",
-        "description": "Einstellungen für diese Beschattung konfigurieren.",
-        "data": {
-          "facade_id": "Fassade",
-          "pause_duration": "Pausendauer nach manuellem Eingriff (Min)",
-          "lock_sensor": "Sperr-Sensor (Fensterkontakt)",
-          "lock_position": "Position bei Sperre (%)",
-          "vent_sensor": "Lüftungs-Sensor (Lüftungskontakt)",
-          "vent_position": "Position bei Lüftung (%)",
-          "inverted": "Invertiert (100% = geschlossen)",
-          "min_position_change": "Min. Positionsänderung (%)",
-          "min_time_between_changes": "Min. Zeit zwischen Änderungen (Sek)",
-          "lock_tilt_position": "Lamellenposition bei Sperre (%)",
-          "vent_tilt_position": "Lamellenposition bei Lüftung (%)",
-          "inverted_tilt": "Lamellen invertiert (100% = geschlossen)"
-        }
-      },
-      "facades": {
-        "title": "Fassaden verwalten",
-        "description": "Fassaden hinzufügen, bearbeiten oder löschen.",
-        "data": {
-          "facade_option": "Fassade auswählen"
-        }
-      },
-      "facade_add": {
-        "title": "Fassade hinzufügen",
-        "description": "Neue Fassade erstellen.",
-        "data": {
-          "name": "Name",
-          "direction": "Himmelsrichtung"
-        }
-      },
-      "facade_edit": {
-        "title": "Fassade bearbeiten: {facade_name}",
-        "description": "Diese Fassade bearbeiten oder löschen.",
-        "data": {
-          "name": "Name",
-          "direction": "Himmelsrichtung",
-          "azimuth_start": "Azimut Start (Grad)",
-          "azimuth_end": "Azimut Ende (Grad)",
-          "min_elevation": "Min. Sonnenhöhe (Grad)",
-          "delete": "Diese Fassade löschen"
-        }
-      },
-      "rules": {
-        "title": "Regeln verwalten",
-        "description": "Automatisierungsregeln hinzufügen, bearbeiten oder löschen.",
-        "data": {
-          "rule_option": "Regel auswählen"
-        }
-      },
-      "rule_add": {
-        "title": "Regel hinzufügen",
-        "description": "Neue Automatisierungsregel erstellen.",
-        "data": {
-          "name": "Name",
-          "enabled": "Aktiviert",
-          "priority": "Priorität (höher = wichtiger)",
-          "target_position": "Zielposition (%)",
-          "target_tilt_position": "Ziel-Lamellenposition (%)"
-        }
-      },
-      "rule_edit": {
-        "title": "Regel bearbeiten: {rule_name}",
-        "description": "Aktuelle Bedingungen: {conditions}",
-        "data": {
-          "name": "Name",
-          "enabled": "Aktiviert",
-          "priority": "Priorität",
-          "condition_operator": "Bedingungslogik",
-          "target_position": "Zielposition (%)",
-          "target_tilt_position": "Ziel-Lamellenposition (%)",
-          "add_condition": "Bedingung hinzufügen",
-          "delete": "Diese Regel löschen"
-        }
-      },
-      "rule_condition": {
-        "title": "Bedingung hinzufügen zu: {rule_name}",
-        "description": "Bedingungstyp auswählen.",
-        "data": {
-          "condition_type": "Bedingungstyp"
-        }
-      },
-      "rule_condition_params": {
-        "title": "Konfigurieren: {condition_type}",
-        "description": "Parameter für diese Bedingung festlegen.",
-        "data": {
-          "facade": "Fassade",
-          "value": "Wert",
-          "sensor": "Temperatursensor",
-          "entity": "Entität",
-          "state": "Status",
-          "time_start": "Startzeit (HH:MM)",
-          "time_end": "Endzeit (HH:MM)",
-          "offset": "Offset (Minuten)",
-          "comfort_mode": "Komfort-Modus",
-          "weather_state": "Wetterbedingung"
-        }
-      },
-      "scenarios": {
-        "title": "Szenarien verwalten",
-        "description": "Szenarien hinzufügen, bearbeiten oder löschen.",
-        "data": {
-          "scenario_option": "Szenario auswählen"
-        }
-      },
-      "scenario_add": {
-        "title": "Szenario hinzufügen",
-        "description": "Neues Szenario erstellen.",
-        "data": {
-          "name": "Name",
-          "icon": "Symbol"
-        }
-      },
-      "scenario_edit": {
-        "title": "Szenario bearbeiten: {scenario_name}",
-        "description": "Szenario bearbeiten, aktivieren oder löschen.",
-        "data": {
-          "name": "Name",
-          "icon": "Symbol",
-          "rules_disabled": "Deaktivierte Regeln in diesem Szenario",
-          "activate": "Dieses Szenario aktivieren",
-          "delete": "Dieses Szenario löschen"
-        }
+        "title": "CoverAutomatic Konfiguration",
+        "description": "Verwende das CoverAutomatic Panel in der Seitenleiste, um die Integration zu konfigurieren."
       }
-    },
-    "error": {
-      "name_required": "Name ist erforderlich.",
-      "already_exists": "Ein Eintrag mit diesem Namen existiert bereits.",
-      "min_must_be_less_than_max": "Minimum muss kleiner als Maximum sein.",
-      "invalid_azimuth_range": "Start- und End-Azimut müssen unterschiedlich sein.",
-      "too_many_conditions": "Maximale Anzahl an Bedingungen erreicht."
     }
   },
   "entity": {
