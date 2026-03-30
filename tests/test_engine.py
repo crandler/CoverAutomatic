@@ -117,6 +117,7 @@ class TestRuleEngine:
             enabled=True,
             target_position=30,
             conditions=[],
+            cover_ids=["cover.living_room"],
         )
         mock_storage.rules = {"test_rule": rule}
 
@@ -135,6 +136,7 @@ class TestRuleEngine:
             enabled=True,
             priority=5,
             target_position=20,
+            cover_ids=["cover.living_room"],
         )
         high_priority = Rule(
             id="high",
@@ -142,6 +144,7 @@ class TestRuleEngine:
             enabled=True,
             priority=15,
             target_position=80,
+            cover_ids=["cover.living_room"],
         )
         mock_storage.rules = {"low": low_priority, "high": high_priority}
 
@@ -175,8 +178,17 @@ class TestRuleApplies:
         assert engine._rule_applies_to_cover(rule, test_cover) is True
 
     def test_rule_applies_to_all_covers(self, engine, test_cover) -> None:
-        """Test rule with no filters applies to all covers."""
-        rule = Rule(id="test", name="Test")
+        """Test global rule with conditions applies to all covers."""
+        rule = Rule(
+            id="test",
+            name="Test",
+            conditions=[
+                Condition(
+                    type=ConditionType.SUN_ELEVATION_ABOVE,
+                    params={"value": 0},
+                ),
+            ],
+        )
         assert engine._rule_applies_to_cover(rule, test_cover) is True
 
     def test_rule_does_not_apply(self, engine, test_cover) -> None:
@@ -187,6 +199,13 @@ class TestRuleApplies:
             cover_ids=["cover.bedroom"],
             facade_ids=["north"],
         )
+        assert engine._rule_applies_to_cover(rule, test_cover) is False
+
+    def test_rule_without_conditions_and_no_assignments_does_not_match(
+        self, engine, test_cover
+    ) -> None:
+        """Test global rule without conditions does not match any cover."""
+        rule = Rule(id="test", name="Test", conditions=[])
         assert engine._rule_applies_to_cover(rule, test_cover) is False
 
 
@@ -1067,6 +1086,7 @@ class TestTiltInEngine:
             target_position=30,
             target_tilt_position=50,
             conditions=[],
+            cover_ids=["cover.living_room"],
         )
         mock_storage.rules = {"tilt_rule": rule}
 
@@ -1085,6 +1105,7 @@ class TestTiltInEngine:
             enabled=True,
             target_position=70,
             conditions=[],
+            cover_ids=["cover.living_room"],
         )
         mock_storage.rules = {"no_tilt": rule}
 
@@ -1103,6 +1124,7 @@ class TestTiltInEngine:
             priority=5,
             target_position=20,
             target_tilt_position=10,
+            cover_ids=["cover.living_room"],
         )
         high = Rule(
             id="high",
@@ -1111,6 +1133,7 @@ class TestTiltInEngine:
             priority=15,
             target_position=80,
             target_tilt_position=90,
+            cover_ids=["cover.living_room"],
         )
         mock_storage.rules = {"low": low, "high": high}
 

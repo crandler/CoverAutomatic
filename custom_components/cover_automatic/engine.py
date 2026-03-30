@@ -69,15 +69,20 @@ class RuleEngine:
         )
 
     def _rule_applies_to_cover(self, rule: Rule, cover: CoverConfig) -> bool:
-        """Check if rule applies to cover."""
+        """Check if rule applies to cover.
+
+        Rules without conditions AND without cover/facade assignments are
+        treated as incomplete and do not match any cover.
+        """
         if rule.cover_ids and cover.entity_id in rule.cover_ids:
             return True
 
         if rule.facade_ids and cover.facade_id in rule.facade_ids:
             return True
 
+        # Global rule (no specific assignments) requires at least one condition
         if not rule.cover_ids and not rule.facade_ids:
-            return True
+            return bool(rule.conditions)
 
         return False
 

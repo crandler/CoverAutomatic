@@ -493,6 +493,7 @@ class TestHysteresisIntegration:
             name="Test",
             enabled=True,
             conditions=[],
+            cover_ids=["cover.test"],
             target_position=30,  # 70% change from current 100
         )
 
@@ -587,6 +588,7 @@ class TestHysteresisIntegration:
             name="Test",
             enabled=True,
             conditions=[],
+            cover_ids=["cover.test"],
             target_position=30,
         )
 
@@ -665,6 +667,7 @@ class TestScenarioIntegration:
             name="Active Rule",
             enabled=True,
             conditions=[],
+            cover_ids=["cover.test"],
             target_position=50,
         )
         scenario = Scenario(
@@ -792,6 +795,7 @@ class TestTiltEndToEndIntegration:
             name="Basic Rule",
             enabled=True,
             conditions=[],
+            cover_ids=["cover.basic"],
             target_position=40,
             # No target_tilt_position
         )
@@ -846,6 +850,7 @@ class TestTiltEndToEndIntegration:
             name="Inv Tilt",
             enabled=True,
             conditions=[],
+            cover_ids=["cover.inv_tilt"],
             target_position=30,
             target_tilt_position=20,
         )
@@ -900,6 +905,7 @@ class TestInvertedCoverIntegration:
             name="Test",
             enabled=True,
             conditions=[],
+            cover_ids=["cover.inverted"],
             target_position=30,  # Logical position
         )
 

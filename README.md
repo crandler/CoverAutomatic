@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.3.4 (2026-03-30)
+
+- Fix rules without conditions and without cover/facade assignments triggering on all covers
+
 ### 1.3.3 (2026-03-30)
 
 - Add live compass visualization for house rotation with sun position and facade arcs
