@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.1.5 (2026-03-30)
+
+- Fix WebSocket handlers: add async_response decorator required by HA for async handlers
+
 ### 1.1.4 (2026-03-30)
 
 - Fix panel WebSocket calls: use hass.callWS() instead of connection.sendMessagePromise()

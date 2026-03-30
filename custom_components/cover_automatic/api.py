@@ -542,8 +542,9 @@ def async_setup_api(
     ]
 
     for command_type, handler_fn, extra_schema in commands:
-        # Closure to bind storage and coordinator
+        # Closure to bind storage and coordinator with async_response decorator
         def _make_handler(fn: Any) -> Any:
+            @websocket_api.async_response
             async def _handler(
                 hass: HomeAssistant,
                 connection: websocket_api.ActiveConnection,
