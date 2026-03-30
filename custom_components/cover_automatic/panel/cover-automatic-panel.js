@@ -1811,6 +1811,26 @@ class CoverAutomaticPanel extends HTMLElement {
   /* ============================================================
    * TAB: Settings
    * ============================================================ */
+  _renderEntitySelect(field, currentValue, domain, deviceClass) {
+    if (!this._hass || !this._hass.states) return `<input type="text" value="${this._esc(currentValue || "")}" data-settings-field="${field}">`;
+    const entities = Object.values(this._hass.states)
+      .filter(s => {
+        if (!s.entity_id.startsWith(domain + ".")) return false;
+        if (deviceClass && s.attributes.device_class !== deviceClass) return false;
+        return true;
+      })
+      .sort((a, b) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
+    let html = `<select data-settings-field="${field}">`;
+    html += `<option value="">-- ${this._t("none")} --</option>`;
+    for (const e of entities) {
+      const name = e.attributes.friendly_name || e.entity_id;
+      const sel = e.entity_id === currentValue ? " selected" : "";
+      html += `<option value="${this._esc(e.entity_id)}"${sel}>${this._esc(name)} (${this._esc(e.entity_id)})</option>`;
+    }
+    html += "</select>";
+    return html;
+  }
+
   _renderSettings() {
     const s = this._config.settings || {};
 
@@ -1820,15 +1840,15 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">${this._t("settings_section_sensors")}</div>`;
     html += `<div class="form-group">
       <label>${this._t("settings_outdoor_temp")}</label>
-      <input type="text" value="${this._esc(s.outdoor_temp_sensor || "")}" data-settings-field="outdoor_temp_sensor" placeholder="${this._t("settings_entity_placeholder")}">
+      ${this._renderEntitySelect("outdoor_temp_sensor", s.outdoor_temp_sensor, "sensor", "temperature")}
     </div>`;
     html += `<div class="form-group">
       <label>${this._t("settings_indoor_temp")}</label>
-      <input type="text" value="${this._esc(s.indoor_temp_sensor || "")}" data-settings-field="indoor_temp_sensor" placeholder="${this._t("settings_entity_placeholder")}">
+      ${this._renderEntitySelect("indoor_temp_sensor", s.indoor_temp_sensor, "sensor", "temperature")}
     </div>`;
     html += `<div class="form-group">
       <label>${this._t("settings_weather")}</label>
-      <input type="text" value="${this._esc(s.weather_entity || "")}" data-settings-field="weather_entity" placeholder="${this._t("settings_entity_placeholder")}">
+      ${this._renderEntitySelect("weather_entity", s.weather_entity, "weather", null)}
     </div>`;
 
     // Comfort section

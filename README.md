@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.2.1 (2026-03-30)
+
+- Settings: Replace text inputs with entity dropdowns for sensor and weather selection
+
 ### 1.2.0 (2026-03-30)
 
 - Add global house rotation setting (clockwise offset from true north)
