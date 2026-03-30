@@ -59,9 +59,6 @@ class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors: dict[str, str] = {}
 
-        await self.async_set_unique_id(DOMAIN)
-        self._abort_if_unique_id_configured()
-
         if user_input is not None:
             self._data["name"] = user_input.get("name", "CoverAutomatic")
             return await self.async_step_facades()

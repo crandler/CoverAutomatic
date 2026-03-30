@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.0.39 (2026-03-30)
+
+- Fix "already_in_progress" error when HA Assist or discovery starts a parallel config flow
+- Remove redundant unique_id check (single_config_entry in manifest already prevents duplicates)
+
 ### 1.0.38 (2026-03-30)
 
 - Add brand images (icon + logo, light/dark, normal/hDPI) for HA 2026.3+ native brand support
