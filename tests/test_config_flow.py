@@ -79,22 +79,22 @@ class TestSanitizeId:
 class TestConfigFlow:
     """Tests for the initial ConfigFlow."""
 
-    @pytest.fixture
-    def mock_hass(self):
-        """Create mock hass instance with cover entities."""
-        hass = MagicMock()
-        mock_cover_state = MagicMock()
-        mock_cover_state.entity_id = "cover.living_room"
-        hass.states.async_all.return_value = [mock_cover_state]
-        return hass
-
     @pytest.mark.asyncio
     async def test_step_user_shows_form(self) -> None:
-        """Test user step shows form when no input."""
+        """Test user step shows cover selection form when no input."""
         flow = CoverAutomaticConfigFlow()
         flow.hass = MagicMock()
-        flow.async_set_unique_id = AsyncMock()
-        flow._abort_if_unique_id_configured = MagicMock()
+        mock_cover = MagicMock()
+        mock_cover.entity_id = "cover.living_room"
+        mock_cover.attributes = {}
+        # First call returns covers, second returns sensors
+        mock_sensor = MagicMock()
+        mock_sensor.entity_id = "sensor.temp"
+        mock_sensor.attributes = {"device_class": "temperature"}
+        flow.hass.states.async_all.side_effect = [
+            [mock_cover],  # cover entities
+            [mock_sensor],  # sensor entities
+        ]
 
         result = await flow.async_step_user(None)
 
@@ -102,65 +102,32 @@ class TestConfigFlow:
         assert result["step_id"] == "user"
 
     @pytest.mark.asyncio
-    async def test_step_user_with_input_proceeds(self) -> None:
-        """Test user step proceeds to facades step with input."""
-        flow = CoverAutomaticConfigFlow()
-        flow.hass = MagicMock()
-        flow.async_set_unique_id = AsyncMock()
-        flow._abort_if_unique_id_configured = MagicMock()
-        flow.async_show_form = MagicMock(return_value={"type": "form", "step_id": "facades"})
-
-        await flow.async_step_user({"name": "My Covers"})
-
-        assert flow._data["name"] == "My Covers"
-
-    @pytest.mark.asyncio
-    async def test_step_facades_add_facade(self) -> None:
-        """Test adding a facade in the config flow."""
-        flow = CoverAutomaticConfigFlow()
-        flow.hass = MagicMock()
-        flow.async_show_form = MagicMock(return_value={"type": "form"})
-
-        await flow.async_step_facades({
-            "facade_name": "South Wall",
-            "facade_direction": "south",
-            "add_facade": True,
-            "done": False,
-        })
-
-        assert len(flow._facades) == 1
-        assert flow._facades[0]["name"] == "South Wall"
-        assert flow._facades[0]["id"] == "south_wall"
-        assert flow._facades[0]["direction"] == "south"
-
-    @pytest.mark.asyncio
-    async def test_step_facades_done_proceeds(self) -> None:
-        """Test finishing facades step proceeds to covers."""
+    async def test_step_user_with_input_creates_entry(self) -> None:
+        """Test user step stores data and creates entry."""
         flow = CoverAutomaticConfigFlow()
         flow.hass = MagicMock()
         mock_cover = MagicMock()
-        mock_cover.entity_id = "cover.test"
+        mock_cover.entity_id = "cover.living_room"
         flow.hass.states.async_all.return_value = [mock_cover]
-        flow.async_show_form = MagicMock(return_value={"type": "form"})
+        flow.async_create_entry = MagicMock(return_value={"type": "create_entry"})
 
-        flow._facades = [{"id": "south", "name": "South"}]
-
-        await flow.async_step_facades({
-            "add_facade": False,
-            "done": True,
+        await flow.async_step_user({
+            "covers": ["cover.living_room"],
+            "outdoor_temp_sensor": "sensor.outdoor_temp",
         })
 
-        assert flow._data["facades"] == flow._facades
+        assert flow._data["covers"] == ["cover.living_room"]
+        assert flow._data["outdoor_temp_sensor"] == "sensor.outdoor_temp"
 
     @pytest.mark.asyncio
-    async def test_step_covers_no_covers_aborts(self) -> None:
-        """Test covers step aborts when no covers found."""
+    async def test_step_user_no_covers_aborts(self) -> None:
+        """Test user step aborts when no covers found."""
         flow = CoverAutomaticConfigFlow()
         flow.hass = MagicMock()
         flow.hass.states.async_all.return_value = []
         flow.async_abort = MagicMock(return_value={"type": "abort", "reason": "no_covers"})
 
-        await flow.async_step_covers(None)
+        await flow.async_step_user(None)
 
         flow.async_abort.assert_called_once_with(reason="no_covers")
 
@@ -487,10 +454,16 @@ class TestOptionsFlowRules:
 
     @pytest.mark.asyncio
     async def test_rule_condition_add_temperature(self, options_flow, mock_storage) -> None:
-        """Test adding a temperature condition to a rule."""
+        """Test adding a temperature condition (2-step flow)."""
         options_flow._selected_rule = "sun_shade"
+        # Step 1: select condition type
         await options_flow.async_step_rule_condition({
             "condition_type": "temperature_above",
+        })
+        assert options_flow._selected_condition_type == "temperature_above"
+
+        # Step 2: provide params
+        await options_flow.async_step_rule_condition_params({
             "sensor": "sensor.outdoor_temp",
             "value": 25,
         })
@@ -504,10 +477,14 @@ class TestOptionsFlowRules:
 
     @pytest.mark.asyncio
     async def test_rule_condition_add_time_between(self, options_flow, mock_storage) -> None:
-        """Test adding a time_between condition to a rule."""
+        """Test adding a time_between condition (2-step flow)."""
         options_flow._selected_rule = "sun_shade"
+        # Step 1: select condition type
         await options_flow.async_step_rule_condition({
             "condition_type": "time_between",
+        })
+        # Step 2: provide params
+        await options_flow.async_step_rule_condition_params({
             "time_start": "09:00",
             "time_end": "18:00",
         })
@@ -521,10 +498,14 @@ class TestOptionsFlowRules:
 
     @pytest.mark.asyncio
     async def test_rule_condition_add_weather(self, options_flow, mock_storage) -> None:
-        """Test adding a weather condition to a rule."""
+        """Test adding a weather condition (2-step flow)."""
         options_flow._selected_rule = "sun_shade"
+        # Step 1: select condition type
         await options_flow.async_step_rule_condition({
             "condition_type": "weather_is",
+        })
+        # Step 2: provide params
+        await options_flow.async_step_rule_condition_params({
             "weather_state": "sunny",
         })
 

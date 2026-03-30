@@ -51,84 +51,11 @@ class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize config flow."""
         self._data: dict[str, Any] = {}
-        self._facades: list[dict[str, Any]] = []
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle the initial step."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            self._data["name"] = user_input.get("name", "CoverAutomatic")
-            return await self.async_step_facades()
-
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Optional("name", default="CoverAutomatic"): vol.All(str, vol.Length(max=255)),
-                }
-            ),
-            errors=errors,
-        )
-
-    async def async_step_facades(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Handle facade configuration."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            if user_input.get("add_facade"):
-                facade_name = user_input.get("facade_name", "")
-                facade_direction = user_input.get("facade_direction", "south")
-
-                if facade_name:
-                    preset = FACADE_PRESETS.get(facade_direction, FACADE_PRESETS["south"])
-                    self._facades.append(
-                        {
-                            "id": _sanitize_id(facade_name),
-                            "name": facade_name,
-                            "direction": facade_direction,
-                            "azimuth_start": preset["start"],
-                            "azimuth_end": preset["end"],
-                        }
-                    )
-
-                return await self.async_step_facades()
-
-            if user_input.get("done"):
-                self._data["facades"] = self._facades
-                return await self.async_step_covers()
-
-        facade_list = ", ".join([f["name"] for f in self._facades]) or "None"
-
-        return self.async_show_form(
-            step_id="facades",
-            data_schema=vol.Schema(
-                {
-                    vol.Optional("facade_name"): vol.All(str, vol.Length(max=255)),
-                    vol.Optional("facade_direction", default="south"): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=_DIRECTION_OPTIONS,
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
-                    vol.Optional("add_facade", default=False): bool,
-                    vol.Optional("done", default=False): bool,
-                }
-            ),
-            description_placeholders={"facades": facade_list},
-            errors=errors,
-        )
-
-    async def async_step_covers(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Handle cover selection."""
-        errors: dict[str, str] = {}
-
+        """Handle the initial step - select covers directly."""
         cover_entities = [
             state.entity_id
             for state in self.hass.states.async_all("cover")
@@ -139,44 +66,27 @@ class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             self._data["covers"] = user_input.get("covers", [])
-            return await self.async_step_sensors()
-
-        return self.async_show_form(
-            step_id="covers",
-            data_schema=vol.Schema(
-                {
-                    vol.Required("covers"): selector.EntitySelector(
-                        selector.EntitySelectorConfig(
-                            domain="cover",
-                            multiple=True,
-                        )
-                    ),
-                }
-            ),
-            errors=errors,
-        )
-
-    async def async_step_sensors(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Handle sensor configuration."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
             self._data["outdoor_temp_sensor"] = user_input.get("outdoor_temp_sensor")
             return self.async_create_entry(
-                title=self._data.get("name", "CoverAutomatic"),
+                title="CoverAutomatic",
                 data=self._data,
             )
 
+        schema: dict[Any, Any] = {
+            vol.Required("covers"): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="cover",
+                    multiple=True,
+                )
+            ),
+        }
+
+        # Add temp sensor if available
         temp_sensors = [
             state.entity_id
             for state in self.hass.states.async_all("sensor")
-            if "temperature" in state.entity_id.lower()
-            or state.attributes.get("device_class") == "temperature"
+            if state.attributes.get("device_class") == "temperature"
         ]
-
-        schema: dict[Any, Any] = {}
         if temp_sensors:
             schema[vol.Optional("outdoor_temp_sensor")] = selector.EntitySelector(
                 selector.EntitySelectorConfig(
@@ -185,16 +95,9 @@ class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
             )
 
-        if not schema:
-            return self.async_create_entry(
-                title=self._data.get("name", "CoverAutomatic"),
-                data=self._data,
-            )
-
         return self.async_show_form(
-            step_id="sensors",
+            step_id="user",
             data_schema=vol.Schema(schema),
-            errors=errors,
         )
 
     @staticmethod
@@ -215,6 +118,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
         self._selected_facade: str | None = None
         self._selected_rule: str | None = None
         self._selected_scenario: str | None = None
+        self._selected_condition_type: str | None = None
 
     def _get_storage(self):
         """Get storage from config entry runtime_data."""
@@ -387,10 +291,19 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             ),
         )
 
+    def _cover_supports_tilt(self, entity_id: str) -> bool:
+        """Auto-detect tilt support from HA state."""
+        from .const import TILT_FEATURE_FLAG
+        state = self.hass.states.get(entity_id)
+        if state is None:
+            return False
+        features = state.attributes.get("supported_features", 0)
+        return bool(features & TILT_FEATURE_FLAG)
+
     async def async_step_cover_details(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle cover-specific settings."""
+        """Handle cover-specific settings (smart: only relevant fields)."""
         storage = self._get_storage()
         entity_id = self._selected_cover
 
@@ -401,25 +314,28 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
         if not cover_raw:
             return await self.async_step_init()
 
+        # Auto-detect tilt support
+        has_tilt = self._cover_supports_tilt(entity_id) or cover_raw.get("supports_tilt", False)
+
         if user_input is not None:
-            # Update cover in storage
             cover_raw["facade_id"] = user_input.get("facade_id") or None
+            cover_raw["pause_duration"] = user_input.get("pause_duration", 120)
             cover_raw["lock_sensor"] = user_input.get("lock_sensor") or None
             cover_raw["lock_position"] = user_input.get("lock_position", 100)
             cover_raw["vent_sensor"] = user_input.get("vent_sensor") or None
             cover_raw["vent_position"] = user_input.get("vent_position", 30)
             cover_raw["inverted"] = user_input.get("inverted", False)
-            cover_raw["supports_tilt"] = user_input.get("supports_tilt", False)
-            cover_raw["lock_tilt_position"] = user_input.get("lock_tilt_position")
-            cover_raw["vent_tilt_position"] = user_input.get("vent_tilt_position")
-            cover_raw["inverted_tilt"] = user_input.get("inverted_tilt", False)
             cover_raw["min_position_change"] = user_input.get("min_position_change", 5)
             cover_raw["min_time_between_changes"] = user_input.get("min_time_between_changes", 300)
-            cover_raw["pause_duration"] = user_input.get("pause_duration", 120)
+            # Tilt fields only saved if tilt supported
+            cover_raw["supports_tilt"] = has_tilt
+            if has_tilt:
+                cover_raw["lock_tilt_position"] = user_input.get("lock_tilt_position")
+                cover_raw["vent_tilt_position"] = user_input.get("vent_tilt_position")
+                cover_raw["inverted_tilt"] = user_input.get("inverted_tilt", False)
             storage._invalidate_cache()
             await storage.async_save()
 
-            # Refresh coordinator state tracking
             runtime_data = getattr(self.config_entry, "runtime_data", None)
             if runtime_data:
                 runtime_data.coordinator.refresh_state_tracking()
@@ -431,93 +347,55 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
         for facade_id, facade in storage.facades.items():
             facade_options.append({"value": facade_id, "label": facade.name})
 
-        # Current values
-        current_facade = cover_raw.get("facade_id") or ""
-        current_lock_sensor = cover_raw.get("lock_sensor")
-        current_lock_position = cover_raw.get("lock_position", 100)
-        current_vent_sensor = cover_raw.get("vent_sensor")
-        current_vent_position = cover_raw.get("vent_position", 30)
-        current_inverted = cover_raw.get("inverted", False)
-        current_supports_tilt = cover_raw.get("supports_tilt", False)
-        current_lock_tilt = cover_raw.get("lock_tilt_position")
-        current_vent_tilt = cover_raw.get("vent_tilt_position")
-        current_inverted_tilt = cover_raw.get("inverted_tilt", False)
-        current_min_change = cover_raw.get("min_position_change", 5)
-        current_min_time = cover_raw.get("min_time_between_changes", 300)
-        current_pause = cover_raw.get("pause_duration", 120)
+        # Build dynamic schema - important fields first
+        schema: dict[Any, Any] = {
+            vol.Optional(
+                "facade_id", default=cover_raw.get("facade_id") or "",
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(options=facade_options, mode=selector.SelectSelectorMode.DROPDOWN)
+            ),
+            vol.Optional(
+                "pause_duration", default=cover_raw.get("pause_duration", 120),
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=480)),
+            vol.Optional(
+                "lock_sensor", description={"suggested_value": cover_raw.get("lock_sensor")},
+            ): selector.EntitySelector(selector.EntitySelectorConfig(domain="binary_sensor")),
+            vol.Optional(
+                "lock_position", default=cover_raw.get("lock_position", 100),
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+            vol.Optional(
+                "vent_sensor", description={"suggested_value": cover_raw.get("vent_sensor")},
+            ): selector.EntitySelector(selector.EntitySelectorConfig(domain="binary_sensor")),
+            vol.Optional(
+                "vent_position", default=cover_raw.get("vent_position", 30),
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+            vol.Optional(
+                "inverted", default=cover_raw.get("inverted", False),
+            ): bool,
+            vol.Optional(
+                "min_position_change", default=cover_raw.get("min_position_change", 5),
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=50)),
+            vol.Optional(
+                "min_time_between_changes", default=cover_raw.get("min_time_between_changes", 300),
+            ): vol.All(vol.Coerce(int), vol.Range(min=60, max=3600)),
+        }
+
+        # Tilt fields only if cover supports tilt
+        if has_tilt:
+            schema[vol.Optional(
+                "lock_tilt_position", description={"suggested_value": cover_raw.get("lock_tilt_position")},
+            )] = vol.All(vol.Coerce(int), vol.Range(min=0, max=100))
+            schema[vol.Optional(
+                "vent_tilt_position", description={"suggested_value": cover_raw.get("vent_tilt_position")},
+            )] = vol.All(vol.Coerce(int), vol.Range(min=0, max=100))
+            schema[vol.Optional(
+                "inverted_tilt", default=cover_raw.get("inverted_tilt", False),
+            )] = bool
 
         return self.async_show_form(
             step_id="cover_details",
             description_placeholders={"cover_name": cover_raw.get("name", entity_id)},
-            data_schema=vol.Schema(
-                {
-                    vol.Optional(
-                        "facade_id",
-                        default=current_facade,
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=facade_options,
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
-                    vol.Optional(
-                        "lock_sensor",
-                        description={"suggested_value": current_lock_sensor},
-                    ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(
-                            domain="binary_sensor",
-                        )
-                    ),
-                    vol.Optional(
-                        "lock_position",
-                        default=current_lock_position,
-                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
-                    vol.Optional(
-                        "vent_sensor",
-                        description={"suggested_value": current_vent_sensor},
-                    ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(
-                            domain="binary_sensor",
-                        )
-                    ),
-                    vol.Optional(
-                        "vent_position",
-                        default=current_vent_position,
-                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
-                    vol.Optional(
-                        "inverted",
-                        default=current_inverted,
-                    ): bool,
-                    vol.Optional(
-                        "supports_tilt",
-                        default=current_supports_tilt,
-                    ): bool,
-                    vol.Optional(
-                        "lock_tilt_position",
-                        description={"suggested_value": current_lock_tilt},
-                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
-                    vol.Optional(
-                        "vent_tilt_position",
-                        description={"suggested_value": current_vent_tilt},
-                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
-                    vol.Optional(
-                        "inverted_tilt",
-                        default=current_inverted_tilt,
-                    ): bool,
-                    vol.Optional(
-                        "min_position_change",
-                        default=current_min_change,
-                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=50)),
-                    vol.Optional(
-                        "min_time_between_changes",
-                        default=current_min_time,
-                    ): vol.All(vol.Coerce(int), vol.Range(min=60, max=3600)),
-                    vol.Optional(
-                        "pause_duration",
-                        default=current_pause,
-                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=480)),
-                }
-            ),
+            data_schema=vol.Schema(schema),
         )
 
     # -------------------------------------------------------------------------
@@ -867,7 +745,7 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
     async def async_step_rule_condition(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Add a condition to a rule."""
+        """Step 1: Select condition type."""
         storage = self._get_storage()
         rule_id = self._selected_rule
 
@@ -885,10 +763,54 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 ConditionType(condition_type)
             except ValueError:
                 return await self.async_step_rule_condition()
+            self._selected_condition_type = condition_type
+            return await self.async_step_rule_condition_params()
 
+        condition_types = [
+            {"value": "sun_on_facade", "label": "Sonne auf Fassade"},
+            {"value": "sun_elevation_above", "label": "Sonnenhoehe ueber"},
+            {"value": "sun_elevation_below", "label": "Sonnenhoehe unter"},
+            {"value": "temperature_above", "label": "Temperatur ueber"},
+            {"value": "temperature_below", "label": "Temperatur unter"},
+            {"value": "temperature_comfort", "label": "Komfort-Modus"},
+            {"value": "time_between", "label": "Zeit zwischen"},
+            {"value": "time_after_sunrise", "label": "Nach Sonnenaufgang"},
+            {"value": "time_after_sunset", "label": "Nach Sonnenuntergang"},
+            {"value": "state_is", "label": "Entity-Status ist"},
+            {"value": "weather_is", "label": "Wetter ist"},
+        ]
+
+        return self.async_show_form(
+            step_id="rule_condition",
+            description_placeholders={"rule_name": rule.name},
+            data_schema=vol.Schema(
+                {
+                    vol.Required("condition_type"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=condition_types,
+                            mode=selector.SelectSelectorMode.LIST,
+                        )
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_rule_condition_params(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Step 2: Configure condition parameters (dynamic per type)."""
+        storage = self._get_storage()
+        rule_id = self._selected_rule
+        condition_type = getattr(self, "_selected_condition_type", None)
+
+        if not storage or not rule_id or rule_id not in storage.rules or not condition_type:
+            return await self.async_step_rules()
+
+        rule = storage.rules[rule_id]
+
+        if user_input is not None:
             params: dict[str, Any] = {}
 
-            # Build params based on condition type
             if condition_type == "sun_on_facade":
                 if facade_val := user_input.get("facade"):
                     params["facade"] = facade_val
@@ -914,8 +836,6 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
                 type=ConditionType(condition_type),
                 params=params,
             )
-
-            # Update rule with new condition
             updated_rule = Rule(
                 id=rule_id,
                 name=rule.name,
@@ -931,79 +851,70 @@ class CoverAutomaticOptionsFlow(OptionsFlow):
             await storage.async_add_rule(updated_rule)
             return await self.async_step_rule_edit()
 
-        condition_types = [
-            {"value": "sun_on_facade", "label": "Sonne auf Fassade"},
-            {"value": "sun_elevation_above", "label": "Sonnenhöhe über"},
-            {"value": "sun_elevation_below", "label": "Sonnenhöhe unter"},
-            {"value": "temperature_above", "label": "Temperatur über"},
-            {"value": "temperature_below", "label": "Temperatur unter"},
-            {"value": "temperature_comfort", "label": "Komfort-Modus"},
-            {"value": "time_between", "label": "Zeit zwischen"},
-            {"value": "time_after_sunrise", "label": "Nach Sonnenaufgang"},
-            {"value": "time_after_sunset", "label": "Nach Sonnenuntergang"},
-            {"value": "state_is", "label": "Entity-Status ist"},
-            {"value": "weather_is", "label": "Wetter ist"},
-        ]
+        # Build dynamic schema based on condition type
+        schema: dict[Any, Any] = {}
 
-        # Build facade options for sun_on_facade condition
-        facade_options = [{"value": "", "label": "-- Cover-Fassade --"}]
-        if storage:
+        if condition_type == "sun_on_facade":
+            facade_options = [{"value": "", "label": "-- Cover-Fassade --"}]
             for fid, f in storage.facades.items():
                 facade_options.append({"value": fid, "label": f.name})
+            schema[vol.Optional("facade", default="")] = selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=facade_options,
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            )
+        elif condition_type in ("sun_elevation_above", "sun_elevation_below"):
+            schema[vol.Optional("value", default=10.0)] = vol.All(
+                vol.Coerce(float), vol.Range(min=-90, max=90)
+            )
+        elif condition_type in ("temperature_above", "temperature_below"):
+            schema[vol.Optional("sensor")] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
+            )
+            schema[vol.Optional("value", default=20.0)] = vol.All(
+                vol.Coerce(float), vol.Range(min=-40, max=60)
+            )
+        elif condition_type == "temperature_comfort":
+            schema[vol.Optional("comfort_mode", default="cooling")] = selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[
+                        {"value": "cooling", "label": "Kuehlung"},
+                        {"value": "heating", "label": "Heizung"},
+                        {"value": "neutral", "label": "Neutral"},
+                    ],
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            )
+        elif condition_type == "time_between":
+            schema[vol.Optional("time_start", default="08:00")] = vol.All(str, vol.Length(max=5))
+            schema[vol.Optional("time_end", default="20:00")] = vol.All(str, vol.Length(max=5))
+        elif condition_type in ("time_after_sunrise", "time_after_sunset"):
+            schema[vol.Optional("offset", default=0)] = vol.All(
+                vol.Coerce(int), vol.Range(min=-180, max=180)
+            )
+        elif condition_type == "state_is":
+            schema[vol.Optional("entity")] = selector.EntitySelector(
+                selector.EntitySelectorConfig()
+            )
+            schema[vol.Optional("state")] = vol.All(str, vol.Length(max=255))
+        elif condition_type == "weather_is":
+            schema[vol.Optional("weather_state", default="sunny")] = selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[
+                        {"value": "sunny", "label": "Sonnig"},
+                        {"value": "cloudy", "label": "Bewoelkt"},
+                        {"value": "rainy", "label": "Regnerisch"},
+                        {"value": "windy", "label": "Windig"},
+                    ],
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            )
 
         return self.async_show_form(
-            step_id="rule_condition",
-            description_placeholders={"rule_name": rule.name},
-            data_schema=vol.Schema(
-                {
-                    vol.Required("condition_type"): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=condition_types,
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
-                    vol.Optional("facade", default=""): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=facade_options,
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
-                    vol.Optional("value", default=20): vol.Coerce(float),
-                    vol.Optional("sensor"): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="sensor")
-                    ),
-                    vol.Optional("entity"): selector.EntitySelector(
-                        selector.EntitySelectorConfig()
-                    ),
-                    vol.Optional("state"): vol.All(str, vol.Length(max=255)),
-                    vol.Optional("time_start", default="08:00"): vol.All(str, vol.Length(max=5)),
-                    vol.Optional("time_end", default="20:00"): vol.All(str, vol.Length(max=5)),
-                    vol.Optional("offset", default=0): vol.All(
-                        vol.Coerce(int), vol.Range(min=-180, max=180)
-                    ),
-                    vol.Optional("comfort_mode", default="cooling"): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=[
-                                {"value": "cooling", "label": "Kühlung"},
-                                {"value": "heating", "label": "Heizung"},
-                                {"value": "neutral", "label": "Neutral"},
-                            ],
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
-                    vol.Optional("weather_state", default="sunny"): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=[
-                                {"value": "sunny", "label": "Sonnig"},
-                                {"value": "cloudy", "label": "Bewölkt"},
-                                {"value": "rainy", "label": "Regnerisch"},
-                                {"value": "windy", "label": "Windig"},
-                            ],
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
-                }
-            ),
+            step_id="rule_condition_params",
+            description_placeholders={"rule_name": rule.name, "condition_type": condition_type},
+            data_schema=vol.Schema(schema),
         )
 
     # -------------------------------------------------------------------------

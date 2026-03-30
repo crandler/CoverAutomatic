@@ -3,32 +3,9 @@
     "step": {
       "user": {
         "title": "CoverAutomatic Einrichtung",
-        "description": "Intelligente Beschattungsautomatik einrichten.",
+        "description": "Beschattungen und optional einen Außentemperatur-Sensor auswählen.",
         "data": {
-          "name": "Integrationsname"
-        }
-      },
-      "facades": {
-        "title": "Fassaden konfigurieren",
-        "description": "Fassaden nach Himmelsrichtung hinzufügen. Aktuelle Fassaden: {facades}",
-        "data": {
-          "facade_name": "Fassadenname",
-          "facade_direction": "Himmelsrichtung",
-          "add_facade": "Diese Fassade hinzufügen",
-          "done": "Fertig mit Fassaden"
-        }
-      },
-      "covers": {
-        "title": "Beschattungen auswählen",
-        "description": "Beschattungen zur Steuerung auswählen.",
-        "data": {
-          "covers": "Zu verwaltende Beschattungen"
-        }
-      },
-      "sensors": {
-        "title": "Temperatursensoren (Optional)",
-        "description": "Temperatursensoren für intelligente Regeln konfigurieren.",
-        "data": {
+          "covers": "Zu verwaltende Beschattungen",
           "outdoor_temp_sensor": "Außentemperatur-Sensor"
         }
       }
@@ -64,18 +41,17 @@
         "description": "Einstellungen für diese Beschattung konfigurieren.",
         "data": {
           "facade_id": "Fassade",
+          "pause_duration": "Pausendauer nach manuellem Eingriff (Min)",
           "lock_sensor": "Sperr-Sensor (Fensterkontakt)",
           "lock_position": "Position bei Sperre (%)",
           "vent_sensor": "Lüftungs-Sensor (Lüftungskontakt)",
           "vent_position": "Position bei Lüftung (%)",
           "inverted": "Invertiert (100% = geschlossen)",
-          "supports_tilt": "Lamellensteuerung (Tilt/Raffstore)",
-          "lock_tilt_position": "Lamellenposition bei Sperre (%)",
-          "vent_tilt_position": "Lamellenposition bei Lüftung (%)",
-          "inverted_tilt": "Lamellen invertiert (100% = geschlossen)",
           "min_position_change": "Min. Positionsänderung (%)",
           "min_time_between_changes": "Min. Zeit zwischen Änderungen (Sek)",
-          "pause_duration": "Pausendauer nach manuellem Eingriff (Min)"
+          "lock_tilt_position": "Lamellenposition bei Sperre (%)",
+          "vent_tilt_position": "Lamellenposition bei Lüftung (%)",
+          "inverted_tilt": "Lamellen invertiert (100% = geschlossen)"
         }
       },
       "facades": {
@@ -139,19 +115,25 @@
       },
       "rule_condition": {
         "title": "Bedingung hinzufügen zu: {rule_name}",
-        "description": "Bedingungstyp und Parameter auswählen.",
+        "description": "Bedingungstyp auswählen.",
         "data": {
-          "condition_type": "Bedingungstyp",
+          "condition_type": "Bedingungstyp"
+        }
+      },
+      "rule_condition_params": {
+        "title": "Konfigurieren: {condition_type}",
+        "description": "Parameter für diese Bedingung festlegen.",
+        "data": {
+          "facade": "Fassade",
           "value": "Wert",
-          "sensor": "Sensor",
+          "sensor": "Temperatursensor",
           "entity": "Entität",
           "state": "Status",
           "time_start": "Startzeit (HH:MM)",
           "time_end": "Endzeit (HH:MM)",
           "offset": "Offset (Minuten)",
           "comfort_mode": "Komfort-Modus",
-          "weather_state": "Wetterbedingung",
-          "facade": "Fassade"
+          "weather_state": "Wetterbedingung"
         }
       },
       "scenarios": {

@@ -3,32 +3,9 @@
     "step": {
       "user": {
         "title": "CoverAutomatic Setup",
-        "description": "Set up intelligent cover automation.",
+        "description": "Select covers to manage and optionally an outdoor temperature sensor.",
         "data": {
-          "name": "Integration name"
-        }
-      },
-      "facades": {
-        "title": "Configure Facades",
-        "description": "Add building facades by cardinal direction. Current facades: {facades}",
-        "data": {
-          "facade_name": "Facade name",
-          "facade_direction": "Direction",
-          "add_facade": "Add this facade",
-          "done": "Done adding facades"
-        }
-      },
-      "covers": {
-        "title": "Select Covers",
-        "description": "Select cover entities to manage.",
-        "data": {
-          "covers": "Covers to manage"
-        }
-      },
-      "sensors": {
-        "title": "Temperature Sensors (Optional)",
-        "description": "Configure temperature sensors for intelligent rules.",
-        "data": {
+          "covers": "Covers to manage",
           "outdoor_temp_sensor": "Outdoor temperature sensor"
         }
       }
@@ -55,8 +32,8 @@
           "outdoor_temp_sensor": "Outdoor temperature sensor",
           "indoor_temp_sensor": "Indoor temperature sensor",
           "weather_entity": "Weather entity",
-          "comfort_temp_min": "Comfort temperature min (°C)",
-          "comfort_temp_max": "Comfort temperature max (°C)"
+          "comfort_temp_min": "Comfort temperature min (C)",
+          "comfort_temp_max": "Comfort temperature max (C)"
         }
       },
       "cover_details": {
@@ -64,18 +41,17 @@
         "description": "Configure settings for this cover.",
         "data": {
           "facade_id": "Facade",
+          "pause_duration": "Pause duration after manual override (min)",
           "lock_sensor": "Lock sensor (window contact)",
           "lock_position": "Position when locked (%)",
           "vent_sensor": "Vent sensor (ventilation contact)",
           "vent_position": "Position when venting (%)",
           "inverted": "Inverted (100% = closed)",
-          "supports_tilt": "Supports tilt/slat control",
-          "lock_tilt_position": "Tilt position when locked (%)",
-          "vent_tilt_position": "Tilt position when venting (%)",
-          "inverted_tilt": "Inverted tilt (100% = closed slats)",
           "min_position_change": "Min. position change (%)",
           "min_time_between_changes": "Min. time between changes (sec)",
-          "pause_duration": "Pause duration after manual override (min)"
+          "lock_tilt_position": "Tilt position when locked (%)",
+          "vent_tilt_position": "Tilt position when venting (%)",
+          "inverted_tilt": "Inverted tilt (100% = closed slats)"
         }
       },
       "facades": {
@@ -139,19 +115,25 @@
       },
       "rule_condition": {
         "title": "Add Condition to: {rule_name}",
-        "description": "Select condition type and parameters.",
+        "description": "Select the condition type.",
         "data": {
-          "condition_type": "Condition type",
+          "condition_type": "Condition type"
+        }
+      },
+      "rule_condition_params": {
+        "title": "Configure: {condition_type}",
+        "description": "Set the parameters for this condition.",
+        "data": {
+          "facade": "Facade",
           "value": "Value",
-          "sensor": "Sensor",
+          "sensor": "Temperature sensor",
           "entity": "Entity",
           "state": "State",
           "time_start": "Start time (HH:MM)",
           "time_end": "End time (HH:MM)",
           "offset": "Offset (minutes)",
           "comfort_mode": "Comfort mode",
-          "weather_state": "Weather condition",
-          "facade": "Facade"
+          "weather_state": "Weather condition"
         }
       },
       "scenarios": {

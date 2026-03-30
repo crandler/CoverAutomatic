@@ -155,6 +155,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.0.40 (2026-03-30)
+
+- Simplify initial setup: 4 steps reduced to 1 (select covers + optional sensor)
+- Dynamic rule conditions: 2-step flow shows only relevant fields per condition type
+- Smart cover details: auto-detect tilt support, hide tilt fields for non-tilt covers
+- Remove redundant name and facade steps from initial config flow
+- Add rule_condition_params step for cleaner condition parameter entry
+- Update translations (EN + DE) for simplified UI
+
 ### 1.0.39 (2026-03-30)
 
 - Fix "already_in_progress" error when HA Assist or discovery starts a parallel config flow
