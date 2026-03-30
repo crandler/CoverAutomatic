@@ -155,6 +155,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.1.6 (2026-03-30)
+
+- Add cover management: add and remove covers via panel
+- Panel shows available HA cover entities for selection
+- Config response includes available_covers list
+
 ### 1.1.5 (2026-03-30)
 
 - Fix WebSocket handlers: add async_response decorator required by HA for async handlers

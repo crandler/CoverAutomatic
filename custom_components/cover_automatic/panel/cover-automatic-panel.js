@@ -50,6 +50,7 @@ const I18N = {
     cover_section_advanced: "Advanced",
     cover_section_tilt: "Tilt",
     cover_auto_enabled: "Automation enabled",
+    cover_add: "Add covers",
     // Facades
     facade_direction: "Direction",
     facade_azimuth_start: "Azimuth start",
@@ -156,6 +157,7 @@ const I18N = {
     cover_section_advanced: "Erweitert",
     cover_section_tilt: "Tilt",
     cover_auto_enabled: "Automatik aktiviert",
+    cover_add: "Rollos hinzufügen",
     facade_direction: "Richtung",
     facade_azimuth_start: "Azimut Start",
     facade_azimuth_end: "Azimut Ende",
@@ -1160,27 +1162,47 @@ class CoverAutomaticPanel extends HTMLElement {
   _renderCovers() {
     const covers = this._config.covers || {};
     const entries = Object.values(covers);
-    if (entries.length === 0) {
-      return `<div class="empty-state">${this._t("none")}</div>`;
+    const available = this._config.available_covers || [];
+
+    let html = '';
+
+    // Add covers section
+    if (available.length > 0) {
+      html += '<div class="card" style="margin-bottom:16px"><div class="card-header">';
+      html += `<span>${this._t("cover_add")}</span></div>`;
+      html += '<div class="card-body"><div class="form-row">';
+      html += `<select id="cover-add-select" multiple style="width:100%;min-height:80px;padding:8px;border:1px solid var(--divider-color);border-radius:6px;background:var(--ha-card-background,var(--card-background-color));color:var(--primary-text-color)">`;
+      for (const a of available) {
+        html += `<option value="${this._esc(a.entity_id)}">${this._esc(a.name)} (${this._esc(a.entity_id)})</option>`;
+      }
+      html += '</select></div>';
+      html += `<div class="form-row" style="margin-top:8px"><button class="btn btn-primary" data-action="cover-add">${this._t("add")}</button></div>`;
+      html += '</div></div>';
     }
 
-    let html = '<div class="card"><div style="overflow-x:auto"><table class="data-table">';
+    if (entries.length === 0) {
+      return html + `<div class="empty-state">${this._t("none")}</div>`;
+    }
+
+    html += '<div class="card"><div style="overflow-x:auto"><table class="data-table">';
     html += '<thead><tr>';
     html += `<th>${this._t("name")}</th>`;
     html += `<th>${this._t("cover_facade")}</th>`;
     html += `<th>${this._t("cover_status")}</th>`;
     html += `<th>${this._t("cover_auto_enabled")}</th>`;
+    html += '<th></th>';
     html += '</tr></thead><tbody>';
 
     for (const c of entries) {
       const facadeName = this._getFacadeName(c.facade_id);
       const selected = this._selectedCover === c.entity_id ? " selected" : "";
       const statusClass = "status-" + (c.status || "auto");
-      html += `<tr class="${selected}" data-action="select-cover" data-id="${this._esc(c.entity_id)}">`;
-      html += `<td>${this._esc(c.name)}</td>`;
-      html += `<td>${this._esc(facadeName)}</td>`;
+      html += `<tr class="${selected}">`;
+      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(c.name)}</td>`;
+      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(facadeName)}</td>`;
       html += `<td><span class="status-badge ${statusClass}">${this._esc(c.status || "auto")}</span></td>`;
       html += `<td>${c.auto_enabled ? this._t("enabled") : this._t("disabled")}</td>`;
+      html += `<td><button class="btn-icon" data-action="cover-delete" data-id="${this._esc(c.entity_id)}" title="${this._t("delete")}">&#10005;</button></td>`;
       html += '</tr>';
     }
 
@@ -1876,6 +1898,35 @@ class CoverAutomaticPanel extends HTMLElement {
     // Retry
     root.querySelectorAll('[data-action="retry"]').forEach(btn => {
       btn.addEventListener("click", () => this._loadConfig());
+    });
+
+    // Cover add
+    root.querySelectorAll('[data-action="cover-add"]').forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const select = this.shadowRoot.querySelector("#cover-add-select");
+        if (!select) return;
+        const ids = Array.from(select.selectedOptions).map(o => o.value);
+        if (ids.length === 0) return;
+        try {
+          const result = await this._ws("cover_automatic/cover/add", { entity_ids: ids });
+          this._updateConfigFromResult(result);
+          this._showToast();
+        } catch (e) { console.error(e); }
+      });
+    });
+
+    // Cover delete
+    root.querySelectorAll('[data-action="cover-delete"]').forEach(el => {
+      el.addEventListener("click", () => {
+        const entityId = el.dataset.id;
+        this._showConfirm(this._t("confirm_delete"), async () => {
+          try {
+            const result = await this._ws("cover_automatic/cover/delete", { entity_id: entityId });
+            if (this._selectedCover === entityId) { this._selectedCover = null; this._slideOpen = false; }
+            this._updateConfigFromResult(result);
+          } catch (e) { console.error(e); }
+        });
+      });
     });
 
     // Cover select

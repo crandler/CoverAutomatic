@@ -9,7 +9,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 
 from .const import DOMAIN, FACADE_PRESETS
-from .models import Condition, Facade, Rule, Scenario
+from .models import Condition, CoverConfig, Facade, Rule, Scenario
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -61,9 +61,11 @@ def _sanitize_id(name: str) -> str:
     return result or "unnamed"
 
 
-def _build_config_response(storage: CoverAutomaticStorage) -> dict[str, Any]:
+def _build_config_response(
+    storage: CoverAutomaticStorage, hass: HomeAssistant | None = None,
+) -> dict[str, Any]:
     """Build full config response dict from storage."""
-    return {
+    result: dict[str, Any] = {
         "covers": {k: v.to_dict() for k, v in storage.covers.items()},
         "facades": {k: v.to_dict() for k, v in storage.facades.items()},
         "rules": {k: v.to_dict() for k, v in storage.rules.items()},
@@ -77,6 +79,14 @@ def _build_config_response(storage: CoverAutomaticStorage) -> dict[str, Any]:
             "comfort_temp_max": storage.comfort_temp_max,
         },
     }
+    if hass:
+        managed = set(storage.covers.keys())
+        result["available_covers"] = [
+            {"entity_id": s.entity_id, "name": s.attributes.get("friendly_name", s.entity_id)}
+            for s in hass.states.async_all("cover")
+            if s.entity_id not in managed
+        ]
+    return result
 
 
 def _parse_conditions(raw: list[dict[str, Any]]) -> list[Condition]:
@@ -102,7 +112,7 @@ async def ws_get_config(
     coordinator: CoverAutomaticCoordinator,
 ) -> None:
     """Handle cover_automatic/config."""
-    connection.send_result(msg["id"], _build_config_response(storage))
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
 async def ws_cover_update(
@@ -127,7 +137,40 @@ async def ws_cover_update(
     storage._invalidate_cache()
     await storage.async_save()
     coordinator.refresh_state_tracking()
-    connection.send_result(msg["id"], _build_config_response(storage))
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
+
+
+async def ws_cover_add(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    storage: CoverAutomaticStorage,
+    coordinator: CoverAutomaticCoordinator,
+) -> None:
+    """Handle cover_automatic/cover/add."""
+    entity_ids = msg["entity_ids"]
+    for entity_id in entity_ids:
+        if entity_id in storage.covers:
+            continue
+        state = hass.states.get(entity_id)
+        name = state.attributes.get("friendly_name", entity_id) if state else entity_id
+        cover = CoverConfig(entity_id=entity_id, name=name)
+        await storage.async_add_cover(cover)
+    coordinator.refresh_state_tracking()
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
+
+
+async def ws_cover_delete(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    storage: CoverAutomaticStorage,
+    coordinator: CoverAutomaticCoordinator,
+) -> None:
+    """Handle cover_automatic/cover/delete."""
+    await storage.async_remove_cover(msg["entity_id"])
+    coordinator.refresh_state_tracking()
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
 async def ws_facade_add(
@@ -152,7 +195,7 @@ async def ws_facade_add(
         cover_ids=msg.get("cover_ids", []),
     )
     await storage.async_add_facade(facade)
-    connection.send_result(msg["id"], _build_config_response(storage))
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
 async def ws_facade_update(
@@ -179,7 +222,7 @@ async def ws_facade_update(
         cover_ids=msg.get("cover_ids", existing.cover_ids),
     )
     await storage.async_add_facade(updated)
-    connection.send_result(msg["id"], _build_config_response(storage))
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
 async def ws_facade_delete(
@@ -196,7 +239,7 @@ async def ws_facade_delete(
         return
 
     await storage.async_remove_facade(facade_id)
-    connection.send_result(msg["id"], _build_config_response(storage))
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
 async def ws_rule_add(
@@ -223,7 +266,7 @@ async def ws_rule_add(
         target_tilt_position=msg.get("target_tilt_position"),
     )
     await storage.async_add_rule(rule)
-    connection.send_result(msg["id"], _build_config_response(storage))
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
 async def ws_rule_update(
@@ -258,7 +301,7 @@ async def ws_rule_update(
         target_tilt_position=msg.get("target_tilt_position", existing.target_tilt_position),
     )
     await storage.async_add_rule(updated)
-    connection.send_result(msg["id"], _build_config_response(storage))
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
 async def ws_rule_delete(
@@ -275,7 +318,7 @@ async def ws_rule_delete(
         return
 
     await storage.async_remove_rule(rule_id)
-    connection.send_result(msg["id"], _build_config_response(storage))
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
 async def ws_rule_reorder(
@@ -298,7 +341,7 @@ async def ws_rule_reorder(
 
     storage._invalidate_cache()
     await storage.async_save()
-    connection.send_result(msg["id"], _build_config_response(storage))
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
 async def ws_scenario_add(
@@ -317,7 +360,7 @@ async def ws_scenario_add(
         rules_disabled=msg.get("rules_disabled", []),
     )
     await storage.async_add_scenario(scenario)
-    connection.send_result(msg["id"], _build_config_response(storage))
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
 async def ws_scenario_update(
@@ -346,7 +389,7 @@ async def ws_scenario_update(
         storage.active_scenario = scenario_id
         await storage.async_save()
 
-    connection.send_result(msg["id"], _build_config_response(storage))
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
 async def ws_scenario_delete(
@@ -363,7 +406,7 @@ async def ws_scenario_delete(
         return
 
     await storage.async_remove_scenario(scenario_id)
-    connection.send_result(msg["id"], _build_config_response(storage))
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
 async def ws_settings_update(
@@ -380,7 +423,7 @@ async def ws_settings_update(
 
     await storage.async_save()
     coordinator.refresh_state_tracking()
-    connection.send_result(msg["id"], _build_config_response(storage))
+    connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
 # ---------------------------------------------------------------------------
@@ -421,6 +464,20 @@ def async_setup_api(
                 vol.Optional("inverted_tilt"): bool,
                 vol.Optional("min_position_change"): vol.All(int, vol.Range(min=1, max=50)),
                 vol.Optional("min_time_between_changes"): vol.All(int, vol.Range(min=60, max=3600)),
+            },
+        ),
+        (
+            f"{DOMAIN}/cover/add",
+            ws_cover_add,
+            {
+                vol.Required("entity_ids"): [str],
+            },
+        ),
+        (
+            f"{DOMAIN}/cover/delete",
+            ws_cover_delete,
+            {
+                vol.Required("entity_id"): str,
             },
         ),
         (
