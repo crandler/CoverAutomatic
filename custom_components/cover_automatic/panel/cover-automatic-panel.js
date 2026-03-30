@@ -1444,8 +1444,11 @@ class CoverAutomaticPanel extends HTMLElement {
         <label>${this._t("facade_covers")}</label>
         <div class="multi-select">`;
     for (const c of Object.values(covers)) {
-      const sel = (f.cover_ids || []).includes(c.entity_id) ? " selected" : "";
-      html += `<button class="ms-item${sel}" data-action="facade-cover-toggle" data-cover="${this._esc(c.entity_id)}">${this._esc(c.name)}</button>`;
+      const assignedHere = (f.cover_ids || []).includes(c.entity_id);
+      const otherFacade = !assignedHere && c.facade_id && c.facade_id !== f.id ? this._getFacadeName(c.facade_id) : null;
+      const sel = assignedHere ? " selected" : "";
+      const label = otherFacade ? `${this._esc(c.name)} [${this._esc(otherFacade)}]` : this._esc(c.name);
+      html += `<button class="ms-item${sel}" data-action="facade-cover-toggle" data-cover="${this._esc(c.entity_id)}">${label}</button>`;
     }
     html += `</div></div>
       <div class="form-actions">
@@ -1487,7 +1490,9 @@ class CoverAutomaticPanel extends HTMLElement {
         <label>${this._t("facade_covers")}</label>
         <div class="multi-select">`;
     for (const c of Object.values(covers)) {
-      html += `<button class="ms-item" data-action="facade-cover-toggle" data-cover="${this._esc(c.entity_id)}">${this._esc(c.name)}</button>`;
+      const otherFacade = c.facade_id ? this._getFacadeName(c.facade_id) : null;
+      const label = otherFacade ? `${this._esc(c.name)} [${this._esc(otherFacade)}]` : this._esc(c.name);
+      html += `<button class="ms-item" data-action="facade-cover-toggle" data-cover="${this._esc(c.entity_id)}">${label}</button>`;
     }
     html += `</div></div>
       <div class="form-actions">

@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.3.2 (2026-03-30)
+
+- Enforce exclusive facade assignment: covers can only belong to one facade
+- Facade editor shows current facade assignment for each cover
+
 ### 1.3.1 (2026-03-30)
 
 - Fix facade cover assignment: bidirectional sync between facade.cover_ids and cover.facade_id

@@ -97,10 +97,18 @@ def _sync_cover_facade_ids(
 
     - Covers in cover_ids get facade_id set to this facade
     - Covers previously in this facade but removed get facade_id cleared
+    - Covers are removed from any other facade's cover_ids (exclusive assignment)
     """
     cover_id_set = set(cover_ids)
+    facades_raw = storage._data.get("facades", {})
     for entity_id, raw in storage._data.get("covers", {}).items():
         if entity_id in cover_id_set:
+            # Remove from any other facade first
+            old_fid = raw.get("facade_id")
+            if old_fid and old_fid != facade_id and old_fid in facades_raw:
+                other_cids = facades_raw[old_fid].get("cover_ids", [])
+                if entity_id in other_cids:
+                    other_cids.remove(entity_id)
             raw["facade_id"] = facade_id
         elif raw.get("facade_id") == facade_id:
             raw["facade_id"] = None
