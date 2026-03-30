@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.3.1 (2026-03-30)
+
+- Fix facade cover assignment: bidirectional sync between facade.cover_ids and cover.facade_id
+
 ### 1.3.0 (2026-03-30)
 
 - Add per-cover indoor temperature sensor (falls back to global setting)

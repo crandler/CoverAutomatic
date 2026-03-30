@@ -90,6 +90,43 @@ def _build_config_response(
     return result
 
 
+def _sync_cover_facade_ids(
+    storage: CoverAutomaticStorage, facade_id: str, cover_ids: list[str],
+) -> None:
+    """Sync cover.facade_id based on facade.cover_ids assignment.
+
+    - Covers in cover_ids get facade_id set to this facade
+    - Covers previously in this facade but removed get facade_id cleared
+    """
+    cover_id_set = set(cover_ids)
+    for entity_id, raw in storage._data.get("covers", {}).items():
+        if entity_id in cover_id_set:
+            raw["facade_id"] = facade_id
+        elif raw.get("facade_id") == facade_id:
+            raw["facade_id"] = None
+    storage._invalidate_cache()
+
+
+def _sync_facade_cover_ids(
+    storage: CoverAutomaticStorage, entity_id: str, new_facade_id: str | None, old_facade_id: str | None,
+) -> None:
+    """Sync facade.cover_ids based on cover.facade_id change.
+
+    - Remove cover from old facade's cover_ids
+    - Add cover to new facade's cover_ids
+    """
+    facades_raw = storage._data.get("facades", {})
+    if old_facade_id and old_facade_id in facades_raw:
+        cids = facades_raw[old_facade_id].get("cover_ids", [])
+        if entity_id in cids:
+            cids.remove(entity_id)
+    if new_facade_id and new_facade_id in facades_raw:
+        cids = facades_raw[new_facade_id].setdefault("cover_ids", [])
+        if entity_id not in cids:
+            cids.append(entity_id)
+    storage._invalidate_cache()
+
+
 def _parse_conditions(raw: list[dict[str, Any]]) -> list[Condition]:
     """Parse condition dicts, skipping invalid ones with a warning."""
     conditions: list[Condition] = []
@@ -130,10 +167,18 @@ async def ws_cover_update(
         connection.send_error(msg["id"], "not_found", f"Cover '{entity_id}' not found")
         return
 
+    # Track facade change for bidirectional sync
+    old_facade_id = raw.get("facade_id")
+
     # Update only fields present in the message
     for key in _UPDATABLE_COVER_FIELDS:
         if key in msg:
             raw[key] = msg[key]
+
+    # Sync facade.cover_ids if facade_id changed
+    new_facade_id = raw.get("facade_id")
+    if "facade_id" in msg and new_facade_id != old_facade_id:
+        _sync_facade_cover_ids(storage, entity_id, new_facade_id, old_facade_id)
 
     storage._invalidate_cache()
     await storage.async_save()
@@ -186,16 +231,20 @@ async def ws_facade_add(
     direction = msg.get("direction", "south")
     presets = FACADE_PRESETS.get(direction, FACADE_PRESETS["south"])
 
+    new_cover_ids = msg.get("cover_ids", [])
+    facade_id = _sanitize_id(name)
     facade = Facade(
-        id=_sanitize_id(name),
+        id=facade_id,
         name=name,
         azimuth_start=msg.get("azimuth_start", presets["start"]),
         azimuth_end=msg.get("azimuth_end", presets["end"]),
         direction=direction,
         min_elevation=msg.get("min_elevation", 0.0),
-        cover_ids=msg.get("cover_ids", []),
+        cover_ids=new_cover_ids,
     )
     await storage.async_add_facade(facade)
+    _sync_cover_facade_ids(storage, facade_id, new_cover_ids)
+    await storage.async_save()
     connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
@@ -213,6 +262,7 @@ async def ws_facade_update(
         connection.send_error(msg["id"], "not_found", f"Facade '{facade_id}' not found")
         return
 
+    new_cover_ids = msg.get("cover_ids", existing.cover_ids)
     updated = Facade(
         id=facade_id,
         name=msg.get("name", existing.name),
@@ -220,9 +270,12 @@ async def ws_facade_update(
         azimuth_end=msg.get("azimuth_end", existing.azimuth_end),
         direction=msg.get("direction", existing.direction),
         min_elevation=msg.get("min_elevation", existing.min_elevation),
-        cover_ids=msg.get("cover_ids", existing.cover_ids),
+        cover_ids=new_cover_ids,
     )
     await storage.async_add_facade(updated)
+    # Sync cover.facade_id with facade.cover_ids
+    _sync_cover_facade_ids(storage, facade_id, new_cover_ids)
+    await storage.async_save()
     connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
