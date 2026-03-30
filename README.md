@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.1.4 (2026-03-30)
+
+- Fix panel WebSocket calls: use hass.callWS() instead of connection.sendMessagePromise()
+
 ### 1.1.3 (2026-03-30)
 
 - Fix WebSocket command registration: pass command_type as separate argument

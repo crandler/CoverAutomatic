@@ -1004,7 +1004,7 @@ class CoverAutomaticPanel extends HTMLElement {
     if (!this._hass) return null;
     try {
       const msg = Object.assign({ type: type }, data || {});
-      const result = await this._hass.connection.sendMessagePromise(msg);
+      const result = await this._hass.callWS(msg);
       return result;
     } catch (err) {
       console.error("CoverAutomatic WS error:", type, err);
