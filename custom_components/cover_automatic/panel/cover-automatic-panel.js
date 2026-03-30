@@ -1862,6 +1862,68 @@ class CoverAutomaticPanel extends HTMLElement {
     return html;
   }
 
+  _renderCompassSVG(rotation) {
+    const cx = 110, cy = 110, r = 95, hr = 30;
+    const sunState = this._hass ? this._hass.states["sun.sun"] : null;
+    const sunAz = sunState ? parseFloat(sunState.attributes.azimuth) : null;
+    const sunEl = sunState ? parseFloat(sunState.attributes.elevation) : null;
+    const belowHorizon = sunEl != null && sunEl < 0;
+
+    // Facade arcs
+    const facades = this._config ? Object.values(this._config.facades || {}) : [];
+    let facadeArcs = "";
+    const facadeColors = ["#4CAF50", "#2196F3", "#FF9800", "#9C27B0", "#F44336", "#00BCD4"];
+    facades.forEach((f, i) => {
+      const startDeg = (f.azimuth_start + rotation - 90) * Math.PI / 180;
+      const endDeg = (f.azimuth_end + rotation - 90) * Math.PI / 180;
+      const arcR = r - 8;
+      const x1 = cx + arcR * Math.cos(startDeg), y1 = cy + arcR * Math.sin(startDeg);
+      const x2 = cx + arcR * Math.cos(endDeg), y2 = cy + arcR * Math.sin(endDeg);
+      let sweep = f.azimuth_end - f.azimuth_start;
+      if (sweep < 0) sweep += 360;
+      const large = sweep > 180 ? 1 : 0;
+      facadeArcs += `<path d="M${x1},${y1} A${arcR},${arcR} 0 ${large},1 ${x2},${y2}" fill="none" stroke="${facadeColors[i % facadeColors.length]}" stroke-width="6" opacity="0.6"/>`;
+      // Label
+      const midDeg = (f.azimuth_start + sweep / 2 + rotation - 90) * Math.PI / 180;
+      const lx = cx + (arcR - 14) * Math.cos(midDeg), ly = cy + (arcR - 14) * Math.sin(midDeg);
+      facadeArcs += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="9" fill="${facadeColors[i % facadeColors.length]}" font-weight="600">${this._esc(f.name.substring(0, 6))}</text>`;
+    });
+
+    // Sun position
+    let sunMarker = "";
+    if (sunAz != null && !isNaN(sunAz) && !belowHorizon) {
+      const sunRad = (sunAz - 90) * Math.PI / 180;
+      const sr = r + 2;
+      const sx = cx + sr * Math.cos(sunRad), sy = cy + sr * Math.sin(sunRad);
+      sunMarker = `<circle cx="${sx}" cy="${sy}" r="8" fill="#FFC107" stroke="#F57F17" stroke-width="1.5"/>
+        <text x="${sx}" y="${sy}" text-anchor="middle" dominant-baseline="central" font-size="8" fill="#F57F17" font-weight="700">${Math.round(sunEl)}°</text>`;
+    }
+
+    return `<svg id="compass-svg" width="220" height="220" viewBox="0 0 220 220" style="display:block">
+      <!-- Compass circle -->
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--divider-color)" stroke-width="1.5"/>
+      <circle cx="${cx}" cy="${cy}" r="${r - 20}" fill="none" stroke="var(--divider-color)" stroke-width="0.5" stroke-dasharray="3,3"/>
+      <!-- Cardinal directions (fixed) -->
+      <text x="${cx}" y="${cy - r - 6}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--primary-text-color)">N</text>
+      <text x="${cx}" y="${cy + r + 16}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--primary-text-color)">S</text>
+      <text x="${cx + r + 10}" y="${cy + 5}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--primary-text-color)">E</text>
+      <text x="${cx - r - 10}" y="${cy + 5}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--primary-text-color)">W</text>
+      <!-- Tick marks -->
+      ${[0,45,90,135,180,225,270,315].map(d => { const rad=(d-90)*Math.PI/180; const i=d%90===0?10:6; return `<line x1="${cx+(r-i)*Math.cos(rad)}" y1="${cy+(r-i)*Math.sin(rad)}" x2="${cx+r*Math.cos(rad)}" y2="${cy+r*Math.sin(rad)}" stroke="var(--primary-text-color)" stroke-width="${d%90===0?2:1}" opacity="${d%90===0?0.8:0.4}"/>`; }).join("")}
+      <!-- House (rotated) -->
+      <g transform="rotate(${rotation}, ${cx}, ${cy})">
+        <rect x="${cx - hr}" y="${cy - hr}" width="${hr * 2}" height="${hr * 2}" rx="4" fill="var(--ha-card-background, var(--card-background-color, #fff))" stroke="var(--primary-color)" stroke-width="2"/>
+        <!-- Roof indicator (front = south of house before rotation) -->
+        <line x1="${cx - hr + 6}" y1="${cy + hr}" x2="${cx + hr - 6}" y2="${cy + hr}" stroke="var(--primary-color)" stroke-width="4" stroke-linecap="round"/>
+        <text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="var(--primary-text-color)" opacity="0.6">${rotation}°</text>
+      </g>
+      <!-- Facade arcs -->
+      ${facadeArcs}
+      <!-- Sun -->
+      ${sunMarker}
+    </svg>`;
+  }
+
   _renderSettings() {
     const s = this._config.settings || {};
 
@@ -1897,10 +1959,14 @@ class CoverAutomaticPanel extends HTMLElement {
 
     // House section
     html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_house")}</div>`;
-    html += `<div class="form-group">
-      <label>${this._t("settings_house_rotation")}</label>
-      <input type="number" step="0.5" min="-180" max="180" value="${s.house_rotation != null ? s.house_rotation : 0}" data-settings-field="house_rotation">
-      <div style="font-size:12px;color:var(--ca-secondary-text);margin-top:4px">${this._t("settings_house_rotation_hint")}</div>
+    const rot = s.house_rotation != null ? s.house_rotation : 0;
+    html += `<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+      <div class="form-group" style="flex:1;min-width:160px">
+        <label>${this._t("settings_house_rotation")}</label>
+        <input type="number" step="0.5" min="-180" max="180" value="${rot}" data-settings-field="house_rotation" id="house-rotation-input">
+        <div style="font-size:12px;color:var(--ca-secondary-text);margin-top:4px">${this._t("settings_house_rotation_hint")}</div>
+      </div>
+      <div style="flex:0 0 auto">${this._renderCompassSVG(rot)}</div>
     </div>`;
 
     // Save
@@ -2536,6 +2602,17 @@ class CoverAutomaticPanel extends HTMLElement {
 
   /* ---------- Settings event binding ---------- */
   _bindSettingsEvents(root) {
+    // Live compass update on rotation change
+    const rotInput = root.querySelector("#house-rotation-input");
+    const compassSvg = root.querySelector("#compass-svg");
+    if (rotInput && compassSvg) {
+      rotInput.addEventListener("input", () => {
+        const val = parseFloat(rotInput.value) || 0;
+        const parent = compassSvg.parentElement;
+        parent.innerHTML = this._renderCompassSVG(val);
+      });
+    }
+
     root.querySelectorAll('[data-action="settings-save"]').forEach(el => {
       el.addEventListener("click", async () => {
         const data = {};
