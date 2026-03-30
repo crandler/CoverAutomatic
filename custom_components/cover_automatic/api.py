@@ -30,7 +30,7 @@ _UPDATABLE_COVER_FIELDS = (
 # Settings fields that can be updated via WS API
 _SETTINGS_FIELDS = (
     "outdoor_temp_sensor", "indoor_temp_sensor", "weather_entity",
-    "comfort_temp_min", "comfort_temp_max", "active_scenario",
+    "comfort_temp_min", "comfort_temp_max", "house_rotation", "active_scenario",
 )
 
 # Umlaut replacement map
@@ -77,6 +77,7 @@ def _build_config_response(
             "weather_entity": storage.weather_entity,
             "comfort_temp_min": storage.comfort_temp_min,
             "comfort_temp_max": storage.comfort_temp_max,
+            "house_rotation": storage.house_rotation,
         },
     }
     if hass:
@@ -593,6 +594,7 @@ def async_setup_api(
                 vol.Optional("weather_entity"): vol.Any(str, None),
                 vol.Optional("comfort_temp_min"): vol.Coerce(float),
                 vol.Optional("comfort_temp_max"): vol.Coerce(float),
+                vol.Optional("house_rotation"): vol.All(vol.Coerce(float), vol.Range(min=0, max=359.9)),
                 vol.Optional("active_scenario"): str,
             },
         ),

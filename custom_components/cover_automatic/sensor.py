@@ -169,7 +169,8 @@ class FacadeSunTimeSensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorEn
         if facade is None:
             return None
         try:
-            entry_time, exit_time = get_facade_sun_times(self.hass, facade)
+            rotation = self.coordinator.storage.house_rotation
+            entry_time, exit_time = get_facade_sun_times(self.hass, facade, rotation)
         except Exception:
             _LOGGER.debug("Failed to calculate sun times for facade %s", self._facade_id)
             return None

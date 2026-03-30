@@ -155,6 +155,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.2.0 (2026-03-30)
+
+- Add global house rotation setting (clockwise offset from true north)
+- All facade azimuth calculations now respect house rotation
+- Sun entry/exit time sensors account for house rotation
+
 ### 1.1.6 (2026-03-30)
 
 - Add cover management: add and remove covers via panel

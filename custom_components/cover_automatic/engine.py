@@ -149,7 +149,7 @@ class RuleEngine:
         if not facade:
             return False
 
-        return is_sun_on_facade(self.hass, facade)
+        return is_sun_on_facade(self.hass, facade, self.storage.house_rotation)
 
     def _eval_sun_elevation(self, condition: Condition, *, above: bool) -> bool:
         """Evaluate sun elevation above/below threshold."""

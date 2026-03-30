@@ -112,6 +112,9 @@ const I18N = {
     settings_weather: "Weather entity",
     settings_comfort_min: "Comfort temp min",
     settings_comfort_max: "Comfort temp max",
+    settings_house_rotation: "House rotation (degrees)",
+    settings_house_rotation_hint: "Clockwise offset from true north (0-360)",
+    settings_section_house: "House",
     settings_section_sensors: "Sensors",
     settings_section_comfort: "Comfort",
     settings_entity_placeholder: "e.g. sensor.outdoor_temperature",
@@ -213,6 +216,9 @@ const I18N = {
     settings_weather: "Wetter-Entität",
     settings_comfort_min: "Komfort-Temp. min",
     settings_comfort_max: "Komfort-Temp. max",
+    settings_house_rotation: "Hausrotation (Grad)",
+    settings_house_rotation_hint: "Abweichung im Uhrzeigersinn von exakt Nord (0-360)",
+    settings_section_house: "Haus",
     settings_section_sensors: "Sensoren",
     settings_section_comfort: "Komfort",
     settings_entity_placeholder: "z. B. sensor.außentemperatur",
@@ -1837,6 +1843,14 @@ class CoverAutomaticPanel extends HTMLElement {
       <input type="number" step="0.5" value="${s.comfort_temp_max != null ? s.comfort_temp_max : 25}" data-settings-field="comfort_temp_max">
     </div>`;
     html += '</div>';
+
+    // House section
+    html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_house")}</div>`;
+    html += `<div class="form-group">
+      <label>${this._t("settings_house_rotation")}</label>
+      <input type="number" step="0.5" min="0" max="359.9" value="${s.house_rotation != null ? s.house_rotation : 0}" data-settings-field="house_rotation">
+      <div style="font-size:12px;color:var(--ca-secondary-text);margin-top:4px">${this._t("settings_house_rotation_hint")}</div>
+    </div>`;
 
     // Save
     html += `<div style="display:flex;justify-content:flex-end;margin-top:20px">

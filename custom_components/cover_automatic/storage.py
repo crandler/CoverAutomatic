@@ -177,6 +177,16 @@ class CoverAutomaticStorage:
         """Set maximum comfort temperature."""
         self._data["comfort_temp_max"] = value
 
+    @property
+    def house_rotation(self) -> float:
+        """Get global house rotation offset in degrees."""
+        return self._data.get("house_rotation", 0.0)
+
+    @house_rotation.setter
+    def house_rotation(self, value: float) -> None:
+        """Set global house rotation offset in degrees."""
+        self._data["house_rotation"] = float(value) % 360
+
     async def async_add_facade(self, facade: Facade) -> None:
         """Add or update a facade."""
         if "facades" not in self._data:
