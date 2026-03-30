@@ -151,6 +151,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.0.38 (2026-03-30)
+
+- Add brand images (icon + logo, light/dark, normal/hDPI) for HA 2026.3+ native brand support
+- Update CI lint to Python 3.14 (matching HA 2026.3 requirement)
+- Verified full compatibility with Home Assistant 2026.3.4 (Python 3.14, 365 tests passing)
+
 ### 1.0.37 (2026-02-24)
 
 - Remove unused constants DEFAULT_TILT_OPEN, DEFAULT_TILT_CLOSED from const.py
