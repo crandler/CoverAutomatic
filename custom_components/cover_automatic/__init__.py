@@ -98,11 +98,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntr
     async_setup_api(hass, storage, coordinator)
 
     # Register custom panel
+    from homeassistant.components.http import StaticPathConfig
     panel_path = pathlib.Path(__file__).parent / "panel" / "cover-automatic-panel.js"
-    hass.http.register_static_path(
-        "/cover_automatic/panel.js",
-        str(panel_path),
-        cache_headers=False,
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig("/cover_automatic/panel.js", str(panel_path), False)]
     )
     hass.components.frontend.async_register_built_in_panel(
         component_name="custom",

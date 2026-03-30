@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.1.1 (2026-03-30)
+
+- Fix panel registration: use async_register_static_paths with StaticPathConfig (HA 2026.3 API)
+
 ### 1.1.0 (2026-03-30)
 
 - Add custom config panel as sidebar entry, replacing Options Flow for all configuration
