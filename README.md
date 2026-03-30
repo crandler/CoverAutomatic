@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.0.41 (2026-03-30)
+
+- Fix covers not created in storage when no facades configured during initial setup
+- Storage initialization now triggers on covers (not facades) being present in entry data
+
 ### 1.0.40 (2026-03-30)
 
 - Simplify initial setup: 4 steps reduced to 1 (select covers + optional sensor)

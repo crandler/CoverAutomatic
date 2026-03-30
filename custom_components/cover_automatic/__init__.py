@@ -57,7 +57,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntr
     entry.async_on_unload(entry.add_update_listener(async_options_updated))
 
     # Transfer config flow data to storage (first setup only)
-    if entry.data.get("facades") and not storage.facades:
+    if entry.data.get("covers") and not storage.covers:
         from .models import CoverConfig, Facade
 
         for facade_data in entry.data.get("facades", []):
@@ -70,14 +70,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntr
             )
             await storage.async_add_facade(facade)
 
-        # Get first facade id for default assignment
-        first_facade_id = entry.data["facades"][0]["id"] if entry.data.get("facades") else None
-
         for entity_id in entry.data.get("covers", []):
             cover = CoverConfig(
                 entity_id=entity_id,
                 name=entity_id.split(".")[-1].replace("_", " ").title(),
-                facade_id=first_facade_id,
             )
             await storage.async_add_cover(cover)
 
