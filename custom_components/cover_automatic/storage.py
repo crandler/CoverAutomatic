@@ -185,7 +185,7 @@ class CoverAutomaticStorage:
     @house_rotation.setter
     def house_rotation(self, value: float) -> None:
         """Set global house rotation offset in degrees."""
-        self._data["house_rotation"] = float(value) % 360
+        self._data["house_rotation"] = float(value)
 
     async def async_add_facade(self, facade: Facade) -> None:
         """Add or update a facade."""

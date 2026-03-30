@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.2.2 (2026-03-30)
+
+- Allow negative house rotation values (-180 to 180 degrees)
+
 ### 1.2.1 (2026-03-30)
 
 - Settings: Replace text inputs with entity dropdowns for sensor and weather selection

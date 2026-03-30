@@ -594,7 +594,7 @@ def async_setup_api(
                 vol.Optional("weather_entity"): vol.Any(str, None),
                 vol.Optional("comfort_temp_min"): vol.Coerce(float),
                 vol.Optional("comfort_temp_max"): vol.Coerce(float),
-                vol.Optional("house_rotation"): vol.All(vol.Coerce(float), vol.Range(min=0, max=359.9)),
+                vol.Optional("house_rotation"): vol.All(vol.Coerce(float), vol.Range(min=-180, max=180)),
                 vol.Optional("active_scenario"): str,
             },
         ),
