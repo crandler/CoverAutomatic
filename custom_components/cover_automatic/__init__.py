@@ -5,6 +5,8 @@ import logging
 import pathlib
 from dataclasses import dataclass
 
+from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -98,12 +100,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntr
     async_setup_api(hass, storage, coordinator)
 
     # Register custom panel
-    from homeassistant.components.http import StaticPathConfig
     panel_path = pathlib.Path(__file__).parent / "panel" / "cover-automatic-panel.js"
     await hass.http.async_register_static_paths(
         [StaticPathConfig("/cover_automatic/panel.js", str(panel_path), False)]
     )
-    hass.components.frontend.async_register_built_in_panel(
+    async_register_built_in_panel(
+        hass,
         component_name="custom",
         sidebar_title="CoverAutomatic",
         sidebar_icon="mdi:blinds",
@@ -141,6 +143,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEnt
         ]
         if not remaining:
             await async_unload_services(hass)
-            hass.components.frontend.async_remove_panel("cover-automatic")
+            async_remove_panel(hass, "cover-automatic")
 
     return unload_ok
