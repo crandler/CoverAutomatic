@@ -24,7 +24,7 @@ _UPDATABLE_COVER_FIELDS = (
     "name", "facade_id", "auto_enabled", "pause_duration",
     "lock_sensor", "lock_position", "vent_sensor", "vent_position",
     "inverted", "supports_tilt", "lock_tilt_position", "vent_tilt_position",
-    "inverted_tilt", "min_position_change", "min_time_between_changes",
+    "inverted_tilt", "indoor_temp_sensor", "min_position_change", "min_time_between_changes",
 )
 
 # Settings fields that can be updated via WS API
@@ -463,6 +463,7 @@ def async_setup_api(
                 vol.Optional("lock_tilt_position"): vol.Any(int, None),
                 vol.Optional("vent_tilt_position"): vol.Any(int, None),
                 vol.Optional("inverted_tilt"): bool,
+                vol.Optional("indoor_temp_sensor"): vol.Any(str, None),
                 vol.Optional("min_position_change"): vol.All(int, vol.Range(min=1, max=50)),
                 vol.Optional("min_time_between_changes"): vol.All(int, vol.Range(min=60, max=3600)),
             },

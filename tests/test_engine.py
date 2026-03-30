@@ -374,7 +374,7 @@ class TestComfortCondition:
             type=ConditionType.TEMPERATURE_COMFORT,
             params={"mode": ComfortMode.COOLING},
         )
-        result = engine._eval_temp_comfort(condition)
+        result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is True
 
     def test_eval_comfort_heating_mode(
@@ -387,7 +387,7 @@ class TestComfortCondition:
             type=ConditionType.TEMPERATURE_COMFORT,
             params={"mode": ComfortMode.HEATING},
         )
-        result = engine._eval_temp_comfort(condition)
+        result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is True
 
     def test_eval_comfort_neutral_mode(
@@ -400,7 +400,7 @@ class TestComfortCondition:
             type=ConditionType.TEMPERATURE_COMFORT,
             params={"mode": ComfortMode.NEUTRAL},
         )
-        result = engine._eval_temp_comfort(condition)
+        result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is True
 
 
@@ -950,7 +950,7 @@ class TestComfortModeEdgeCases:
             type=ConditionType.TEMPERATURE_COMFORT,
             params={"mode": "cooling"},
         )
-        result = engine._eval_temp_comfort(condition)
+        result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is True
 
     def test_comfort_mode_string_heating(
@@ -963,7 +963,7 @@ class TestComfortModeEdgeCases:
             type=ConditionType.TEMPERATURE_COMFORT,
             params={"mode": "heating"},
         )
-        result = engine._eval_temp_comfort(condition)
+        result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is True
 
     def test_comfort_mode_string_neutral(
@@ -976,7 +976,7 @@ class TestComfortModeEdgeCases:
             type=ConditionType.TEMPERATURE_COMFORT,
             params={"mode": "neutral"},
         )
-        result = engine._eval_temp_comfort(condition)
+        result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is True
 
     def test_comfort_mode_invalid_string_falls_back_to_cooling(
@@ -990,7 +990,7 @@ class TestComfortModeEdgeCases:
             params={"mode": "invalid_mode"},
         )
         # Falls back to COOLING; temp 28 >= comfort_max 25 -> COOLING matches
-        result = engine._eval_temp_comfort(condition)
+        result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is True
 
     def test_comfort_mode_invalid_string_no_match(
@@ -1004,7 +1004,7 @@ class TestComfortModeEdgeCases:
             params={"mode": "invalid_mode"},
         )
         # Falls back to COOLING; temp 18 <= comfort_min 21 -> HEATING != COOLING
-        result = engine._eval_temp_comfort(condition)
+        result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is False
 
     def test_comfort_mode_no_sensor(
@@ -1017,7 +1017,7 @@ class TestComfortModeEdgeCases:
             type=ConditionType.TEMPERATURE_COMFORT,
             params={"mode": "cooling"},
         )
-        result = engine._eval_temp_comfort(condition)
+        result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is False
 
     def test_comfort_mode_invalid_temp_state(
@@ -1030,7 +1030,7 @@ class TestComfortModeEdgeCases:
             type=ConditionType.TEMPERATURE_COMFORT,
             params={"mode": "cooling"},
         )
-        result = engine._eval_temp_comfort(condition)
+        result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is False
 
 

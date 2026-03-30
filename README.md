@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.3.0 (2026-03-30)
+
+- Add per-cover indoor temperature sensor (falls back to global setting)
+- Cover sensor fields (lock, vent, indoor temp) now use entity dropdowns instead of text inputs
+
 ### 1.2.2 (2026-03-30)
 
 - Allow negative house rotation values (-180 to 180 degrees)

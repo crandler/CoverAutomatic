@@ -34,6 +34,7 @@ const I18N = {
     cover_facade: "Facade",
     cover_status: "Status",
     cover_pause_duration: "Pause duration (min)",
+    cover_indoor_temp: "Indoor temperature sensor",
     cover_lock_sensor: "Lock sensor",
     cover_lock_position: "Lock position",
     cover_vent_sensor: "Vent sensor",
@@ -144,6 +145,7 @@ const I18N = {
     cover_facade: "Fassade",
     cover_status: "Status",
     cover_pause_duration: "Pausendauer (Min.)",
+    cover_indoor_temp: "Innentemperatur-Sensor",
     cover_lock_sensor: "Sperr-Sensor",
     cover_lock_position: "Sperrposition",
     cover_vent_sensor: "Lüftungssensor",
@@ -1250,8 +1252,12 @@ class CoverAutomaticPanel extends HTMLElement {
       html += this._renderSection("sensors", this._t("cover_section_sensors"), () => {
         let s = '';
         s += `<div class="form-group">
+          <label>${this._t("cover_indoor_temp")}</label>
+          ${this._renderCoverEntitySelect("indoor_temp_sensor", cover.indoor_temp_sensor, cover.entity_id, "sensor", "temperature")}
+        </div>`;
+        s += `<div class="form-group">
           <label>${this._t("cover_lock_sensor")}</label>
-          <input type="text" value="${this._esc(cover.lock_sensor || "")}" placeholder="${this._t("settings_entity_placeholder")}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="lock_sensor">
+          ${this._renderCoverEntitySelect("lock_sensor", cover.lock_sensor, cover.entity_id, "binary_sensor", null)}
         </div>`;
         s += `<div class="form-group">
           <label>${this._t("cover_lock_position")}</label>
@@ -1259,7 +1265,7 @@ class CoverAutomaticPanel extends HTMLElement {
         </div>`;
         s += `<div class="form-group">
           <label>${this._t("cover_vent_sensor")}</label>
-          <input type="text" value="${this._esc(cover.vent_sensor || "")}" placeholder="${this._t("settings_entity_placeholder")}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="vent_sensor">
+          ${this._renderCoverEntitySelect("vent_sensor", cover.vent_sensor, cover.entity_id, "binary_sensor", null)}
         </div>`;
         s += `<div class="form-group">
           <label>${this._t("cover_vent_position")}</label>
@@ -1826,6 +1832,26 @@ class CoverAutomaticPanel extends HTMLElement {
       const name = e.attributes.friendly_name || e.entity_id;
       const sel = e.entity_id === currentValue ? " selected" : "";
       html += `<option value="${this._esc(e.entity_id)}"${sel}>${this._esc(name)} (${this._esc(e.entity_id)})</option>`;
+    }
+    html += "</select>";
+    return html;
+  }
+
+  _renderCoverEntitySelect(field, currentValue, coverId, domain, deviceClass) {
+    if (!this._hass || !this._hass.states) return `<input type="text" value="${this._esc(currentValue || "")}" data-action="cover-input" data-id="${this._esc(coverId)}" data-field="${field}">`;
+    const entities = Object.values(this._hass.states)
+      .filter(s => {
+        if (!s.entity_id.startsWith(domain + ".")) return false;
+        if (deviceClass && s.attributes.device_class !== deviceClass) return false;
+        return true;
+      })
+      .sort((a, b) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
+    let html = `<select data-action="cover-input" data-id="${this._esc(coverId)}" data-field="${field}">`;
+    html += `<option value="">-- ${this._t("none")} --</option>`;
+    for (const e of entities) {
+      const name = e.attributes.friendly_name || e.entity_id;
+      const sel = e.entity_id === currentValue ? " selected" : "";
+      html += `<option value="${this._esc(e.entity_id)}"${sel}>${this._esc(name)}</option>`;
     }
     html += "</select>";
     return html;

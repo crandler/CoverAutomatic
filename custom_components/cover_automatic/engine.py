@@ -129,7 +129,7 @@ class RuleEngine:
                 case ConditionType.STATE_IS:
                     return self._eval_state_is(condition)
                 case ConditionType.TEMPERATURE_COMFORT:
-                    return self._eval_temp_comfort(condition)
+                    return self._eval_temp_comfort(condition, cover)
                 case ConditionType.WEATHER_IS:
                     return self._eval_weather_is(condition)
                 case _:
@@ -231,18 +231,18 @@ class RuleEngine:
 
         return state.state == str(expected_state)
 
-    def _eval_temp_comfort(self, condition: Condition) -> bool:
+    def _eval_temp_comfort(self, condition: Condition, cover: CoverConfig) -> bool:
         """Evaluate temperature_comfort condition.
 
         Checks if current mode matches expected mode (cooling/heating/neutral).
-        Uses indoor temp sensor and comfort range from storage.
+        Uses indoor temp sensor (per-cover > global fallback) and comfort range from storage.
         """
         mode_val = condition.params.get("mode", ComfortMode.COOLING.value)
         try:
             expected_mode = ComfortMode(str(mode_val))
         except ValueError:
             expected_mode = ComfortMode.COOLING
-        sensor_id = condition.params.get("sensor") or self.storage.indoor_temp_sensor
+        sensor_id = condition.params.get("sensor") or cover.indoor_temp_sensor or self.storage.indoor_temp_sensor
 
         if not sensor_id:
             return False
