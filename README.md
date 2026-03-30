@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.1.3 (2026-03-30)
+
+- Fix WebSocket command registration: pass command_type as separate argument
+- Add frontend, http, websocket_api to manifest dependencies
+
 ### 1.1.2 (2026-03-30)
 
 - Fix panel registration: use direct imports instead of deprecated hass.components accessor

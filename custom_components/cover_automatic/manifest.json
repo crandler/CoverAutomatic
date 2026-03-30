@@ -3,7 +3,7 @@
   "name": "CoverAutomatic",
   "codeowners": ["@crandler"],
   "config_flow": true,
-  "dependencies": ["sun"],
+  "dependencies": ["frontend", "http", "sun", "websocket_api"],
   "documentation": "https://github.com/crandler/cover_automatic",
   "integration_type": "service",
   "iot_class": "calculated",
@@ -11,5 +11,5 @@
   "homeassistant": "2025.1.0",
   "requirements": [],
   "single_config_entry": true,
-  "version": "1.1.2"
+  "version": "1.1.3"
 }

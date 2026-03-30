@@ -202,9 +202,9 @@ class TestApiSetup:
         ) as mock_ws:
             mock_ws.BASE_COMMAND_MESSAGE_SCHEMA = real_ws.BASE_COMMAND_MESSAGE_SCHEMA
 
-            def capture_register(hass_or_handler, handler_or_schema=None, schema=None):
-                # async_register_command(hass, handler, schema)
-                registered_schemas.append(handler_or_schema if schema is None else schema)
+            def capture_register(hass, command_type, handler=None, schema=None):
+                # async_register_command(hass, command_type, handler, schema)
+                registered_schemas.append(schema)
 
             mock_ws.async_register_command.side_effect = capture_register
             async_setup_api(hass, storage, coordinator)

@@ -556,5 +556,5 @@ def async_setup_api(
             {vol.Required("type"): command_type, **extra_schema}
         )
         websocket_api.async_register_command(
-            hass, _make_handler(handler_fn), schema
+            hass, command_type, _make_handler(handler_fn), schema
         )
