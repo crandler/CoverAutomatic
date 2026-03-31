@@ -239,8 +239,8 @@ const CONDITION_TYPES = [
 
 const CONDITION_PARAMS = {
   sun_on_facade: [],
-  sun_elevation_above: [{ key: "elevation", type: "number", default: 10 }],
-  sun_elevation_below: [{ key: "elevation", type: "number", default: 60 }],
+  sun_elevation_above: [{ key: "elevation", type: "number", default: 10, step: 0.5 }],
+  sun_elevation_below: [{ key: "elevation", type: "number", default: 60, step: 0.5 }],
   temperature_above: [{ key: "temperature", type: "number", default: 25 }],
   temperature_below: [{ key: "temperature", type: "number", default: 15 }],
   temperature_comfort: [{ key: "mode", type: "select", options: ["cooling", "heating"], default: "cooling" }],
@@ -1459,7 +1459,7 @@ class CoverAutomaticPanel extends HTMLElement {
       </div>
       <div class="form-group">
         <label>${this._t("facade_min_elevation")}</label>
-        <input type="number" min="0" max="90" step="0.1" value="${f.min_elevation}" data-facade-field="min_elevation">
+        <input type="number" min="0" max="90" step="0.5" value="${f.min_elevation}" data-facade-field="min_elevation">
       </div>
       <div class="form-group">
         <label>${this._t("facade_covers")}</label>
@@ -1505,7 +1505,7 @@ class CoverAutomaticPanel extends HTMLElement {
       </div>
       <div class="form-group">
         <label>${this._t("facade_min_elevation")}</label>
-        <input type="number" min="0" max="90" step="0.1" value="0" data-facade-field="min_elevation">
+        <input type="number" min="0" max="90" step="0.5" value="0" data-facade-field="min_elevation">
       </div>
       <div class="form-group">
         <label>${this._t("facade_covers")}</label>
@@ -1695,7 +1695,7 @@ class CoverAutomaticPanel extends HTMLElement {
         } else if (p.type === "time") {
           html += `<input type="time" value="${this._esc(String(val))}" data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
         } else if (p.type === "number") {
-          html += `<input type="number" value="${val}" data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
+          html += `<input type="number" value="${val}"${p.step ? ' step="' + p.step + '"' : ""} data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
         } else {
           html += `<input type="text" value="${this._esc(String(val))}" data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
         }

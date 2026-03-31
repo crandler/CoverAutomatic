@@ -151,9 +151,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.4.1
+1.4.2
 
 ## Changelog
+
+### 1.4.2 (2026-03-31)
+
+- Change sun elevation step to 0.5 in rule conditions and facade min elevation
 
 ### 1.4.1 (2026-03-31)
 
