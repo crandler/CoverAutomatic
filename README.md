@@ -151,9 +151,14 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.4.5
+1.5.0
 
 ## Changelog
+
+### 1.5.0 (2026-03-31)
+
+- Auto comfort shading: sun_on_facade condition now automatically considers indoor temperature - skips shading in heating mode to use solar heat, shades in cooling/neutral mode
+- Add description hints for all settings fields (sensors, comfort range, house rotation)
 
 ### 1.4.5 (2026-03-31)
 

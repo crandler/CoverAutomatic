@@ -670,6 +670,7 @@ class TestSunOnFacadeCondition:
             direction="north",
         )
         mock_storage.facades = {"north": facade}
+        mock_storage.indoor_temp_sensor = None
         mock_is_sun_on_facade.return_value = True
 
         condition = Condition(
@@ -700,6 +701,7 @@ class TestSunOnFacadeCondition:
             direction="south",
         )
         mock_storage.facades = {"south": facade}
+        mock_storage.indoor_temp_sensor = None
         mock_is_sun_on_facade.return_value = True
 
         condition = Condition(
@@ -711,6 +713,87 @@ class TestSunOnFacadeCondition:
 
         assert result is True
         mock_is_sun_on_facade.assert_called_once_with(engine.hass, facade)
+
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_eval_sun_on_facade_skips_shading_in_heating_mode(
+        self, mock_is_sun_on_facade, engine, mock_storage
+    ) -> None:
+        """Test sun_on_facade returns False in HEATING mode to let sun in."""
+        facade = Facade(
+            id="south", name="South", azimuth_start=135.0,
+            azimuth_end=225.0, direction="south",
+        )
+        mock_storage.facades = {"south": facade}
+        mock_is_sun_on_facade.return_value = True
+        # Indoor temp 18 < comfort_min 21 -> HEATING
+        temp_state = MagicMock()
+        temp_state.state = "18.0"
+        engine.hass.states.get = lambda eid: temp_state if eid == "sensor.indoor_temp" else None
+
+        cover = CoverConfig(entity_id="cover.test", name="Test", facade_id="south")
+        condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
+
+        assert engine._eval_sun_on_facade(condition, cover) is False
+
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_eval_sun_on_facade_shades_in_cooling_mode(
+        self, mock_is_sun_on_facade, engine, mock_storage
+    ) -> None:
+        """Test sun_on_facade returns True in COOLING mode."""
+        facade = Facade(
+            id="south", name="South", azimuth_start=135.0,
+            azimuth_end=225.0, direction="south",
+        )
+        mock_storage.facades = {"south": facade}
+        mock_is_sun_on_facade.return_value = True
+        # Indoor temp 27 >= comfort_max 25 -> COOLING
+        temp_state = MagicMock()
+        temp_state.state = "27.0"
+        engine.hass.states.get = lambda eid: temp_state if eid == "sensor.indoor_temp" else None
+
+        cover = CoverConfig(entity_id="cover.test", name="Test", facade_id="south")
+        condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
+
+        assert engine._eval_sun_on_facade(condition, cover) is True
+
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_eval_sun_on_facade_shades_in_neutral_mode(
+        self, mock_is_sun_on_facade, engine, mock_storage
+    ) -> None:
+        """Test sun_on_facade returns True in NEUTRAL mode (prevention)."""
+        facade = Facade(
+            id="south", name="South", azimuth_start=135.0,
+            azimuth_end=225.0, direction="south",
+        )
+        mock_storage.facades = {"south": facade}
+        mock_is_sun_on_facade.return_value = True
+        # Indoor temp 23 between 21-25 -> NEUTRAL
+        temp_state = MagicMock()
+        temp_state.state = "23.0"
+        engine.hass.states.get = lambda eid: temp_state if eid == "sensor.indoor_temp" else None
+
+        cover = CoverConfig(entity_id="cover.test", name="Test", facade_id="south")
+        condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
+
+        assert engine._eval_sun_on_facade(condition, cover) is True
+
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_eval_sun_on_facade_no_sensor_always_shades(
+        self, mock_is_sun_on_facade, engine, mock_storage
+    ) -> None:
+        """Test sun_on_facade shades when no indoor sensor is configured."""
+        facade = Facade(
+            id="south", name="South", azimuth_start=135.0,
+            azimuth_end=225.0, direction="south",
+        )
+        mock_storage.facades = {"south": facade}
+        mock_storage.indoor_temp_sensor = None
+        mock_is_sun_on_facade.return_value = True
+
+        cover = CoverConfig(entity_id="cover.test", name="Test", facade_id="south")
+        condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
+
+        assert engine._eval_sun_on_facade(condition, cover) is True
 
     def test_eval_sun_on_facade_no_facade_returns_false(
         self, engine, mock_storage

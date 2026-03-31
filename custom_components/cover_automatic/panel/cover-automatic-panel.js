@@ -109,12 +109,16 @@ const I18N = {
     scenario_no_rules: "No rules configured",
     // Settings
     settings_outdoor_temp: "Outdoor temperature sensor",
-    settings_indoor_temp: "Indoor temperature sensor",
+    settings_outdoor_temp_hint: "Used for temperature-based rule conditions (temperature above/below).",
+    settings_indoor_temp: "Indoor temperature sensor (global)",
+    settings_indoor_temp_hint: "Fallback for covers without their own indoor sensor. Used for comfort mode and shading decisions.",
     settings_weather: "Weather entity",
+    settings_weather_hint: "Used for weather-based rule conditions (e.g. only shade when sunny).",
     settings_comfort_min: "Comfort temp min",
     settings_comfort_max: "Comfort temp max",
+    settings_comfort_hint: "Defines the comfort range. Below min = heating mode (sun shading disabled to use solar heat). Above max = cooling mode (shading active). Between = neutral (shading active as prevention).",
     settings_house_rotation: "House rotation (degrees)",
-    settings_house_rotation_hint: "Offset from true north (-180 to 180, positive = clockwise)",
+    settings_house_rotation_hint: "Offset from true north (-180 to 180, positive = clockwise). Applied automatically when selecting a facade direction.",
     settings_section_house: "House",
     settings_section_sensors: "Sensors",
     settings_section_comfort: "Comfort",
@@ -214,12 +218,16 @@ const I18N = {
     scenario_active: "Aktives Szenario",
     scenario_no_rules: "Keine Regeln konfiguriert",
     settings_outdoor_temp: "Außentemperatur-Sensor",
-    settings_indoor_temp: "Innentemperatur-Sensor",
-    settings_weather: "Wetter-Entität",
+    settings_outdoor_temp_hint: "Wird fuer temperaturbasierte Regelbedingungen verwendet (Temperatur ueber/unter).",
+    settings_indoor_temp: "Innentemperatur-Sensor (global)",
+    settings_indoor_temp_hint: "Fallback fuer Rollos ohne eigenen Innensensor. Wird fuer Komfortmodus und Beschattungsentscheidungen verwendet.",
+    settings_weather: "Wetter-Entitaet",
+    settings_weather_hint: "Wird fuer wetterbasierte Regelbedingungen verwendet (z. B. nur beschatten bei Sonne).",
     settings_comfort_min: "Komfort-Temp. min",
     settings_comfort_max: "Komfort-Temp. max",
+    settings_comfort_hint: "Definiert den Komfortbereich. Unter min = Heizmodus (Beschattung deaktiviert, Sonnenwaerme nutzen). Ueber max = Kuehlmodus (Beschattung aktiv). Dazwischen = Neutral (Beschattung aktiv zur Praevention).",
     settings_house_rotation: "Hausrotation (Grad)",
-    settings_house_rotation_hint: "Abweichung von exakt Nord (-180 bis 180, positiv = im Uhrzeigersinn)",
+    settings_house_rotation_hint: "Abweichung von exakt Nord (-180 bis 180, positiv = im Uhrzeigersinn). Wird automatisch bei der Fassaden-Richtungswahl angewendet.",
     settings_section_house: "Haus",
     settings_section_sensors: "Sensoren",
     settings_section_comfort: "Komfort",
@@ -1951,22 +1959,27 @@ class CoverAutomaticPanel extends HTMLElement {
     let html = '<div class="card"><div class="card-body" style="padding-top:20px">';
 
     // Sensors section
+    const hintStyle = 'font-size:12px;color:var(--ca-secondary-text);margin-top:4px';
     html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">${this._t("settings_section_sensors")}</div>`;
     html += `<div class="form-group">
       <label>${this._t("settings_outdoor_temp")}</label>
       ${this._renderEntitySelect("outdoor_temp_sensor", s.outdoor_temp_sensor, "sensor", "temperature")}
+      <div style="${hintStyle}">${this._t("settings_outdoor_temp_hint")}</div>
     </div>`;
     html += `<div class="form-group">
       <label>${this._t("settings_indoor_temp")}</label>
       ${this._renderEntitySelect("indoor_temp_sensor", s.indoor_temp_sensor, "sensor", "temperature")}
+      <div style="${hintStyle}">${this._t("settings_indoor_temp_hint")}</div>
     </div>`;
     html += `<div class="form-group">
       <label>${this._t("settings_weather")}</label>
       ${this._renderEntitySelect("weather_entity", s.weather_entity, "weather", null)}
+      <div style="${hintStyle}">${this._t("settings_weather_hint")}</div>
     </div>`;
 
     // Comfort section
     html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_comfort")}</div>`;
+    html += `<div style="${hintStyle};margin-bottom:12px">${this._t("settings_comfort_hint")}</div>`;
     html += '<div class="form-row">';
     html += `<div class="form-group">
       <label>${this._t("settings_comfort_min")}</label>

@@ -145,7 +145,12 @@ class RuleEngine:
             return False
 
     def _eval_sun_on_facade(self, condition: Condition, cover: CoverConfig) -> bool:
-        """Evaluate sun_on_facade condition."""
+        """Evaluate sun_on_facade condition.
+
+        Automatically considers indoor comfort temperature when a sensor is
+        configured (per-cover > global fallback). In HEATING mode, returns
+        False to let sunlight in and save heating energy.
+        """
         facade_id = condition.params.get("facade") or cover.facade_id
         if not facade_id:
             return False
@@ -154,7 +159,39 @@ class RuleEngine:
         if not facade:
             return False
 
-        return is_sun_on_facade(self.hass, facade)
+        if not is_sun_on_facade(self.hass, facade):
+            return False
+
+        # Auto comfort check: skip shading in HEATING mode
+        comfort_mode = self._get_comfort_mode(cover)
+        if comfort_mode == ComfortMode.HEATING:
+            return False
+
+        return True
+
+    def _get_comfort_mode(self, cover: CoverConfig) -> ComfortMode | None:
+        """Determine comfort mode from indoor temperature sensor.
+
+        Returns None if no sensor is configured or unavailable.
+        """
+        sensor_id = cover.indoor_temp_sensor or self.storage.indoor_temp_sensor
+        if not sensor_id:
+            return None
+
+        state = self.hass.states.get(sensor_id)
+        if state is None:
+            return None
+
+        try:
+            temp = float(state.state)
+        except (ValueError, TypeError):
+            return None
+
+        if temp >= self.storage.comfort_temp_max:
+            return ComfortMode.COOLING
+        if temp <= self.storage.comfort_temp_min:
+            return ComfortMode.HEATING
+        return ComfortMode.NEUTRAL
 
     def _eval_sun_elevation(self, condition: Condition, *, above: bool) -> bool:
         """Evaluate sun elevation above/below threshold."""
