@@ -151,9 +151,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.9.1
+1.10.0
 
 ## Changelog
+
+### 1.10.0 (2026-03-31)
+
+- Global master switch to enable/disable all CoverAutomatic automation (switch.cover_automatic_master)
+- Lock/vent sensors continue working when master switch is off (safety)
+- Added "venting" status to translations (EN/DE)
 
 ### 1.9.1 (2026-03-31)
 

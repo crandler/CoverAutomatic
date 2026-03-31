@@ -186,6 +186,16 @@ class CoverAutomaticStorage:
         self._data["comfort_temp_max"] = value
 
     @property
+    def enabled(self) -> bool:
+        """Get global automation enabled state."""
+        return self._data.get("enabled", True)
+
+    @enabled.setter
+    def enabled(self, value: bool) -> None:
+        """Set global automation enabled state."""
+        self._data["enabled"] = bool(value)
+
+    @property
     def pause_duration(self) -> int:
         """Get global default pause duration in seconds."""
         return self._data.get("pause_duration", 600)

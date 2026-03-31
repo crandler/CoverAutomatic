@@ -22,6 +22,9 @@
     "switch": {
       "auto_enabled": {
         "name": "Automation"
+      },
+      "master_enabled": {
+        "name": "CoverAutomatic"
       }
     },
     "sensor": {
@@ -31,7 +34,8 @@
           "auto": "Automatic",
           "paused": "Paused",
           "manual": "Manual",
-          "locked": "Locked"
+          "locked": "Locked",
+          "venting": "Venting"
         }
       },
       "sun_on_facade": {

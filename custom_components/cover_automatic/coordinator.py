@@ -652,7 +652,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             target_position: int | None = None
             target_tilt_position: int | None = None
 
-            if status == CoverStatus.AUTO:
+            if status in (CoverStatus.AUTO, CoverStatus.VENTING) and self.storage.enabled:
                 engine_result = self.engine.evaluate_cover(cover)
                 if engine_result is not None:
                     target_position = engine_result.position

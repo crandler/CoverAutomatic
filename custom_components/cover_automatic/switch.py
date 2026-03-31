@@ -24,7 +24,9 @@ async def async_setup_entry(
     """Set up switch entities."""
     coordinator = entry.runtime_data.coordinator
 
-    entities: list[SwitchEntity] = []
+    entities: list[SwitchEntity] = [
+        CoverAutomaticMasterSwitch(coordinator, entry.entry_id),
+    ]
 
     for entity_id, cover in coordinator.storage.covers.items():
         entities.append(
@@ -32,6 +34,41 @@ async def async_setup_entry(
         )
 
     async_add_entities(entities)
+
+
+class CoverAutomaticMasterSwitch(CoordinatorEntity[CoverAutomaticCoordinator], SwitchEntity):
+    """Global master switch to enable/disable all CoverAutomatic automation."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "master_enabled"
+
+    def __init__(self, coordinator: CoverAutomaticCoordinator, entry_id: str) -> None:
+        """Initialize the master switch."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{DOMAIN}_master"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry_id)},
+            "name": "CoverAutomatic",
+            "manufacturer": "CoverAutomatic",
+            "model": "Controller",
+        }
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if global automation is enabled."""
+        return self.coordinator.storage.enabled
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable global automation."""
+        self.coordinator.storage.enabled = True
+        await self.coordinator.storage.async_save()
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable global automation."""
+        self.coordinator.storage.enabled = False
+        await self.coordinator.storage.async_save()
+        self.async_write_ha_state()
 
 
 class CoverAutomaticAutoSwitch(CoordinatorEntity[CoverAutomaticCoordinator], SwitchEntity):
