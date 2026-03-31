@@ -1251,3 +1251,65 @@ class TestTiltInEngine:
         result = engine.evaluate_cover(test_cover)
         assert result.position == 80
         assert result.tilt_position == 90
+
+
+class TestDayOfWeekCondition:
+    """Tests for day_of_week condition evaluation."""
+
+    def test_matching_weekday(self, engine) -> None:
+        """Test matching current weekday."""
+        condition = Condition(
+            type=ConditionType.DAY_OF_WEEK,
+            params={"days": ["mon", "tue", "wed", "thu", "fri"]},
+        )
+        with patch("custom_components.cover_automatic.engine.dt_util") as mock_dt:
+            mock_dt.now.return_value.weekday.return_value = 2  # Wednesday
+            assert engine._eval_day_of_week(condition) is True
+
+    def test_non_matching_weekday(self, engine) -> None:
+        """Test non-matching weekday (Saturday not in workdays)."""
+        condition = Condition(
+            type=ConditionType.DAY_OF_WEEK,
+            params={"days": ["mon", "tue", "wed", "thu", "fri"]},
+        )
+        with patch("custom_components.cover_automatic.engine.dt_util") as mock_dt:
+            mock_dt.now.return_value.weekday.return_value = 5  # Saturday
+            assert engine._eval_day_of_week(condition) is False
+
+    def test_weekend_only(self, engine) -> None:
+        """Test weekend-only condition."""
+        condition = Condition(
+            type=ConditionType.DAY_OF_WEEK,
+            params={"days": ["sat", "sun"]},
+        )
+        with patch("custom_components.cover_automatic.engine.dt_util") as mock_dt:
+            mock_dt.now.return_value.weekday.return_value = 6  # Sunday
+            assert engine._eval_day_of_week(condition) is True
+
+    def test_empty_days_matches_all(self, engine) -> None:
+        """Test empty days list matches any day."""
+        condition = Condition(
+            type=ConditionType.DAY_OF_WEEK,
+            params={"days": []},
+        )
+        assert engine._eval_day_of_week(condition) is True
+
+    def test_missing_days_param_matches_all(self, engine) -> None:
+        """Test missing days param matches any day."""
+        condition = Condition(
+            type=ConditionType.DAY_OF_WEEK,
+            params={},
+        )
+        assert engine._eval_day_of_week(condition) is True
+
+    def test_single_day(self, engine) -> None:
+        """Test single day selection."""
+        condition = Condition(
+            type=ConditionType.DAY_OF_WEEK,
+            params={"days": ["fri"]},
+        )
+        with patch("custom_components.cover_automatic.engine.dt_util") as mock_dt:
+            mock_dt.now.return_value.weekday.return_value = 4  # Friday
+            assert engine._eval_day_of_week(condition) is True
+            mock_dt.now.return_value.weekday.return_value = 3  # Thursday
+            assert engine._eval_day_of_week(condition) is False

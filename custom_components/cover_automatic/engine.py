@@ -145,6 +145,8 @@ class RuleEngine:
                     return self._eval_temp_comfort(condition, cover)
                 case ConditionType.WEATHER_IS:
                     return self._eval_weather_is(condition)
+                case ConditionType.DAY_OF_WEEK:
+                    return self._eval_day_of_week(condition)
                 case _:
                     _LOGGER.warning("Unknown condition type: %s", condition.type)
                     return False
@@ -359,3 +361,12 @@ class RuleEngine:
                 return True
 
         return False
+
+    def _eval_day_of_week(self, condition: Condition) -> bool:
+        """Evaluate day_of_week condition."""
+        days = condition.params.get("days", [])
+        if not days:
+            return True  # No restriction = any day
+        day_map = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+        today = dt_util.now().weekday()
+        return any(day_map.get(d.lower(), -1) == today for d in days)

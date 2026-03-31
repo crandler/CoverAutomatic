@@ -292,7 +292,8 @@ class TestConditionType:
         assert ConditionType.SUN_ON_FACADE.value == "sun_on_facade"
         assert ConditionType.TEMPERATURE_ABOVE.value == "temperature_above"
         assert ConditionType.WEATHER_IS.value == "weather_is"
-        assert len(ConditionType) == 11
+        assert ConditionType.DAY_OF_WEEK.value == "day_of_week"
+        assert len(ConditionType) == 12
 
 
 class TestComfortMode:

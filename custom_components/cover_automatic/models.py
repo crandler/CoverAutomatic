@@ -33,6 +33,7 @@ class ConditionType(StrEnum):
     TIME_AFTER_SUNSET = "time_after_sunset"
     STATE_IS = "state_is"
     WEATHER_IS = "weather_is"
+    DAY_OF_WEEK = "day_of_week"
 
 
 class ComfortMode(StrEnum):

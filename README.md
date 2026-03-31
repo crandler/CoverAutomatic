@@ -151,9 +151,24 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.10.1
+1.11.0
 
 ## Changelog
+
+### 1.11.0 (2026-03-31)
+
+- New condition type: `day_of_week` - filter rules by weekday (e.g., workdays vs weekends)
+- Panel: toggle buttons for day selection with full en/de i18n
+
+### 1.10.3 (2026-03-31)
+
+- Fix: Lock-to-vent transition now moves cover to vent_position and updates UI (was status-only)
+
+### 1.10.2 (2026-03-31)
+
+- Fix: Rule edit no longer sends NaN when target_position field is empty (parseInt guard)
+- Fix: Manual override log now includes expected tilt position (missing format placeholder)
+- Fix: VENTING state properly restored after unlock (was incorrectly reset to AUTO)
 
 ### 1.10.1 (2026-03-31)
 
