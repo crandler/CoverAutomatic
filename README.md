@@ -151,9 +151,16 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.10.0
+1.10.1
 
 ## Changelog
+
+### 1.10.1 (2026-03-31)
+
+- Fix: Unavailable/unknown sensors ignored with warning (prevents false unlock on sensor failure)
+- Fix: VENTING no longer falsely detected as manual override (prevents unwanted pause)
+- Fix: Elevation/temperature value 0 no longer treated as empty (falsy value bug)
+- Fix: Validate comfort_temp_min < comfort_temp_max (log warning on invalid config)
 
 ### 1.10.0 (2026-03-31)
 

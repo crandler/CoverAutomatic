@@ -263,6 +263,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if new_state is None:
             return
 
+        if new_state.state in ("unavailable", "unknown"):
+            _LOGGER.warning("[%s] Sensor unavailable, ignoring state change", sensor_id)
+            return
+
         is_open = new_state.state in BINARY_SENSOR_ON_STATES
 
         # Cache sensor states to avoid repeated hass.states.get() calls
@@ -522,7 +526,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     pass
 
         if position_mismatch or tilt_mismatch:
-            if cover.auto_enabled and self._cover_states.get(entity_id) in (CoverStatus.AUTO, CoverStatus.VENTING):
+            if cover.auto_enabled and self._cover_states.get(entity_id) == CoverStatus.AUTO:
                 _LOGGER.info(
                     "[%s] Manual override -> PAUSED (expected pos %s, got %s)",
                     entity_id,

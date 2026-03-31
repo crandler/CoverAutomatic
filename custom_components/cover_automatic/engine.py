@@ -208,6 +208,10 @@ class RuleEngine:
         comfort_min = cover.comfort_temp_min if cover.comfort_temp_min is not None else self.storage.comfort_temp_min
         comfort_max = cover.comfort_temp_max if cover.comfort_temp_max is not None else self.storage.comfort_temp_max
 
+        if comfort_min >= comfort_max:
+            _LOGGER.warning("[%s] comfort_min (%.1f) >= comfort_max (%.1f)", cover.entity_id, comfort_min, comfort_max)
+            return None
+
         # Hard boundaries first, then hysteresis in the transition bands
         if temp >= comfort_max:
             mode = ComfortMode.COOLING
@@ -230,7 +234,8 @@ class RuleEngine:
 
     def _eval_sun_elevation(self, condition: Condition, *, above: bool) -> bool:
         """Evaluate sun elevation above/below threshold."""
-        threshold = condition.params.get("elevation") or condition.params.get("value", 0)
+        elev = condition.params.get("elevation")
+        threshold = elev if elev is not None else condition.params.get("value", 0)
         position = get_sun_position(self.hass)
         if position is None:
             return False
@@ -239,7 +244,8 @@ class RuleEngine:
     def _eval_temp_threshold(self, condition: Condition, *, above: bool) -> bool:
         """Evaluate outdoor temperature above/below threshold."""
         sensor_id = condition.params.get("sensor") or self.storage.outdoor_temp_sensor
-        threshold = condition.params.get("temperature") or condition.params.get("value", 0)
+        temp_val = condition.params.get("temperature")
+        threshold = temp_val if temp_val is not None else condition.params.get("value", 0)
 
         if not sensor_id:
             return False
