@@ -157,7 +157,7 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ### 1.4.3 (2026-03-31)
 
-- Show effective azimuth values (with house rotation applied) in facade overview cards
+- Show house rotation hint next to azimuth values in facade overview cards (e.g. "+10 Rotation")
 
 ### 1.4.2 (2026-03-31)
 

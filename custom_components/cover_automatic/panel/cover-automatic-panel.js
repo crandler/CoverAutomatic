@@ -60,6 +60,7 @@ const I18N = {
     facade_covers: "Assigned covers",
     facade_add: "Add facade",
     facade_no_covers: "No covers assigned",
+    facade_rotation_hint: "Rotation",
     facade_dir_north: "North",
     facade_dir_east: "East",
     facade_dir_south: "South",
@@ -170,6 +171,7 @@ const I18N = {
     facade_covers: "Zugewiesene Rollos",
     facade_add: "Fassade hinzufügen",
     facade_no_covers: "Keine Rollos zugewiesen",
+    facade_rotation_hint: "Rotation",
     facade_dir_north: "Norden",
     facade_dir_east: "Osten",
     facade_dir_south: "Süden",
@@ -1005,9 +1007,11 @@ class CoverAutomaticPanel extends HTMLElement {
     return s[key] !== undefined ? s[key] : ((I18N.en[section] || {})[key] || key);
   }
 
-  _effectiveAz(raw) {
+  _rotationHint() {
     const rot = (this._config && this._config.settings) ? (this._config.settings.house_rotation || 0) : 0;
-    return Math.round(((raw + rot) % 360 + 360) % 360 * 10) / 10;
+    if (rot === 0) return "";
+    const sign = rot > 0 ? "+" : "";
+    return `<span style="opacity:0.6">(${sign}${rot}&#176; ${this._t("facade_rotation_hint")})</span>`;
   }
 
   /* ---------- Lifecycle ---------- */
@@ -1411,9 +1415,9 @@ class CoverAutomaticPanel extends HTMLElement {
         <span style="font-size:12px;color:var(--ca-secondary-text)">${arrow} ${this._esc(dirLabel)}</span>
       </div>
       <div class="card-body">
-        <div style="display:flex;gap:16px;margin-bottom:12px;font-size:13px;color:var(--ca-secondary-text)">
-          <span>${this._t("facade_azimuth_start")}: ${this._effectiveAz(f.azimuth_start)}&#176;</span>
-          <span>${this._t("facade_azimuth_end")}: ${this._effectiveAz(f.azimuth_end)}&#176;</span>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:13px;color:var(--ca-secondary-text)">
+          <span>${this._t("facade_azimuth_start")}: ${f.azimuth_start}&#176;</span>
+          <span>${this._t("facade_azimuth_end")}: ${f.azimuth_end}&#176;</span>${this._rotationHint()}
         </div>
         <div style="font-size:13px;color:var(--ca-secondary-text);margin-bottom:8px">
           ${this._t("facade_min_elevation")}: ${f.min_elevation}&#176;
