@@ -151,9 +151,14 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.5.0
+1.5.1
 
 ## Changelog
+
+### 1.5.1 (2026-03-31)
+
+- Show current version in panel header
+- Show update badge with link to release when a newer version is available on GitHub
 
 ### 1.5.0 (2026-03-31)
 

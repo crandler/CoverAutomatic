@@ -332,6 +332,25 @@ const PANEL_STYLES = `
     font-size: 13px;
     font-weight: 500;
   }
+  .version-info {
+    font-size: 12px;
+    color: var(--ca-secondary-text);
+    opacity: 0.7;
+  }
+  .update-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #4CAF50;
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .update-badge:hover { opacity: 0.85; }
 
   /* Tabs */
   .tab-bar {
@@ -982,6 +1001,7 @@ class CoverAutomaticPanel extends HTMLElement {
     this._dragRuleId = null;
     this._dragOverId = null;
     this._error = null;
+    this._latestVersion = null;
     this._expandedSections = { base: true, sensors: true, advanced: false, tilt: false };
 
 
@@ -1038,10 +1058,25 @@ class CoverAutomaticPanel extends HTMLElement {
     try {
       this._config = await this._ws("cover_automatic/config");
       this._render();
+      this._checkForUpdate();
     } catch (e) {
       this._error = e.message || String(e);
       this._render();
     }
+  }
+
+  async _checkForUpdate() {
+    if (!this._config || !this._config.version) return;
+    try {
+      const resp = await fetch("https://api.github.com/repos/crandler/CoverAutomatic/releases/latest", { headers: { Accept: "application/vnd.github.v3+json" } });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const latest = (data.tag_name || "").replace(/^v/, "");
+      if (latest && latest !== this._config.version) {
+        this._latestVersion = latest;
+        this._updateRegion(this.shadowRoot.querySelector(".panel-container"), "header", this._renderHeaderContent());
+      }
+    } catch (e) { /* silent */ }
   }
 
   _updateConfigFromResult(result) {
@@ -1154,10 +1189,17 @@ class CoverAutomaticPanel extends HTMLElement {
 
   _renderHeaderContent() {
     const activeScenario = this._getActiveScenario();
-    let html = '<h1>' + this._t("title") + '</h1>';
+    const version = this._config ? this._config.version : "";
+    let html = '<div><h1 style="display:inline">' + this._t("title") + '</h1>';
+    if (version) html += ' <span class="version-info">v' + this._esc(version) + '</span>';
+    html += '</div><div style="display:flex;align-items:center;gap:8px">';
+    if (this._latestVersion) {
+      html += '<a class="update-badge" href="https://github.com/crandler/CoverAutomatic/releases/tag/v' + this._esc(this._latestVersion) + '" target="_blank" rel="noopener">Update: v' + this._esc(this._latestVersion) + '</a>';
+    }
     if (activeScenario) {
       html += '<span class="scenario-badge">' + this._esc(activeScenario.name) + '</span>';
     }
+    html += '</div>';
     return html;
   }
 

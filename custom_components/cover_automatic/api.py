@@ -1,14 +1,19 @@
 """WebSocket API for CoverAutomatic config panel."""
 from __future__ import annotations
 
+import json
 import logging
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
 
 from .const import DOMAIN, FACADE_PRESETS
+
+_MANIFEST = json.loads((Path(__file__).parent / "manifest.json").read_text())
+_VERSION = _MANIFEST["version"]
 from .models import Condition, CoverConfig, Facade, Rule, Scenario
 
 if TYPE_CHECKING:
@@ -66,6 +71,7 @@ def _build_config_response(
 ) -> dict[str, Any]:
     """Build full config response dict from storage."""
     result: dict[str, Any] = {
+        "version": _VERSION,
         "covers": {k: v.to_dict() for k, v in storage.covers.items()},
         "facades": {k: v.to_dict() for k, v in storage.facades.items()},
         "rules": {k: v.to_dict() for k, v in storage.rules.items()},
