@@ -151,9 +151,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.4.2
+1.4.3
 
 ## Changelog
+
+### 1.4.3 (2026-03-31)
+
+- Show effective azimuth values (with house rotation applied) in facade overview cards
 
 ### 1.4.2 (2026-03-31)
 

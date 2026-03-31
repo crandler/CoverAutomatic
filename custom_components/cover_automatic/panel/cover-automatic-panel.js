@@ -1005,6 +1005,11 @@ class CoverAutomaticPanel extends HTMLElement {
     return s[key] !== undefined ? s[key] : ((I18N.en[section] || {})[key] || key);
   }
 
+  _effectiveAz(raw) {
+    const rot = (this._config && this._config.settings) ? (this._config.settings.house_rotation || 0) : 0;
+    return Math.round(((raw + rot) % 360 + 360) % 360 * 10) / 10;
+  }
+
   /* ---------- Lifecycle ---------- */
   _initialize() {
     this._initialized = true;
@@ -1407,8 +1412,8 @@ class CoverAutomaticPanel extends HTMLElement {
       </div>
       <div class="card-body">
         <div style="display:flex;gap:16px;margin-bottom:12px;font-size:13px;color:var(--ca-secondary-text)">
-          <span>${this._t("facade_azimuth_start")}: ${f.azimuth_start}&#176;</span>
-          <span>${this._t("facade_azimuth_end")}: ${f.azimuth_end}&#176;</span>
+          <span>${this._t("facade_azimuth_start")}: ${this._effectiveAz(f.azimuth_start)}&#176;</span>
+          <span>${this._t("facade_azimuth_end")}: ${this._effectiveAz(f.azimuth_end)}&#176;</span>
         </div>
         <div style="font-size:13px;color:var(--ca-secondary-text);margin-bottom:8px">
           ${this._t("facade_min_elevation")}: ${f.min_elevation}&#176;
