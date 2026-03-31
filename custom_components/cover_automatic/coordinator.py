@@ -265,6 +265,20 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         is_open = new_state.state in BINARY_SENSOR_ON_STATES
 
+        # Cache sensor states to avoid repeated hass.states.get() calls
+        sensor_state_cache: dict[str, bool] = {}
+
+        def is_sensor_open_cached(cover_raw: dict[str, Any], key: str) -> bool:
+            sensor = cover_raw.get(key)
+            if not sensor:
+                return False
+            if sensor not in sensor_state_cache:
+                state = self.hass.states.get(sensor)
+                sensor_state_cache[sensor] = (
+                    state is not None and state.state in BINARY_SENSOR_ON_STATES
+                )
+            return sensor_state_cache[sensor]
+
         # Handle lock sensor covers (window open -> fully open)
         # Lock sensor always has priority - override even if already locked by vent
         for cover_id in lock_covers:
@@ -281,7 +295,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
             elif self._cover_states.get(cover_id) == CoverStatus.LOCKED:
                 # Only unlock if vent sensor is also not open
-                if not self._is_sensor_open(cover_raw, "vent_sensor"):
+                if not is_sensor_open_cached(cover_raw, "vent_sensor"):
                     self._unlock_cover(cover_id)
                 else:
                     # Lock sensor closed but vent still open -> switch to vent position
@@ -298,7 +312,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
 
             # Skip if lock sensor is open (lock has priority)
-            if self._is_sensor_open(cover_raw, "lock_sensor"):
+            if is_sensor_open_cached(cover_raw, "lock_sensor"):
                 continue
 
             current_status = self._cover_states.get(cover_id, CoverStatus.AUTO)
@@ -358,6 +372,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _unlock_cover(self, entity_id: str) -> None:
         """Unlock a cover when contact sensor closes."""
+        if entity_id not in self._pre_lock_states:
+            return
+
         _LOGGER.debug("Unlocking cover %s", entity_id)
 
         # Restore previous state if was PAUSED and pause not expired
@@ -403,15 +420,16 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
             except (ValueError, TypeError):
                 _LOGGER.warning(
-                    "Invalid position attribute for %s, keeping previous value",
+                    "Invalid position attribute for %s, resetting tracked position",
                     entity_id,
                 )
+                self._last_positions[entity_id] = None
             tilt_val = state.attributes.get("current_tilt_position")
             if tilt_val is not None:
                 try:
                     self._last_tilt_positions[entity_id] = int(tilt_val)
                 except (ValueError, TypeError):
-                    pass
+                    self._last_tilt_positions[entity_id] = None
 
     def _handle_cover_state_change(
         self, entity_id: str, old_state: Any, new_state: Any
@@ -500,7 +518,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         Lock/vent sensors always have highest priority (safety feature),
         even when auto_enabled is False.
         """
-        for entity_id in list(self.storage._data.get("covers", {}).keys()):
+        for entity_id in self.storage._data.get("covers", {}):
             cover_raw = self.storage.get_cover_raw(entity_id)
             if cover_raw is None:
                 continue
@@ -719,6 +737,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 {"entity_id": entity_id, "tilt_position": tilt},
                 blocking=False,
             )
+        except Exception as err:
+            _LOGGER.error("Failed to send tilt to %s: %s", entity_id, err)
         finally:
             # Clean up task reference (guard against cancelled task clearing new ref)
             if self._tilt_tasks.get(entity_id) is asyncio.current_task():

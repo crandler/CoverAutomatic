@@ -5,11 +5,12 @@
   "config_flow": true,
   "dependencies": ["frontend", "http", "sun", "websocket_api"],
   "documentation": "https://github.com/crandler/cover_automatic",
+  "description": "Intelligent cover automation based on sun position, temperature, weather, and time schedules",
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/crandler/cover_automatic/issues",
   "homeassistant": "2025.1.0",
   "requirements": [],
   "single_config_entry": true,
-  "version": "1.3.4"
+  "version": "1.4.0"
 }

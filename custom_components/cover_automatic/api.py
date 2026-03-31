@@ -135,15 +135,16 @@ def _sync_facade_cover_ids(
     storage._invalidate_cache()
 
 
-def _parse_conditions(raw: list[dict[str, Any]]) -> list[Condition]:
-    """Parse condition dicts, skipping invalid ones with a warning."""
+def _parse_conditions(raw: list[dict[str, Any]]) -> tuple[list[Condition], list[str]]:
+    """Parse condition dicts, collecting errors for invalid ones."""
     conditions: list[Condition] = []
-    for item in raw:
+    errors: list[str] = []
+    for idx, item in enumerate(raw):
         try:
             conditions.append(Condition.from_dict(item))
         except (ValueError, KeyError) as err:
-            _LOGGER.warning("Skipping invalid condition: %s", err)
-    return conditions
+            errors.append(f"Condition {idx}: {err}")
+    return conditions, errors
 
 
 # ---------------------------------------------------------------------------
@@ -203,13 +204,17 @@ async def ws_cover_add(
 ) -> None:
     """Handle cover_automatic/cover/add."""
     entity_ids = msg["entity_ids"]
+    added = False
     for entity_id in entity_ids:
         if entity_id in storage.covers:
             continue
         state = hass.states.get(entity_id)
         name = state.attributes.get("friendly_name", entity_id) if state else entity_id
         cover = CoverConfig(entity_id=entity_id, name=name)
-        await storage.async_add_cover(cover)
+        await storage.async_add_cover(cover, save=False)
+        added = True
+    if added:
+        await storage.async_save()
     coordinator.refresh_state_tracking()
     connection.send_result(msg["id"], _build_config_response(storage, hass))
 
@@ -250,7 +255,7 @@ async def ws_facade_add(
         min_elevation=msg.get("min_elevation", 0.0),
         cover_ids=new_cover_ids,
     )
-    await storage.async_add_facade(facade)
+    await storage.async_add_facade(facade, save=False)
     _sync_cover_facade_ids(storage, facade_id, new_cover_ids)
     await storage.async_save()
     connection.send_result(msg["id"], _build_config_response(storage, hass))
@@ -280,7 +285,7 @@ async def ws_facade_update(
         min_elevation=msg.get("min_elevation", existing.min_elevation),
         cover_ids=new_cover_ids,
     )
-    await storage.async_add_facade(updated)
+    await storage.async_add_facade(updated, save=False)
     # Sync cover.facade_id with facade.cover_ids
     _sync_cover_facade_ids(storage, facade_id, new_cover_ids)
     await storage.async_save()
@@ -313,7 +318,10 @@ async def ws_rule_add(
 ) -> None:
     """Handle cover_automatic/rule/add."""
     name = msg["name"]
-    conditions = _parse_conditions(msg.get("conditions", []))
+    conditions, errors = _parse_conditions(msg.get("conditions", []))
+    if errors:
+        connection.send_error(msg["id"], "invalid_conditions", "; ".join(errors))
+        return
 
     rule = Rule(
         id=_sanitize_id(name),
@@ -348,7 +356,10 @@ async def ws_rule_update(
     # Parse conditions if provided
     conditions = existing.conditions
     if "conditions" in msg:
-        conditions = _parse_conditions(msg["conditions"])
+        conditions, errors = _parse_conditions(msg["conditions"])
+        if errors:
+            connection.send_error(msg["id"], "invalid_conditions", "; ".join(errors))
+            return
 
     updated = Rule(
         id=rule_id,
@@ -445,11 +456,9 @@ async def ws_scenario_update(
         icon=msg.get("icon", existing.icon),
         rules_disabled=msg.get("rules_disabled", existing.rules_disabled),
     )
-    await storage.async_add_scenario(updated)
-
     if msg.get("activate"):
         storage.active_scenario = scenario_id
-        await storage.async_save()
+    await storage.async_add_scenario(updated)
 
     connection.send_result(msg["id"], _build_config_response(storage, hass))
 

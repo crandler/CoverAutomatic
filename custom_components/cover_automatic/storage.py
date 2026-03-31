@@ -187,13 +187,14 @@ class CoverAutomaticStorage:
         """Set global house rotation offset in degrees."""
         self._data["house_rotation"] = float(value)
 
-    async def async_add_facade(self, facade: Facade) -> None:
+    async def async_add_facade(self, facade: Facade, *, save: bool = True) -> None:
         """Add or update a facade."""
         if "facades" not in self._data:
             self._data["facades"] = {}
         self._data["facades"][facade.id] = facade.to_dict()
         self._cache_facades = None
-        await self.async_save()
+        if save:
+            await self.async_save()
 
     async def async_remove_facade(self, facade_id: str) -> None:
         """Remove a facade and clean up references."""
@@ -213,13 +214,14 @@ class CoverAutomaticStorage:
             self._cache_rules = None
             await self.async_save()
 
-    async def async_add_cover(self, cover: CoverConfig) -> None:
+    async def async_add_cover(self, cover: CoverConfig, *, save: bool = True) -> None:
         """Add or update a cover configuration."""
         if "covers" not in self._data:
             self._data["covers"] = {}
         self._data["covers"][cover.entity_id] = cover.to_dict()
         self._cache_covers = None
-        await self.async_save()
+        if save:
+            await self.async_save()
 
     async def async_remove_cover(self, entity_id: str) -> None:
         """Remove a cover configuration and clean up references."""
@@ -240,13 +242,14 @@ class CoverAutomaticStorage:
             self._cache_rules = None
             await self.async_save()
 
-    async def async_add_rule(self, rule: Rule) -> None:
+    async def async_add_rule(self, rule: Rule, *, save: bool = True) -> None:
         """Add or update a rule."""
         if "rules" not in self._data:
             self._data["rules"] = {}
         self._data["rules"][rule.id] = rule.to_dict()
         self._cache_rules = None
-        await self.async_save()
+        if save:
+            await self.async_save()
 
     async def async_remove_rule(self, rule_id: str) -> None:
         """Remove a rule and clean up scenario references."""
@@ -261,13 +264,14 @@ class CoverAutomaticStorage:
             self._cache_scenarios = None
             await self.async_save()
 
-    async def async_add_scenario(self, scenario: Scenario) -> None:
+    async def async_add_scenario(self, scenario: Scenario, *, save: bool = True) -> None:
         """Add or update a scenario."""
         if "scenarios" not in self._data:
             self._data["scenarios"] = {}
         self._data["scenarios"][scenario.id] = scenario.to_dict()
         self._cache_scenarios = None
-        await self.async_save()
+        if save:
+            await self.async_save()
 
     async def async_remove_scenario(self, scenario_id: str) -> None:
         """Remove a scenario."""

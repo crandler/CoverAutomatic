@@ -372,6 +372,7 @@ class TestStateTransitionIntegration:
         mock_storage.get_cover_raw.return_value = mock_storage._data["covers"]["cover.test"]
 
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
+        coordinator._pre_lock_states["cover.test"] = CoverStatus.AUTO
         mock_hass.states.get.return_value = MockState("open", {"current_position": 100})
 
         # Simulate window closing

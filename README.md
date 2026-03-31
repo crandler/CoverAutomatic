@@ -151,9 +151,23 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.0.37
+1.4.0
 
 ## Changelog
+
+### 1.4.0 (2026-03-31)
+
+- Refactor panel to event delegation (single click/change/input listener on shadow root)
+- Add partial rendering: header, tabs, content, slide-out, and confirm dialog update independently
+- Remove per-render querySelectorAll rebinding (~30 selector loops eliminated)
+- Eliminate double disk writes in API handlers via save=False pattern
+- Reject invalid rule conditions strictly instead of silently skipping
+- Add idempotency guard for unlock to prevent double-unlock errors
+- Add exception logging for tilt command failures
+- Cache sensor states in contact sensor handler to reduce redundant lookups
+- Reset tracked position/tilt on parse failure to prevent false manual override detection
+- Reorder CI: lint runs before tests for fail-fast behavior
+- Add description field to manifest.json
 
 ### 1.3.4 (2026-03-30)
 

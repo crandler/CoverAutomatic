@@ -311,6 +311,7 @@ class TestContactSensorHandling:
     def test_unlock_cover_resets_status(self, coordinator, mock_hass, mock_storage) -> None:
         """Test unlocking cover resets status to AUTO."""
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
+        coordinator._pre_lock_states["cover.test"] = CoverStatus.AUTO
         mock_storage.get_cover_raw.return_value = {"pause_until": None}
         mock_hass.states.get.return_value = MockState("open", {"current_position": 50})
 
@@ -320,6 +321,16 @@ class TestContactSensorHandling:
         mock_storage.update_cover_status.assert_called_with(
             "cover.test", CoverStatus.AUTO.value, None
         )
+
+    def test_unlock_cover_noop_without_pre_lock_state(self, coordinator, mock_hass, mock_storage) -> None:
+        """Test unlocking cover is a no-op if no pre-lock state exists."""
+        coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
+
+        coordinator._unlock_cover("cover.test")
+
+        # Status unchanged, no storage call
+        assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED
+        mock_storage.update_cover_status.assert_not_called()
 
 
 class TestHysteresis:
@@ -1418,10 +1429,10 @@ class TestUpdateLastPositionFromState:
         assert coordinator._last_positions["cover.test"] == 75
         assert coordinator._last_tilt_positions["cover.test"] == 40
 
-    def test_update_position_invalid_value_keeps_previous(
+    def test_update_position_invalid_value_resets_to_none(
         self, coordinator, mock_hass
     ) -> None:
-        """Test invalid position attribute keeps the previous value."""
+        """Test invalid position attribute resets tracked position to None."""
         coordinator._last_positions["cover.test"] = 50
         mock_hass.states.get.return_value = MockState(
             "open", {"current_position": "unavailable"}
@@ -1429,13 +1440,13 @@ class TestUpdateLastPositionFromState:
 
         coordinator._update_last_position_from_state("cover.test")
 
-        # Previous value preserved because int("unavailable") raises ValueError
-        assert coordinator._last_positions["cover.test"] == 50
+        # Reset to None to prevent false manual override detection
+        assert coordinator._last_positions["cover.test"] is None
 
-    def test_update_position_none_value_keeps_previous(
+    def test_update_position_none_value_resets_to_none(
         self, coordinator, mock_hass
     ) -> None:
-        """Test None position attribute keeps the previous value."""
+        """Test None position attribute resets tracked position to None."""
         coordinator._last_positions["cover.test"] = 50
         mock_hass.states.get.return_value = MockState(
             "open", {"current_position": None}
@@ -1443,13 +1454,13 @@ class TestUpdateLastPositionFromState:
 
         coordinator._update_last_position_from_state("cover.test")
 
-        # int(None) raises TypeError, previous value preserved
-        assert coordinator._last_positions["cover.test"] == 50
+        # int(None) raises TypeError, reset to None
+        assert coordinator._last_positions["cover.test"] is None
 
-    def test_update_tilt_invalid_value_ignored(
+    def test_update_tilt_invalid_value_resets_to_none(
         self, coordinator, mock_hass
     ) -> None:
-        """Test invalid tilt attribute is silently ignored."""
+        """Test invalid tilt attribute resets to None."""
         coordinator._last_tilt_positions["cover.test"] = 60
         mock_hass.states.get.return_value = MockState(
             "open", {"current_position": 75, "current_tilt_position": "abc"}
@@ -1458,8 +1469,7 @@ class TestUpdateLastPositionFromState:
         coordinator._update_last_position_from_state("cover.test")
 
         assert coordinator._last_positions["cover.test"] == 75
-        # Previous tilt preserved because int("abc") raises ValueError
-        assert coordinator._last_tilt_positions["cover.test"] == 60
+        assert coordinator._last_tilt_positions["cover.test"] is None
 
     def test_update_tilt_none_not_tracked(
         self, coordinator, mock_hass

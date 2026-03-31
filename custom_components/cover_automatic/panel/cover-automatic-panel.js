@@ -954,6 +954,7 @@ class CoverAutomaticPanel extends HTMLElement {
   constructor() {
     super();
     this._initialized = false;
+    this._delegationBound = false;
     this._hass = null;
     this._panel = null;
     this._config = null;
@@ -974,6 +975,7 @@ class CoverAutomaticPanel extends HTMLElement {
     this._dragOverId = null;
     this._error = null;
     this._expandedSections = { base: true, sensors: true, advanced: false, tilt: false };
+
 
     this.attachShadow({ mode: "open" });
   }
@@ -1085,83 +1087,102 @@ class CoverAutomaticPanel extends HTMLElement {
   _render() {
     const root = this.shadowRoot;
 
-    // Build HTML
-    let html = `<style>${PANEL_STYLES}</style>`;
+    // Full render when no shell exists, or loading/error states
+    const shell = root.querySelector(".panel-container");
+    if (!shell || !this._config || this._error) {
+      this._fullRender();
+      return;
+    }
+
+    // Partial render: update regions individually
+    this._updateRegion(shell, "header", this._renderHeaderContent());
+    this._updateRegion(shell, "tabs", this._renderTabsContent());
+    this._updateRegion(shell, "content", this._renderContent());
+    this._updateRegion(shell, "slideout", this._renderSlideOut());
+    this._updateRegion(shell, "confirm", this._renderConfirmDialog());
+  }
+
+  _updateRegion(shell, name, html) {
+    const el = shell.querySelector('[data-region="' + name + '"]');
+    if (el) el.innerHTML = html;
+  }
+
+  _fullRender() {
+    const root = this.shadowRoot;
+
+    let html = '<style>' + PANEL_STYLES + '</style>';
     html += '<div class="panel-container">';
 
-    // Loading
     if (!this._config && !this._error) {
-      html += `<div class="state-msg"><div class="spinner"></div><div>${this._t("loading")}</div></div>`;
+      html += '<div class="state-msg"><div class="spinner"></div><div>' + this._t("loading") + '</div></div>';
       html += '</div>';
       root.innerHTML = html;
+      this._setupDelegation();
       return;
     }
 
-    // Error
     if (this._error) {
-      html += `<div class="state-msg">
-        <div style="font-size:32px;margin-bottom:12px">!</div>
-        <div>${this._t("error_load")}</div>
-        <button class="btn btn-primary" style="margin-top:16px" data-action="retry">${this._t("retry")}</button>
-      </div>`;
-      html += '</div>';
+      html += '<div class="state-msg">';
+      html += '<div style="font-size:32px;margin-bottom:12px">!</div>';
+      html += '<div>' + this._t("error_load") + '</div>';
+      html += '<button class="btn btn-primary" style="margin-top:16px" data-action="retry">' + this._t("retry") + '</button>';
+      html += '</div></div>';
       root.innerHTML = html;
-      this._bindEvents();
+      this._setupDelegation();
       return;
     }
 
-    // Header
-    const activeScenario = this._getActiveScenario();
-    html += '<div class="panel-header">';
-    html += `<h1>${this._t("title")}</h1>`;
-    if (activeScenario) {
-      html += `<span class="scenario-badge">${this._esc(activeScenario.name)}</span>`;
-    }
+    html += '<div class="panel-header" data-region="header">' + this._renderHeaderContent() + '</div>';
+    html += '<div class="tab-bar" data-region="tabs">' + this._renderTabsContent() + '</div>';
+    html += '<div class="tab-content" data-region="content">' + this._renderContent() + '</div>';
+    html += '<div data-region="slideout">' + this._renderSlideOut() + '</div>';
+    html += '<div data-region="confirm">' + this._renderConfirmDialog() + '</div>';
     html += '</div>';
-
-    // Tabs
-    const tabs = ["covers", "facades", "rules", "scenarios", "settings"];
-    html += '<div class="tab-bar">';
-    for (const tab of tabs) {
-      const active = this._activeTab === tab ? " active" : "";
-      html += `<button class="${active}" data-tab="${tab}">${this._tt("tabs", tab)}</button>`;
-    }
-    html += '</div>';
-
-    // Content
-    html += '<div class="tab-content">';
-    switch (this._activeTab) {
-      case "covers": html += this._renderCovers(); break;
-      case "facades": html += this._renderFacades(); break;
-      case "rules": html += this._renderRules(); break;
-      case "scenarios": html += this._renderScenarios(); break;
-      case "settings": html += this._renderSettings(); break;
-    }
-    html += '</div>';
-
-    // Slide-out panel for cover details
-    html += this._renderSlideOut();
-
-    // Confirm dialog
-    if (this._confirmCallback) {
-      html += `<div class="confirm-overlay" data-action="confirm-cancel">
-        <div class="confirm-dialog">
-          <p>${this._esc(this._confirmMessage)}</p>
-          <div class="actions">
-            <button class="btn btn-secondary" data-action="confirm-cancel">${this._t("cancel")}</button>
-            <button class="btn btn-danger" data-action="confirm-ok">${this._t("delete")}</button>
-          </div>
-        </div>
-      </div>`;
-    }
-
-    html += '</div>'; // panel-container
-
-    // Toast
-    html += `<div class="toast">${this._t("saved")}</div>`;
+    html += '<div class="toast">' + this._t("saved") + '</div>';
 
     root.innerHTML = html;
-    this._bindEvents();
+    this._setupDelegation();
+  }
+
+  _renderHeaderContent() {
+    const activeScenario = this._getActiveScenario();
+    let html = '<h1>' + this._t("title") + '</h1>';
+    if (activeScenario) {
+      html += '<span class="scenario-badge">' + this._esc(activeScenario.name) + '</span>';
+    }
+    return html;
+  }
+
+  _renderTabsContent() {
+    const tabs = ["covers", "facades", "rules", "scenarios", "settings"];
+    let html = '';
+    for (const tab of tabs) {
+      const active = this._activeTab === tab ? " active" : "";
+      html += '<button class="' + active + '" data-tab="' + tab + '">' + this._tt("tabs", tab) + '</button>';
+    }
+    return html;
+  }
+
+  _renderContent() {
+    switch (this._activeTab) {
+      case "covers": return this._renderCovers();
+      case "facades": return this._renderFacades();
+      case "rules": return this._renderRules();
+      case "scenarios": return this._renderScenarios();
+      case "settings": return this._renderSettings();
+      default: return '';
+    }
+  }
+
+  _renderConfirmDialog() {
+    if (!this._confirmCallback) return '';
+    return '<div class="confirm-overlay" data-action="confirm-cancel">'
+      + '<div class="confirm-dialog">'
+      + '<p>' + this._esc(this._confirmMessage) + '</p>'
+      + '<div class="actions">'
+      + '<button class="btn btn-secondary" data-action="confirm-cancel">' + this._t("cancel") + '</button>'
+      + '<button class="btn btn-danger" data-action="confirm-ok">' + this._t("delete") + '</button>'
+      + '</div></div></div>';
   }
 
   /* ============================================================
@@ -2005,456 +2026,485 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   /* ============================================================
-   * Event binding
+   * Event delegation (bound once, routes all events)
    * ============================================================ */
-  _bindEvents() {
+  _setupDelegation() {
+    if (this._delegationBound) return;
+    this._delegationBound = true;
     const root = this.shadowRoot;
 
+    root.addEventListener("click", (e) => this._handleClick(e));
+    root.addEventListener("change", (e) => this._handleChange(e));
+    root.addEventListener("input", (e) => this._handleInput(e));
+    root.addEventListener("dragstart", (e) => this._handleDragStart(e));
+    root.addEventListener("dragend", (e) => this._handleDragEnd(e));
+    root.addEventListener("dragover", (e) => this._handleDragOver(e));
+    root.addEventListener("dragleave", (e) => this._handleDragLeave(e));
+    root.addEventListener("drop", (e) => this._handleDrop(e));
+  }
+
+  /* ---------- Click delegation ---------- */
+  _handleClick(e) {
     // Tab clicks
-    root.querySelectorAll("[data-tab]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        this._activeTab = btn.dataset.tab;
-        this._selectedCover = null;
-        this._slideOpen = false;
-        this._expandedRule = null;
-        this._editingFacade = null;
-        this._addingFacade = false;
-        this._addingRule = false;
-        this._addingScenario = false;
-        this._editingScenario = null;
-        this._render();
-      });
-    });
+    const tabBtn = e.target.closest("[data-tab]");
+    if (tabBtn) {
+      this._activeTab = tabBtn.dataset.tab;
+      this._selectedCover = null;
+      this._slideOpen = false;
+      this._expandedRule = null;
+      this._editingFacade = null;
+      this._addingFacade = false;
+      this._addingRule = false;
+      this._addingScenario = false;
+      this._editingScenario = null;
+      this._render();
+      return;
+    }
 
-    // Retry
-    root.querySelectorAll('[data-action="retry"]').forEach(btn => {
-      btn.addEventListener("click", () => this._loadConfig());
-    });
+    // Route by data-action
+    const actionEl = e.target.closest("[data-action]");
+    if (!actionEl) return;
+    const action = actionEl.dataset.action;
 
-    // Cover add
-    root.querySelectorAll('[data-action="cover-add"]').forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const select = this.shadowRoot.querySelector("#cover-add-select");
-        if (!select) return;
-        const ids = Array.from(select.selectedOptions).map(o => o.value);
-        if (ids.length === 0) return;
-        try {
-          const result = await this._ws("cover_automatic/cover/add", { entity_ids: ids });
-          this._updateConfigFromResult(result);
-          this._showToast();
-        } catch (e) { console.error(e); }
-      });
-    });
-
-    // Cover delete
-    root.querySelectorAll('[data-action="cover-delete"]').forEach(el => {
-      el.addEventListener("click", () => {
-        const entityId = el.dataset.id;
-        this._showConfirm(this._t("confirm_delete"), async () => {
-          try {
-            const result = await this._ws("cover_automatic/cover/delete", { entity_id: entityId });
-            if (this._selectedCover === entityId) { this._selectedCover = null; this._slideOpen = false; }
-            this._updateConfigFromResult(result);
-          } catch (e) { console.error(e); }
-        });
-      });
-    });
-
-    // Cover select
-    root.querySelectorAll('[data-action="select-cover"]').forEach(el => {
-      el.addEventListener("click", () => {
-        this._selectedCover = el.dataset.id;
+    switch (action) {
+      case "retry": this._loadConfig(); break;
+      case "cover-add": this._onCoverAdd(); break;
+      case "cover-delete": this._onCoverDelete(actionEl.dataset.id); break;
+      case "select-cover":
+        this._selectedCover = actionEl.dataset.id;
         this._slideOpen = true;
         this._expandedSections = { base: true, sensors: true, advanced: false, tilt: false };
         this._render();
-      });
-    });
-
-    // Close slide
-    root.querySelectorAll('[data-action="close-slide"]').forEach(el => {
-      el.addEventListener("click", (e) => {
-        if (e.target === el || el.classList.contains("btn-icon")) {
+        break;
+      case "close-slide":
+        if (e.target === actionEl || actionEl.classList.contains("btn-icon")) {
           this._slideOpen = false;
           this._render();
         }
-      });
-    });
-
-    // Toggle sections
-    root.querySelectorAll('[data-action="toggle-section"]').forEach(el => {
-      el.addEventListener("click", () => {
-        const section = el.dataset.section;
-        this._expandedSections[section] = !this._expandedSections[section];
+        break;
+      case "toggle-section":
+        this._expandedSections[actionEl.dataset.section] = !this._expandedSections[actionEl.dataset.section];
         this._render();
-      });
-    });
-
-    // Cover input changes (debounced)
-    root.querySelectorAll('[data-action="cover-input"]').forEach(el => {
-      el.addEventListener("input", () => {
-        const id = el.dataset.id;
-        const field = el.dataset.field;
-        let value = el.value;
-        if (el.type === "number") {
-          value = value === "" ? null : Number(value);
-        }
-        // Nullable text fields
-        if (el.type === "text" && value === "") value = null;
-        this._debouncedCoverSave(id, field, value);
-      });
-    });
-
-    // Cover select changes
-    root.querySelectorAll('[data-action="cover-select"]').forEach(el => {
-      el.addEventListener("change", () => {
-        const id = el.dataset.id;
-        const field = el.dataset.field;
-        const value = el.value || null;
-        this._debouncedCoverSave(id, field, value);
-      });
-    });
-
-    // Cover toggle changes
-    root.querySelectorAll('[data-action="cover-toggle"]').forEach(el => {
-      el.addEventListener("change", () => {
-        const id = el.dataset.id;
-        const field = el.dataset.field;
-        this._debouncedCoverSave(id, field, el.checked);
-      });
-    });
-
-    // ---- Facade events ----
-    this._bindFacadeEvents(root);
-
-    // ---- Rule events ----
-    this._bindRuleEvents(root);
-
-    // ---- Scenario events ----
-    this._bindScenarioEvents(root);
-
-    // ---- Settings events ----
-    this._bindSettingsEvents(root);
-
-    // Confirm dialog
-    root.querySelectorAll('[data-action="confirm-ok"]').forEach(el => {
-      el.addEventListener("click", () => {
+        break;
+      case "facade-add-start": this._addingFacade = true; this._render(); break;
+      case "facade-add-cancel": this._addingFacade = false; this._render(); break;
+      case "facade-edit": this._editingFacade = actionEl.dataset.id; this._render(); break;
+      case "facade-edit-cancel": this._editingFacade = null; this._render(); break;
+      case "facade-cover-toggle": actionEl.classList.toggle("selected"); break;
+      case "facade-add-save": this._onFacadeAddSave(actionEl); break;
+      case "facade-edit-save": this._onFacadeEditSave(actionEl); break;
+      case "facade-delete": this._onFacadeDelete(actionEl.dataset.id); break;
+      case "rule-expand":
+        this._expandedRule = this._expandedRule === actionEl.dataset.id ? null : actionEl.dataset.id;
+        this._render();
+        break;
+      case "rule-delete": this._onRuleDelete(actionEl.dataset.id); break;
+      case "rule-save": this._onRuleSave(actionEl.dataset.id); break;
+      case "rule-delete-condition": this._onRuleDeleteCondition(actionEl.dataset.rule, actionEl.dataset.idx); break;
+      case "rule-facade-toggle": actionEl.classList.toggle("selected"); break;
+      case "rule-cover-toggle": actionEl.classList.toggle("selected"); break;
+      case "rule-add-start": this._addingRule = true; this._render(); break;
+      case "rule-add-cancel": this._addingRule = false; this._render(); break;
+      case "rule-add-save": this._onRuleAddSave(actionEl); break;
+      case "scenario-add-start": this._addingScenario = true; this._render(); break;
+      case "scenario-add-cancel": this._addingScenario = false; this._render(); break;
+      case "scenario-edit": this._editingScenario = actionEl.dataset.id; this._render(); break;
+      case "scenario-edit-cancel": this._editingScenario = null; this._render(); break;
+      case "scenario-activate": this._onScenarioActivate(actionEl.dataset.id); break;
+      case "scenario-add-save": this._onScenarioAddSave(actionEl); break;
+      case "scenario-edit-save": this._onScenarioEditSave(actionEl); break;
+      case "scenario-delete": this._onScenarioDelete(actionEl.dataset.id); break;
+      case "settings-save": this._onSettingsSave(); break;
+      case "confirm-ok":
         if (this._confirmCallback) this._confirmCallback();
         this._hideConfirm();
-      });
-    });
-    root.querySelectorAll('[data-action="confirm-cancel"]').forEach(el => {
-      el.addEventListener("click", (e) => {
-        if (e.target === el) this._hideConfirm();
-      });
+        break;
+      case "confirm-cancel":
+        if (e.target === actionEl) this._hideConfirm();
+        break;
+    }
+  }
+
+  /* ---------- Change delegation ---------- */
+  _handleChange(e) {
+    const el = e.target;
+
+    // Cover select (dropdown) changes
+    if (el.matches('[data-action="cover-select"]')) {
+      this._debouncedCoverSave(el.dataset.id, el.dataset.field, el.value || null);
+      return;
+    }
+
+    // Cover toggle (checkbox) changes
+    if (el.matches('[data-action="cover-toggle"]')) {
+      this._debouncedCoverSave(el.dataset.id, el.dataset.field, el.checked);
+      return;
+    }
+
+    // Cover input (select elements also fire change)
+    if (el.matches('[data-action="cover-input"]') && el.tagName === "SELECT") {
+      let value = el.value;
+      if (value === "") value = null;
+      this._debouncedCoverSave(el.dataset.id, el.dataset.field, value);
+      return;
+    }
+
+    // Rule enabled toggle
+    if (el.matches('[data-action="rule-toggle-enabled"]')) {
+      this._onRuleToggleEnabled(el.dataset.id, el.checked);
+      return;
+    }
+
+    // Add condition type selector
+    if (el.matches('[data-action="rule-add-condition-type"]')) {
+      this._onRuleAddCondition(el.dataset.rule, el.value);
+      return;
+    }
+
+    // Condition param change
+    if (el.matches('[data-action="cond-param"]')) {
+      this._updateConditionParam(el);
+      return;
+    }
+
+    // Scenario rule toggle
+    if (el.matches('[data-action="scenario-rule-toggle"]')) {
+      this._onScenarioRuleToggle(el.dataset.scenario, el.dataset.rule, el.checked);
+      return;
+    }
+
+    // Facade direction preset
+    if (el.matches('[data-facade-field="direction"]')) {
+      const presets = FACADE_PRESETS[el.value];
+      if (presets) {
+        const form = el.closest(".inline-form");
+        if (form) {
+          const startInput = form.querySelector('[data-facade-field="azimuth_start"]');
+          const endInput = form.querySelector('[data-facade-field="azimuth_end"]');
+          if (startInput) startInput.value = presets.start;
+          if (endInput) endInput.value = presets.end;
+        }
+      }
+      return;
+    }
+  }
+
+  /* ---------- Input delegation ---------- */
+  _handleInput(e) {
+    const el = e.target;
+
+    // Cover input fields (debounced save)
+    if (el.matches('[data-action="cover-input"]')) {
+      let value = el.value;
+      if (el.type === "number") value = value === "" ? null : Number(value);
+      if (el.type === "text" && value === "") value = null;
+      this._debouncedCoverSave(el.dataset.id, el.dataset.field, value);
+      return;
+    }
+
+    // Condition param input (live update local state)
+    if (el.matches('[data-action="cond-param"]')) {
+      this._updateConditionParam(el);
+      return;
+    }
+
+    // Live compass update
+    if (el.id === "house-rotation-input") {
+      const val = parseFloat(el.value) || 0;
+      const svg = this.shadowRoot.querySelector("#compass-svg");
+      if (svg && svg.parentElement) {
+        svg.parentElement.innerHTML = this._renderCompassSVG(val);
+      }
+      return;
+    }
+  }
+
+  /* ---------- Drag delegation ---------- */
+  _handleDragStart(e) {
+    const row = e.target.closest('[data-action="rule-drag"]');
+    if (!row) return;
+    this._dragRuleId = row.dataset.ruleId;
+    row.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", row.dataset.ruleId);
+  }
+
+  _handleDragEnd(e) {
+    const row = e.target.closest('[data-action="rule-drag"]');
+    if (!row) return;
+    this._dragRuleId = null;
+    this._dragOverId = null;
+    this.shadowRoot.querySelectorAll(".rule-row").forEach(r => {
+      r.classList.remove("dragging");
+      r.classList.remove("drag-over");
     });
   }
 
-  /* ---------- Facade event binding ---------- */
-  _bindFacadeEvents(root) {
-    root.querySelectorAll('[data-action="facade-add-start"]').forEach(el => {
-      el.addEventListener("click", () => { this._addingFacade = true; this._render(); });
-    });
-    root.querySelectorAll('[data-action="facade-add-cancel"]').forEach(el => {
-      el.addEventListener("click", () => { this._addingFacade = false; this._render(); });
-    });
-    root.querySelectorAll('[data-action="facade-edit"]').forEach(el => {
-      el.addEventListener("click", () => { this._editingFacade = el.dataset.id; this._render(); });
-    });
-    root.querySelectorAll('[data-action="facade-edit-cancel"]').forEach(el => {
-      el.addEventListener("click", () => { this._editingFacade = null; this._render(); });
-    });
+  _handleDragOver(e) {
+    const row = e.target.closest('[data-action="rule-drag"]');
+    if (!row) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (row.dataset.ruleId !== this._dragRuleId) {
+      this._dragOverId = row.dataset.ruleId;
+      this.shadowRoot.querySelectorAll(".rule-row").forEach(r => r.classList.remove("drag-over"));
+      row.classList.add("drag-over");
+    }
+  }
 
-    // Facade cover toggles
-    root.querySelectorAll('[data-action="facade-cover-toggle"]').forEach(el => {
-      el.addEventListener("click", () => {
-        el.classList.toggle("selected");
-      });
-    });
+  _handleDragLeave(e) {
+    const row = e.target.closest('[data-action="rule-drag"]');
+    if (row) row.classList.remove("drag-over");
+  }
 
-    // Direction preset updates azimuth
-    root.querySelectorAll('[data-facade-field="direction"]').forEach(sel => {
-      sel.addEventListener("change", () => {
-        const presets = FACADE_PRESETS[sel.value];
-        if (presets) {
-          const form = sel.closest(".inline-form");
-          if (form) {
-            const startInput = form.querySelector('[data-facade-field="azimuth_start"]');
-            const endInput = form.querySelector('[data-facade-field="azimuth_end"]');
-            if (startInput) startInput.value = presets.start;
-            if (endInput) endInput.value = presets.end;
-          }
-        }
-      });
-    });
-
-    // Add facade save
-    root.querySelectorAll('[data-action="facade-add-save"]').forEach(el => {
-      el.addEventListener("click", async () => {
-        const form = el.closest(".inline-form");
-        if (!form) return;
-        const name = (form.querySelector('[data-facade-field="name"]') || {}).value || "";
-        if (!name.trim()) return;
-        const direction = (form.querySelector('[data-facade-field="direction"]') || {}).value || "south";
-        const azStart = parseFloat((form.querySelector('[data-facade-field="azimuth_start"]') || {}).value) || 135;
-        const azEnd = parseFloat((form.querySelector('[data-facade-field="azimuth_end"]') || {}).value) || 225;
-        const minElev = parseFloat((form.querySelector('[data-facade-field="min_elevation"]') || {}).value) || 0;
-        const coverIds = [];
-        form.querySelectorAll('[data-action="facade-cover-toggle"].selected').forEach(b => coverIds.push(b.dataset.cover));
-
+  async _handleDrop(e) {
+    const row = e.target.closest('[data-action="rule-drag"]');
+    if (!row) return;
+    e.preventDefault();
+    row.classList.remove("drag-over");
+    const draggedId = e.dataTransfer.getData("text/plain");
+    const targetId = row.dataset.ruleId;
+    if (draggedId && targetId && draggedId !== targetId) {
+      const rules = this._config.rules || {};
+      const sorted = Object.values(rules).sort((a, b) => (a.priority || 0) - (b.priority || 0));
+      const ids = sorted.map(r => r.id);
+      const fromIdx = ids.indexOf(draggedId);
+      const toIdx = ids.indexOf(targetId);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        ids.splice(fromIdx, 1);
+        ids.splice(toIdx, 0, draggedId);
         try {
-          const result = await this._ws("cover_automatic/facade/add", {
-            name: name.trim(), direction, azimuth_start: azStart, azimuth_end: azEnd, min_elevation: minElev, cover_ids: coverIds
-          });
-          this._addingFacade = false;
+          const result = await this._ws("cover_automatic/rule/reorder", { rule_ids: ids });
           this._updateConfigFromResult(result);
-        } catch (e) { console.error(e); }
-      });
-    });
+        } catch (err) { console.error(err); }
+      }
+    }
+    this._dragRuleId = null;
+    this._dragOverId = null;
+  }
 
-    // Edit facade save
-    root.querySelectorAll('[data-action="facade-edit-save"]').forEach(el => {
-      el.addEventListener("click", async () => {
-        const facadeId = el.dataset.id;
-        const form = el.closest(".inline-form");
-        if (!form) return;
-        const name = (form.querySelector('[data-facade-field="name"]') || {}).value || "";
-        if (!name.trim()) return;
-        const direction = (form.querySelector('[data-facade-field="direction"]') || {}).value || "south";
-        const azStart = parseFloat((form.querySelector('[data-facade-field="azimuth_start"]') || {}).value) || 135;
-        const azEnd = parseFloat((form.querySelector('[data-facade-field="azimuth_end"]') || {}).value) || 225;
-        const minElev = parseFloat((form.querySelector('[data-facade-field="min_elevation"]') || {}).value) || 0;
-        const coverIds = [];
-        form.querySelectorAll('[data-action="facade-cover-toggle"].selected').forEach(b => coverIds.push(b.dataset.cover));
+  /* ---------- Action handlers ---------- */
+  async _onCoverAdd() {
+    const select = this.shadowRoot.querySelector("#cover-add-select");
+    if (!select) return;
+    const ids = Array.from(select.selectedOptions).map(o => o.value);
+    if (ids.length === 0) return;
+    try {
+      const result = await this._ws("cover_automatic/cover/add", { entity_ids: ids });
+      this._updateConfigFromResult(result);
+      this._showToast();
+    } catch (e) { console.error(e); }
+  }
 
-        try {
-          const result = await this._ws("cover_automatic/facade/update", {
-            facade_id: facadeId, name: name.trim(), direction, azimuth_start: azStart, azimuth_end: azEnd, min_elevation: minElev, cover_ids: coverIds
-          });
-          this._editingFacade = null;
-          this._updateConfigFromResult(result);
-        } catch (e) { console.error(e); }
-      });
-    });
-
-    // Delete facade
-    root.querySelectorAll('[data-action="facade-delete"]').forEach(el => {
-      el.addEventListener("click", () => {
-        const facadeId = el.dataset.id;
-        this._showConfirm(this._t("confirm_delete"), async () => {
-          try {
-            const result = await this._ws("cover_automatic/facade/delete", { facade_id: facadeId });
-            this._updateConfigFromResult(result);
-          } catch (e) { console.error(e); }
-        });
-      });
+  _onCoverDelete(entityId) {
+    this._showConfirm(this._t("confirm_delete"), async () => {
+      try {
+        const result = await this._ws("cover_automatic/cover/delete", { entity_id: entityId });
+        if (this._selectedCover === entityId) { this._selectedCover = null; this._slideOpen = false; }
+        this._updateConfigFromResult(result);
+      } catch (e) { console.error(e); }
     });
   }
 
-  /* ---------- Rule event binding ---------- */
-  _bindRuleEvents(root) {
-    // Expand/collapse rule
-    root.querySelectorAll('[data-action="rule-expand"]').forEach(el => {
-      el.addEventListener("click", () => {
-        this._expandedRule = this._expandedRule === el.dataset.id ? null : el.dataset.id;
-        this._render();
+  async _onFacadeAddSave(btn) {
+    const form = btn.closest(".inline-form");
+    if (!form) return;
+    const name = (form.querySelector('[data-facade-field="name"]') || {}).value || "";
+    if (!name.trim()) return;
+    const direction = (form.querySelector('[data-facade-field="direction"]') || {}).value || "south";
+    const azStart = parseFloat((form.querySelector('[data-facade-field="azimuth_start"]') || {}).value) || 135;
+    const azEnd = parseFloat((form.querySelector('[data-facade-field="azimuth_end"]') || {}).value) || 225;
+    const minElev = parseFloat((form.querySelector('[data-facade-field="min_elevation"]') || {}).value) || 0;
+    const coverIds = [];
+    form.querySelectorAll('[data-action="facade-cover-toggle"].selected').forEach(b => coverIds.push(b.dataset.cover));
+    try {
+      const result = await this._ws("cover_automatic/facade/add", {
+        name: name.trim(), direction, azimuth_start: azStart, azimuth_end: azEnd, min_elevation: minElev, cover_ids: coverIds
       });
-    });
+      this._addingFacade = false;
+      this._updateConfigFromResult(result);
+    } catch (e) { console.error(e); }
+  }
 
-    // Toggle rule enabled
-    root.querySelectorAll('[data-action="rule-toggle-enabled"]').forEach(el => {
-      el.addEventListener("change", async () => {
-        try {
-          const result = await this._ws("cover_automatic/rule/update", { rule_id: el.dataset.id, enabled: el.checked });
-          this._updateConfigFromResult(result);
-        } catch (e) { console.error(e); }
+  async _onFacadeEditSave(btn) {
+    const facadeId = btn.dataset.id;
+    const form = btn.closest(".inline-form");
+    if (!form) return;
+    const name = (form.querySelector('[data-facade-field="name"]') || {}).value || "";
+    if (!name.trim()) return;
+    const direction = (form.querySelector('[data-facade-field="direction"]') || {}).value || "south";
+    const azStart = parseFloat((form.querySelector('[data-facade-field="azimuth_start"]') || {}).value) || 135;
+    const azEnd = parseFloat((form.querySelector('[data-facade-field="azimuth_end"]') || {}).value) || 225;
+    const minElev = parseFloat((form.querySelector('[data-facade-field="min_elevation"]') || {}).value) || 0;
+    const coverIds = [];
+    form.querySelectorAll('[data-action="facade-cover-toggle"].selected').forEach(b => coverIds.push(b.dataset.cover));
+    try {
+      const result = await this._ws("cover_automatic/facade/update", {
+        facade_id: facadeId, name: name.trim(), direction, azimuth_start: azStart, azimuth_end: azEnd, min_elevation: minElev, cover_ids: coverIds
       });
-    });
+      this._editingFacade = null;
+      this._updateConfigFromResult(result);
+    } catch (e) { console.error(e); }
+  }
 
-    // Delete rule
-    root.querySelectorAll('[data-action="rule-delete"]').forEach(el => {
-      el.addEventListener("click", () => {
-        const ruleId = el.dataset.id;
-        this._showConfirm(this._t("confirm_delete"), async () => {
-          try {
-            const result = await this._ws("cover_automatic/rule/delete", { rule_id: ruleId });
-            this._expandedRule = null;
-            this._updateConfigFromResult(result);
-          } catch (e) { console.error(e); }
-        });
-      });
+  _onFacadeDelete(facadeId) {
+    this._showConfirm(this._t("confirm_delete"), async () => {
+      try {
+        const result = await this._ws("cover_automatic/facade/delete", { facade_id: facadeId });
+        this._updateConfigFromResult(result);
+      } catch (e) { console.error(e); }
     });
+  }
 
-    // Rule save
-    root.querySelectorAll('[data-action="rule-save"]').forEach(el => {
-      el.addEventListener("click", async () => {
-        const ruleId = el.dataset.id;
-        const data = this._collectRuleEditorData(root, ruleId);
-        if (!data) return;
-        try {
-          const result = await this._ws("cover_automatic/rule/update", data);
-          this._updateConfigFromResult(result);
-        } catch (e) { console.error(e); }
-      });
+  async _onRuleToggleEnabled(ruleId, checked) {
+    try {
+      const result = await this._ws("cover_automatic/rule/update", { rule_id: ruleId, enabled: checked });
+      this._updateConfigFromResult(result);
+    } catch (e) { console.error(e); }
+  }
+
+  _onRuleDelete(ruleId) {
+    this._showConfirm(this._t("confirm_delete"), async () => {
+      try {
+        const result = await this._ws("cover_automatic/rule/delete", { rule_id: ruleId });
+        this._expandedRule = null;
+        this._updateConfigFromResult(result);
+      } catch (e) { console.error(e); }
     });
+  }
 
-    // Add condition
-    root.querySelectorAll('[data-action="rule-add-condition-type"]').forEach(el => {
-      el.addEventListener("change", () => {
-        const condType = el.value;
-        if (!condType) return;
-        const ruleId = el.dataset.rule;
-        const rule = (this._config.rules || {})[ruleId];
-        if (!rule) return;
+  async _onRuleSave(ruleId) {
+    const data = this._collectRuleEditorData(this.shadowRoot, ruleId);
+    if (!data) return;
+    try {
+      const result = await this._ws("cover_automatic/rule/update", data);
+      this._updateConfigFromResult(result);
+    } catch (e) { console.error(e); }
+  }
 
-        // Build default params
-        const paramDefs = CONDITION_PARAMS[condType] || [];
-        const params = {};
-        for (const p of paramDefs) {
-          params[p.key] = p.default;
-        }
+  _onRuleAddCondition(ruleId, condType) {
+    if (!condType) return;
+    const rule = (this._config.rules || {})[ruleId];
+    if (!rule) return;
+    const paramDefs = CONDITION_PARAMS[condType] || [];
+    const params = {};
+    for (const p of paramDefs) params[p.key] = p.default;
+    if (!rule.conditions) rule.conditions = [];
+    rule.conditions.push({ type: condType, params: params });
+    this._render();
+  }
 
-        // Add to conditions in local state and re-render
-        if (!rule.conditions) rule.conditions = [];
-        rule.conditions.push({ type: condType, params: params });
-        this._render();
-      });
+  _onRuleDeleteCondition(ruleId, idx) {
+    const rule = (this._config.rules || {})[ruleId];
+    if (rule && rule.conditions) {
+      rule.conditions.splice(parseInt(idx, 10), 1);
+      this._render();
+    }
+  }
+
+  async _onRuleAddSave(btn) {
+    const form = btn.closest(".inline-form");
+    if (!form) return;
+    const name = (form.querySelector('[data-rule-new-field="name"]') || {}).value || "";
+    if (!name.trim()) return;
+    const tp = parseInt((form.querySelector('[data-rule-new-field="target_position"]') || {}).value, 10) || 0;
+    const ttp = (form.querySelector('[data-rule-new-field="target_tilt_position"]') || {}).value;
+    try {
+      const data = { name: name.trim(), target_position: tp };
+      if (ttp !== "" && ttp != null) data.target_tilt_position = parseInt(ttp, 10);
+      const result = await this._ws("cover_automatic/rule/add", data);
+      this._addingRule = false;
+      this._updateConfigFromResult(result);
+    } catch (e) { console.error(e); }
+  }
+
+  _updateConditionParam(el) {
+    const ruleId = el.dataset.rule;
+    const idx = parseInt(el.dataset.idx, 10);
+    const key = el.dataset.key;
+    const rule = (this._config.rules || {})[ruleId];
+    if (rule && rule.conditions && rule.conditions[idx]) {
+      if (!rule.conditions[idx].params) rule.conditions[idx].params = {};
+      let val = el.value;
+      if (el.type === "number") val = Number(val);
+      rule.conditions[idx].params[key] = val;
+    }
+  }
+
+  async _onScenarioActivate(scenarioId) {
+    try {
+      const result = await this._ws("cover_automatic/scenario/update", { scenario_id: scenarioId, activate: true });
+      this._updateConfigFromResult(result);
+    } catch (e) { console.error(e); }
+  }
+
+  async _onScenarioRuleToggle(scenarioId, ruleId, checked) {
+    const scenario = (this._config.scenarios || {})[scenarioId];
+    if (!scenario) return;
+    let disabled = [...(scenario.rules_disabled || [])];
+    if (checked) {
+      disabled = disabled.filter(id => id !== ruleId);
+    } else {
+      if (!disabled.includes(ruleId)) disabled.push(ruleId);
+    }
+    try {
+      const result = await this._ws("cover_automatic/scenario/update", { scenario_id: scenarioId, rules_disabled: disabled });
+      this._updateConfigFromResult(result);
+    } catch (e) { console.error(e); }
+  }
+
+  async _onScenarioAddSave(btn) {
+    const form = btn.closest(".inline-form");
+    if (!form) return;
+    const name = (form.querySelector('[data-scenario-field="name"]') || {}).value || "";
+    if (!name.trim()) return;
+    const icon = (form.querySelector('[data-scenario-field="icon"]') || {}).value || "mdi:home";
+    try {
+      const result = await this._ws("cover_automatic/scenario/add", { name: name.trim(), icon: icon });
+      this._addingScenario = false;
+      this._updateConfigFromResult(result);
+    } catch (e) { console.error(e); }
+  }
+
+  async _onScenarioEditSave(btn) {
+    const scenarioId = btn.dataset.id;
+    const form = btn.closest(".inline-form");
+    if (!form) return;
+    const name = (form.querySelector('[data-scenario-field="name"]') || {}).value || "";
+    if (!name.trim()) return;
+    const icon = (form.querySelector('[data-scenario-field="icon"]') || {}).value || "mdi:home";
+    try {
+      const result = await this._ws("cover_automatic/scenario/update", { scenario_id: scenarioId, name: name.trim(), icon: icon });
+      this._editingScenario = null;
+      this._updateConfigFromResult(result);
+    } catch (e) { console.error(e); }
+  }
+
+  _onScenarioDelete(scenarioId) {
+    this._showConfirm(this._t("confirm_delete"), async () => {
+      try {
+        const result = await this._ws("cover_automatic/scenario/delete", { scenario_id: scenarioId });
+        this._updateConfigFromResult(result);
+      } catch (e) { console.error(e); }
     });
+  }
 
-    // Delete condition
-    root.querySelectorAll('[data-action="rule-delete-condition"]').forEach(el => {
-      el.addEventListener("click", () => {
-        const ruleId = el.dataset.rule;
-        const idx = parseInt(el.dataset.idx, 10);
-        const rule = (this._config.rules || {})[ruleId];
-        if (rule && rule.conditions) {
-          rule.conditions.splice(idx, 1);
-          this._render();
-        }
-      });
+  async _onSettingsSave() {
+    const data = {};
+    this.shadowRoot.querySelectorAll("[data-settings-field]").forEach(input => {
+      const field = input.dataset.settingsField;
+      let val = input.value;
+      if (input.type === "number") {
+        val = val === "" ? null : parseFloat(val);
+      } else {
+        val = val.trim() || null;
+      }
+      data[field] = val;
     });
-
-    // Condition param change (update local state)
-    root.querySelectorAll('[data-action="cond-param"]').forEach(el => {
-      el.addEventListener("change", () => {
-        const ruleId = el.dataset.rule;
-        const idx = parseInt(el.dataset.idx, 10);
-        const key = el.dataset.key;
-        const rule = (this._config.rules || {})[ruleId];
-        if (rule && rule.conditions && rule.conditions[idx]) {
-          if (!rule.conditions[idx].params) rule.conditions[idx].params = {};
-          let val = el.value;
-          if (el.type === "number") val = Number(val);
-          rule.conditions[idx].params[key] = val;
-        }
-      });
-      // Also handle input for text/number
-      el.addEventListener("input", () => {
-        const ruleId = el.dataset.rule;
-        const idx = parseInt(el.dataset.idx, 10);
-        const key = el.dataset.key;
-        const rule = (this._config.rules || {})[ruleId];
-        if (rule && rule.conditions && rule.conditions[idx]) {
-          if (!rule.conditions[idx].params) rule.conditions[idx].params = {};
-          let val = el.value;
-          if (el.type === "number") val = Number(val);
-          rule.conditions[idx].params[key] = val;
-        }
-      });
-    });
-
-    // Facade multi-select toggle in rule editor
-    root.querySelectorAll('[data-action="rule-facade-toggle"]').forEach(el => {
-      el.addEventListener("click", () => {
-        el.classList.toggle("selected");
-      });
-    });
-
-    // Cover multi-select toggle in rule editor
-    root.querySelectorAll('[data-action="rule-cover-toggle"]').forEach(el => {
-      el.addEventListener("click", () => {
-        el.classList.toggle("selected");
-      });
-    });
-
-    // Add rule form
-    root.querySelectorAll('[data-action="rule-add-start"]').forEach(el => {
-      el.addEventListener("click", () => { this._addingRule = true; this._render(); });
-    });
-    root.querySelectorAll('[data-action="rule-add-cancel"]').forEach(el => {
-      el.addEventListener("click", () => { this._addingRule = false; this._render(); });
-    });
-    root.querySelectorAll('[data-action="rule-add-save"]').forEach(el => {
-      el.addEventListener("click", async () => {
-        const form = el.closest(".inline-form");
-        if (!form) return;
-        const name = (form.querySelector('[data-rule-new-field="name"]') || {}).value || "";
-        if (!name.trim()) return;
-        const tp = parseInt((form.querySelector('[data-rule-new-field="target_position"]') || {}).value, 10) || 0;
-        const ttp = (form.querySelector('[data-rule-new-field="target_tilt_position"]') || {}).value;
-
-        try {
-          const data = { name: name.trim(), target_position: tp };
-          if (ttp !== "" && ttp != null) data.target_tilt_position = parseInt(ttp, 10);
-          const result = await this._ws("cover_automatic/rule/add", data);
-          this._addingRule = false;
-          this._updateConfigFromResult(result);
-        } catch (e) { console.error(e); }
-      });
-    });
-
-    // Drag & drop for rules
-    root.querySelectorAll('[data-action="rule-drag"]').forEach(el => {
-      el.addEventListener("dragstart", (e) => {
-        this._dragRuleId = el.dataset.ruleId;
-        el.classList.add("dragging");
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", el.dataset.ruleId);
-      });
-      el.addEventListener("dragend", () => {
-        this._dragRuleId = null;
-        this._dragOverId = null;
-        root.querySelectorAll(".rule-row").forEach(r => {
-          r.classList.remove("dragging");
-          r.classList.remove("drag-over");
-        });
-      });
-      el.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-        if (el.dataset.ruleId !== this._dragRuleId) {
-          this._dragOverId = el.dataset.ruleId;
-          root.querySelectorAll(".rule-row").forEach(r => r.classList.remove("drag-over"));
-          el.classList.add("drag-over");
-        }
-      });
-      el.addEventListener("dragleave", () => {
-        el.classList.remove("drag-over");
-      });
-      el.addEventListener("drop", async (e) => {
-        e.preventDefault();
-        el.classList.remove("drag-over");
-        const draggedId = e.dataTransfer.getData("text/plain");
-        const targetId = el.dataset.ruleId;
-        if (draggedId && targetId && draggedId !== targetId) {
-          // Reorder
-          const rules = this._config.rules || {};
-          const sorted = Object.values(rules).sort((a, b) => (a.priority || 0) - (b.priority || 0));
-          const ids = sorted.map(r => r.id);
-          const fromIdx = ids.indexOf(draggedId);
-          const toIdx = ids.indexOf(targetId);
-          if (fromIdx !== -1 && toIdx !== -1) {
-            ids.splice(fromIdx, 1);
-            ids.splice(toIdx, 0, draggedId);
-            try {
-              const result = await this._ws("cover_automatic/rule/reorder", { rule_ids: ids });
-              this._updateConfigFromResult(result);
-            } catch (e2) { console.error(e2); }
-          }
-        }
-        this._dragRuleId = null;
-        this._dragOverId = null;
-      });
-    });
+    try {
+      const result = await this._ws("cover_automatic/settings/update", data);
+      this._updateConfigFromResult(result);
+    } catch (e) { console.error(e); }
   }
 
   _collectRuleEditorData(root, ruleId) {
@@ -2500,139 +2550,6 @@ class CoverAutomaticPanel extends HTMLElement {
     };
   }
 
-  /* ---------- Scenario event binding ---------- */
-  _bindScenarioEvents(root) {
-    root.querySelectorAll('[data-action="scenario-add-start"]').forEach(el => {
-      el.addEventListener("click", () => { this._addingScenario = true; this._render(); });
-    });
-    root.querySelectorAll('[data-action="scenario-add-cancel"]').forEach(el => {
-      el.addEventListener("click", () => { this._addingScenario = false; this._render(); });
-    });
-    root.querySelectorAll('[data-action="scenario-edit"]').forEach(el => {
-      el.addEventListener("click", () => { this._editingScenario = el.dataset.id; this._render(); });
-    });
-    root.querySelectorAll('[data-action="scenario-edit-cancel"]').forEach(el => {
-      el.addEventListener("click", () => { this._editingScenario = null; this._render(); });
-    });
-
-    // Activate
-    root.querySelectorAll('[data-action="scenario-activate"]').forEach(el => {
-      el.addEventListener("click", async () => {
-        try {
-          const result = await this._ws("cover_automatic/scenario/update", { scenario_id: el.dataset.id, activate: true });
-          this._updateConfigFromResult(result);
-        } catch (e) { console.error(e); }
-      });
-    });
-
-    // Scenario rule toggle
-    root.querySelectorAll('[data-action="scenario-rule-toggle"]').forEach(el => {
-      el.addEventListener("change", async () => {
-        const scenarioId = el.dataset.scenario;
-        const ruleId = el.dataset.rule;
-        const scenario = (this._config.scenarios || {})[scenarioId];
-        if (!scenario) return;
-
-        let disabled = [...(scenario.rules_disabled || [])];
-        if (el.checked) {
-          // Enable = remove from disabled
-          disabled = disabled.filter(id => id !== ruleId);
-        } else {
-          // Disable = add to disabled
-          if (!disabled.includes(ruleId)) disabled.push(ruleId);
-        }
-
-        try {
-          const result = await this._ws("cover_automatic/scenario/update", {
-            scenario_id: scenarioId, rules_disabled: disabled
-          });
-          this._updateConfigFromResult(result);
-        } catch (e) { console.error(e); }
-      });
-    });
-
-    // Add scenario save
-    root.querySelectorAll('[data-action="scenario-add-save"]').forEach(el => {
-      el.addEventListener("click", async () => {
-        const form = el.closest(".inline-form");
-        if (!form) return;
-        const name = (form.querySelector('[data-scenario-field="name"]') || {}).value || "";
-        if (!name.trim()) return;
-        const icon = (form.querySelector('[data-scenario-field="icon"]') || {}).value || "mdi:home";
-        try {
-          const result = await this._ws("cover_automatic/scenario/add", { name: name.trim(), icon: icon });
-          this._addingScenario = false;
-          this._updateConfigFromResult(result);
-        } catch (e) { console.error(e); }
-      });
-    });
-
-    // Edit scenario save
-    root.querySelectorAll('[data-action="scenario-edit-save"]').forEach(el => {
-      el.addEventListener("click", async () => {
-        const scenarioId = el.dataset.id;
-        const form = el.closest(".inline-form");
-        if (!form) return;
-        const name = (form.querySelector('[data-scenario-field="name"]') || {}).value || "";
-        if (!name.trim()) return;
-        const icon = (form.querySelector('[data-scenario-field="icon"]') || {}).value || "mdi:home";
-        try {
-          const result = await this._ws("cover_automatic/scenario/update", {
-            scenario_id: scenarioId, name: name.trim(), icon: icon
-          });
-          this._editingScenario = null;
-          this._updateConfigFromResult(result);
-        } catch (e) { console.error(e); }
-      });
-    });
-
-    // Delete scenario
-    root.querySelectorAll('[data-action="scenario-delete"]').forEach(el => {
-      el.addEventListener("click", () => {
-        const scenarioId = el.dataset.id;
-        this._showConfirm(this._t("confirm_delete"), async () => {
-          try {
-            const result = await this._ws("cover_automatic/scenario/delete", { scenario_id: scenarioId });
-            this._updateConfigFromResult(result);
-          } catch (e) { console.error(e); }
-        });
-      });
-    });
-  }
-
-  /* ---------- Settings event binding ---------- */
-  _bindSettingsEvents(root) {
-    // Live compass update on rotation change
-    const rotInput = root.querySelector("#house-rotation-input");
-    const compassSvg = root.querySelector("#compass-svg");
-    if (rotInput && compassSvg) {
-      rotInput.addEventListener("input", () => {
-        const val = parseFloat(rotInput.value) || 0;
-        const parent = compassSvg.parentElement;
-        parent.innerHTML = this._renderCompassSVG(val);
-      });
-    }
-
-    root.querySelectorAll('[data-action="settings-save"]').forEach(el => {
-      el.addEventListener("click", async () => {
-        const data = {};
-        root.querySelectorAll("[data-settings-field]").forEach(input => {
-          const field = input.dataset.settingsField;
-          let val = input.value;
-          if (input.type === "number") {
-            val = val === "" ? null : parseFloat(val);
-          } else {
-            val = val.trim() || null;
-          }
-          data[field] = val;
-        });
-        try {
-          const result = await this._ws("cover_automatic/settings/update", data);
-          this._updateConfigFromResult(result);
-        } catch (e) { console.error(e); }
-      });
-    });
-  }
 }
 
 customElements.define("cover-automatic-panel", CoverAutomaticPanel);

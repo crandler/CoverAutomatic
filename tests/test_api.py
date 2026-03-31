@@ -7,6 +7,7 @@ import pytest
 
 from custom_components.cover_automatic.api import (
     _build_config_response,
+    _parse_conditions,
     _sanitize_id,
     async_setup_api,
 )
@@ -125,6 +126,47 @@ class TestSanitizeId:
     def test_empty_string_fallback(self) -> None:
         result = _sanitize_id("!!!!")
         assert result == "unnamed"
+
+
+# ---------------------------------------------------------------------------
+# _parse_conditions
+# ---------------------------------------------------------------------------
+
+class TestParseConditions:
+    """Tests for condition parsing."""
+
+    def test_valid_conditions_no_errors(self) -> None:
+        raw = [
+            {"type": "sun_on_facade", "params": {"facade_id": "s1"}},
+            {"type": "temperature_above", "params": {"threshold": 25}},
+        ]
+        conditions, errors = _parse_conditions(raw)
+        assert len(conditions) == 2
+        assert errors == []
+
+    def test_invalid_condition_returns_errors(self) -> None:
+        raw = [
+            {"type": "sun_on_facade", "params": {"facade_id": "s1"}},
+            {"type": "INVALID", "params": {}},
+        ]
+        conditions, errors = _parse_conditions(raw)
+        assert len(conditions) == 1
+        assert len(errors) == 1
+        assert "Condition 1" in errors[0]
+
+    def test_all_invalid_returns_empty_conditions(self) -> None:
+        raw = [
+            {"type": "BOGUS", "params": {}},
+            {"type": "ALSO_BOGUS", "params": {}},
+        ]
+        conditions, errors = _parse_conditions(raw)
+        assert len(conditions) == 0
+        assert len(errors) == 2
+
+    def test_empty_input_returns_empty(self) -> None:
+        conditions, errors = _parse_conditions([])
+        assert conditions == []
+        assert errors == []
 
 
 # ---------------------------------------------------------------------------
@@ -300,6 +342,43 @@ class TestWsCoverUpdate:
 
         conn.send_error.assert_called_once()
         assert "not_found" in conn.send_error.call_args[0][1]
+
+
+class TestWsCoverAdd:
+    """Tests for cover_automatic/cover/add handler."""
+
+    @pytest.mark.asyncio
+    async def test_add_multiple_covers_saves_once(self) -> None:
+        from custom_components.cover_automatic.api import ws_cover_add
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+
+        state1 = MagicMock()
+        state1.attributes = {"friendly_name": "Cover 1"}
+        state2 = MagicMock()
+        state2.attributes = {"friendly_name": "Cover 2"}
+        hass.states.get = MagicMock(side_effect=lambda eid: {
+            "cover.one": state1,
+            "cover.two": state2,
+        }.get(eid))
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/cover/add",
+            "entity_ids": ["cover.one", "cover.two"],
+        }
+
+        await ws_cover_add(hass, conn, msg, storage, coordinator)
+
+        assert storage.async_add_cover.await_count == 2
+        # save=False on each call, then one explicit save
+        for call in storage.async_add_cover.call_args_list:
+            assert call.kwargs.get("save") is False
+        storage.async_save.assert_awaited_once()
+        conn.send_result.assert_called_once()
 
 
 class TestWsFacadeAdd:
@@ -481,7 +560,7 @@ class TestWsRuleAdd:
         assert len(rule_arg.conditions) == 2
 
     @pytest.mark.asyncio
-    async def test_add_rule_skips_invalid_conditions(self) -> None:
+    async def test_add_rule_rejects_invalid_conditions(self) -> None:
         from custom_components.cover_automatic.api import ws_rule_add
 
         hass = _make_hass()
@@ -501,8 +580,9 @@ class TestWsRuleAdd:
 
         await ws_rule_add(hass, conn, msg, storage, coordinator)
 
-        rule_arg = storage.async_add_rule.call_args[0][0]
-        assert len(rule_arg.conditions) == 1
+        conn.send_error.assert_called_once()
+        assert "invalid_conditions" in conn.send_error.call_args[0][1]
+        storage.async_add_rule.assert_not_awaited()
 
 
 class TestWsRuleUpdate:
@@ -559,6 +639,33 @@ class TestWsRuleUpdate:
         updated = storage.async_add_rule.call_args[0][0]
         assert len(updated.conditions) == 1
         assert updated.conditions[0].type == ConditionType.TEMPERATURE_ABOVE
+
+    @pytest.mark.asyncio
+    async def test_update_rule_rejects_invalid_conditions(self) -> None:
+        from custom_components.cover_automatic.api import ws_rule_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        rule = Rule(id="r1", name="Rule", conditions=[
+            Condition(type=ConditionType.SUN_ON_FACADE, params={"facade_id": "s1"}),
+        ])
+        storage = _make_storage(rules={"r1": rule})
+        coordinator = _make_coordinator()
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/rule/update",
+            "rule_id": "r1",
+            "conditions": [
+                {"type": "BOGUS", "params": {}},
+            ],
+        }
+
+        await ws_rule_update(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_called_once()
+        assert "invalid_conditions" in conn.send_error.call_args[0][1]
+        storage.async_add_rule.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_update_unknown_rule_sends_error(self) -> None:
