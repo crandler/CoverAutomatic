@@ -41,14 +41,16 @@ def get_sun_position(hass: HomeAssistant) -> tuple[float, float] | None:
 
 
 def is_sun_on_facade(
-    hass: HomeAssistant, facade: Facade, house_rotation: float = 0.0,
+    hass: HomeAssistant, facade: Facade,
 ) -> bool:
     """Check if sun is shining on a facade.
+
+    Facade azimuth values are real compass bearings (house rotation already
+    applied at configuration time).
 
     Args:
         hass: Home Assistant instance
         facade: Facade to check
-        house_rotation: Global house rotation offset in degrees (clockwise)
 
     Returns:
         True if sun is currently shining on the facade.
@@ -62,8 +64,8 @@ def is_sun_on_facade(
     if elevation < facade.min_elevation:
         return False
 
-    start = (facade.azimuth_start + house_rotation) % 360
-    end = (facade.azimuth_end + house_rotation) % 360
+    start = facade.azimuth_start
+    end = facade.azimuth_end
 
     if start <= end:
         return start <= azimuth <= end
@@ -104,9 +106,12 @@ def _azimuth_to_time(
 
 
 def get_facade_sun_times(
-    hass: HomeAssistant, facade: Facade, house_rotation: float = 0.0,
+    hass: HomeAssistant, facade: Facade,
 ) -> tuple[str | None, str | None]:
     """Calculate approximate sun entry and exit times for a facade.
+
+    Facade azimuth values are real compass bearings (house rotation already
+    applied at configuration time).
 
     Uses linear interpolation based on typical sun path for temperate latitudes.
     Returns times in HH:MM format or None if unavailable.
@@ -132,8 +137,8 @@ def get_facade_sun_times(
     az_sunset = 300.0
     az_range = az_sunset - az_sunrise  # 240 degrees
 
-    start_az = (facade.azimuth_start + house_rotation) % 360
-    end_az = (facade.azimuth_end + house_rotation) % 360
+    start_az = facade.azimuth_start
+    end_az = facade.azimuth_end
 
     # Handle wrap-around facades (e.g., north: 315-45)
     if start_az > end_az:

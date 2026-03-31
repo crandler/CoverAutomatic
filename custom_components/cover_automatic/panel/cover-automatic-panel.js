@@ -60,7 +60,6 @@ const I18N = {
     facade_covers: "Assigned covers",
     facade_add: "Add facade",
     facade_no_covers: "No covers assigned",
-    facade_rotation_hint: "Rotation",
     facade_dir_north: "North",
     facade_dir_east: "East",
     facade_dir_south: "South",
@@ -171,7 +170,6 @@ const I18N = {
     facade_covers: "Zugewiesene Rollos",
     facade_add: "Fassade hinzufügen",
     facade_no_covers: "Keine Rollos zugewiesen",
-    facade_rotation_hint: "Rotation",
     facade_dir_north: "Norden",
     facade_dir_east: "Osten",
     facade_dir_south: "Süden",
@@ -1007,13 +1005,6 @@ class CoverAutomaticPanel extends HTMLElement {
     return s[key] !== undefined ? s[key] : ((I18N.en[section] || {})[key] || key);
   }
 
-  _rotationHint() {
-    const rot = (this._config && this._config.settings) ? (this._config.settings.house_rotation || 0) : 0;
-    if (rot === 0) return "";
-    const sign = rot > 0 ? "+" : "";
-    return `<span style="opacity:0.6">(${sign}${rot}&#176; ${this._t("facade_rotation_hint")})</span>`;
-  }
-
   /* ---------- Lifecycle ---------- */
   _initialize() {
     this._initialized = true;
@@ -1415,9 +1406,9 @@ class CoverAutomaticPanel extends HTMLElement {
         <span style="font-size:12px;color:var(--ca-secondary-text)">${arrow} ${this._esc(dirLabel)}</span>
       </div>
       <div class="card-body">
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:13px;color:var(--ca-secondary-text)">
+        <div style="display:flex;gap:16px;margin-bottom:12px;font-size:13px;color:var(--ca-secondary-text)">
           <span>${this._t("facade_azimuth_start")}: ${f.azimuth_start}&#176;</span>
-          <span>${this._t("facade_azimuth_end")}: ${f.azimuth_end}&#176;</span>${this._rotationHint()}
+          <span>${this._t("facade_azimuth_end")}: ${f.azimuth_end}&#176;</span>
         </div>
         <div style="font-size:13px;color:var(--ca-secondary-text);margin-bottom:8px">
           ${this._t("facade_min_elevation")}: ${f.min_elevation}&#176;
@@ -1904,8 +1895,8 @@ class CoverAutomaticPanel extends HTMLElement {
     let facadeArcs = "";
     const facadeColors = ["#4CAF50", "#2196F3", "#FF9800", "#9C27B0", "#F44336", "#00BCD4"];
     facades.forEach((f, i) => {
-      const startDeg = (f.azimuth_start + rotation - 90) * Math.PI / 180;
-      const endDeg = (f.azimuth_end + rotation - 90) * Math.PI / 180;
+      const startDeg = (f.azimuth_start - 90) * Math.PI / 180;
+      const endDeg = (f.azimuth_end - 90) * Math.PI / 180;
       const arcR = r - 8;
       const x1 = cx + arcR * Math.cos(startDeg), y1 = cy + arcR * Math.sin(startDeg);
       const x2 = cx + arcR * Math.cos(endDeg), y2 = cy + arcR * Math.sin(endDeg);
@@ -1914,7 +1905,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const large = sweep > 180 ? 1 : 0;
       facadeArcs += `<path d="M${x1},${y1} A${arcR},${arcR} 0 ${large},1 ${x2},${y2}" fill="none" stroke="${facadeColors[i % facadeColors.length]}" stroke-width="6" opacity="0.6"/>`;
       // Label
-      const midDeg = (f.azimuth_start + sweep / 2 + rotation - 90) * Math.PI / 180;
+      const midDeg = (f.azimuth_start + sweep / 2 - 90) * Math.PI / 180;
       const lx = cx + (arcR - 14) * Math.cos(midDeg), ly = cy + (arcR - 14) * Math.sin(midDeg);
       facadeArcs += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="9" fill="${facadeColors[i % facadeColors.length]}" font-weight="600">${this._esc(f.name.substring(0, 6))}</text>`;
     });
@@ -2182,16 +2173,17 @@ class CoverAutomaticPanel extends HTMLElement {
       return;
     }
 
-    // Facade direction preset
+    // Facade direction preset (applies house rotation to get real compass bearings)
     if (el.matches('[data-facade-field="direction"]')) {
       const presets = FACADE_PRESETS[el.value];
       if (presets) {
+        const rot = (this._config && this._config.settings) ? (this._config.settings.house_rotation || 0) : 0;
         const form = el.closest(".inline-form");
         if (form) {
           const startInput = form.querySelector('[data-facade-field="azimuth_start"]');
           const endInput = form.querySelector('[data-facade-field="azimuth_end"]');
-          if (startInput) startInput.value = presets.start;
-          if (endInput) endInput.value = presets.end;
+          if (startInput) startInput.value = ((presets.start + rot) % 360 + 360) % 360;
+          if (endInput) endInput.value = ((presets.end + rot) % 360 + 360) % 360;
         }
       }
       return;

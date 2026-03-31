@@ -685,7 +685,7 @@ class TestSunOnFacadeCondition:
         result = engine._eval_sun_on_facade(condition, cover)
 
         assert result is True
-        mock_is_sun_on_facade.assert_called_once_with(engine.hass, facade, mock_storage.house_rotation)
+        mock_is_sun_on_facade.assert_called_once_with(engine.hass, facade)
 
     @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
     def test_eval_sun_on_facade_falls_back_to_cover_facade(
@@ -710,7 +710,7 @@ class TestSunOnFacadeCondition:
         result = engine._eval_sun_on_facade(condition, test_cover)
 
         assert result is True
-        mock_is_sun_on_facade.assert_called_once_with(engine.hass, facade, mock_storage.house_rotation)
+        mock_is_sun_on_facade.assert_called_once_with(engine.hass, facade)
 
     def test_eval_sun_on_facade_no_facade_returns_false(
         self, engine, mock_storage

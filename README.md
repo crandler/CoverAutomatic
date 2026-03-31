@@ -151,9 +151,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.4.3
+1.4.4
 
 ## Changelog
+
+### 1.4.4 (2026-03-31)
+
+- Facade azimuth values are now real compass bearings (house rotation applied at config time, not runtime)
+- Direction picker presets now include house rotation offset automatically
+- Compass SVG shows facade arcs at their real compass positions
 
 ### 1.4.3 (2026-03-31)
 
