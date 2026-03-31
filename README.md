@@ -151,9 +151,16 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.5.1
+1.5.2
 
 ## Changelog
+
+### 1.5.2 (2026-03-31)
+
+- Temperature conditions now use global outdoor sensor from settings (no longer broken)
+- Rename labels to "Outdoor temperature above/below" for clarity
+- Fix German umlauts in settings description hints
+- Fix ruff lint error (module-level import order in api.py)
 
 ### 1.5.1 (2026-03-31)
 

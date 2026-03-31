@@ -11,10 +11,10 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 
 from .const import DOMAIN, FACADE_PRESETS
+from .models import Condition, CoverConfig, Facade, Rule, Scenario
 
 _MANIFEST = json.loads((Path(__file__).parent / "manifest.json").read_text())
 _VERSION = _MANIFEST["version"]
-from .models import Condition, CoverConfig, Facade, Rule, Scenario
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant

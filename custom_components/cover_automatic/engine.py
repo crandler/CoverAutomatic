@@ -202,8 +202,8 @@ class RuleEngine:
         return position[1] > threshold if above else position[1] < threshold
 
     def _eval_temp_threshold(self, condition: Condition, *, above: bool) -> bool:
-        """Evaluate temperature above/below threshold."""
-        sensor_id = condition.params.get("sensor")
+        """Evaluate outdoor temperature above/below threshold."""
+        sensor_id = condition.params.get("sensor") or self.storage.outdoor_temp_sensor
         threshold = condition.params.get("value", 0)
 
         if not sensor_id:

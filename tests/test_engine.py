@@ -292,6 +292,34 @@ class TestConditionEvaluation:
         result = engine._eval_temp_threshold(condition, above=True)
         assert result is False
 
+    def test_eval_temp_falls_back_to_outdoor_sensor(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """Test temperature condition uses global outdoor sensor as fallback."""
+        mock_storage.outdoor_temp_sensor = "sensor.outdoor_global"
+        mock_hass.states.get.return_value = MockState("30.0")
+
+        condition = Condition(
+            type=ConditionType.TEMPERATURE_ABOVE,
+            params={"value": 25},
+        )
+        result = engine._eval_temp_threshold(condition, above=True)
+        assert result is True
+        mock_hass.states.get.assert_called_with("sensor.outdoor_global")
+
+    def test_eval_temp_no_sensor_at_all_returns_false(
+        self, engine, mock_storage
+    ) -> None:
+        """Test temperature condition returns False when no sensor configured."""
+        mock_storage.outdoor_temp_sensor = None
+
+        condition = Condition(
+            type=ConditionType.TEMPERATURE_ABOVE,
+            params={"value": 25},
+        )
+        result = engine._eval_temp_threshold(condition, above=True)
+        assert result is False
+
     def test_eval_temp_below_true(
         self, engine, mock_hass
     ) -> None:
