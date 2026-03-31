@@ -208,14 +208,15 @@ class RuleEngine:
         comfort_min = self.storage.comfort_temp_min
         comfort_max = self.storage.comfort_temp_max
 
-        if prev == ComfortMode.HEATING:
-            mode = ComfortMode.HEATING if temp < comfort_min + h else ComfortMode.NEUTRAL
-        elif prev == ComfortMode.COOLING:
-            mode = ComfortMode.COOLING if temp > comfort_max - h else ComfortMode.NEUTRAL
-        elif temp >= comfort_max:
+        # Hard boundaries first, then hysteresis in the transition bands
+        if temp >= comfort_max:
             mode = ComfortMode.COOLING
         elif temp <= comfort_min:
             mode = ComfortMode.HEATING
+        elif prev == ComfortMode.HEATING and temp < comfort_min + h:
+            mode = ComfortMode.HEATING
+        elif prev == ComfortMode.COOLING and temp > comfort_max - h:
+            mode = ComfortMode.COOLING
         else:
             mode = ComfortMode.NEUTRAL
 

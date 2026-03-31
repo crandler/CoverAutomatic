@@ -151,9 +151,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.8.0
+1.8.1
 
 ## Changelog
+
+### 1.8.1 (2026-03-31)
+
+- Fix comfort hysteresis: hard boundaries checked first, prevents wrong mode on large temperature jumps
 
 ### 1.8.0 (2026-03-31)
 
