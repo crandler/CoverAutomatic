@@ -2313,8 +2313,8 @@ class CoverAutomaticPanel extends HTMLElement {
     const name = (form.querySelector('[data-facade-field="name"]') || {}).value || "";
     if (!name.trim()) return;
     const direction = (form.querySelector('[data-facade-field="direction"]') || {}).value || "south";
-    const azStart = parseFloat((form.querySelector('[data-facade-field="azimuth_start"]') || {}).value) || 135;
-    const azEnd = parseFloat((form.querySelector('[data-facade-field="azimuth_end"]') || {}).value) || 225;
+    const azStart = (() => { const v = (form.querySelector('[data-facade-field="azimuth_start"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 135; })();
+    const azEnd = (() => { const v = (form.querySelector('[data-facade-field="azimuth_end"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 225; })();
     const minElev = parseFloat((form.querySelector('[data-facade-field="min_elevation"]') || {}).value) || 0;
     const coverIds = [];
     form.querySelectorAll('[data-action="facade-cover-toggle"].selected').forEach(b => coverIds.push(b.dataset.cover));
@@ -2334,8 +2334,8 @@ class CoverAutomaticPanel extends HTMLElement {
     const name = (form.querySelector('[data-facade-field="name"]') || {}).value || "";
     if (!name.trim()) return;
     const direction = (form.querySelector('[data-facade-field="direction"]') || {}).value || "south";
-    const azStart = parseFloat((form.querySelector('[data-facade-field="azimuth_start"]') || {}).value) || 135;
-    const azEnd = parseFloat((form.querySelector('[data-facade-field="azimuth_end"]') || {}).value) || 225;
+    const azStart = (() => { const v = (form.querySelector('[data-facade-field="azimuth_start"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 135; })();
+    const azEnd = (() => { const v = (form.querySelector('[data-facade-field="azimuth_end"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 225; })();
     const minElev = parseFloat((form.querySelector('[data-facade-field="min_elevation"]') || {}).value) || 0;
     const coverIds = [];
     form.querySelectorAll('[data-action="facade-cover-toggle"].selected').forEach(b => coverIds.push(b.dataset.cover));

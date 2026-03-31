@@ -151,9 +151,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.4.4
+1.4.5
 
 ## Changelog
+
+### 1.4.5 (2026-03-31)
+
+- Fix azimuth value 0 rejected as falsy when saving facades
 
 ### 1.4.4 (2026-03-31)
 
