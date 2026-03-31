@@ -965,8 +965,8 @@ class TestRestoreCoverStates:
             "cover.living", "auto", None
         )
 
-    def test_restore_locked_pre_populates(self, coordinator, mock_storage) -> None:
-        """LOCKED covers are pre-populated to avoid redundant motor commands."""
+    def test_restore_locked_resets_to_auto(self, coordinator, mock_storage) -> None:
+        """LOCKED covers are reset to AUTO (re-derived from sensors on sync)."""
         mock_storage._data = {
             "covers": {
                 "cover.kitchen": {
@@ -983,10 +983,10 @@ class TestRestoreCoverStates:
 
         coordinator._restore_cover_states()
 
-        assert coordinator._cover_states["cover.kitchen"] == CoverStatus.LOCKED
+        assert coordinator._cover_states["cover.kitchen"] == CoverStatus.AUTO
 
-    def test_restore_auto_not_added(self, coordinator, mock_storage) -> None:
-        """AUTO covers are not pre-populated (default behavior)."""
+    def test_restore_auto_stays_auto(self, coordinator, mock_storage) -> None:
+        """AUTO covers stay AUTO."""
         mock_storage._data = {
             "covers": {
                 "cover.office": {
@@ -1003,7 +1003,7 @@ class TestRestoreCoverStates:
 
         coordinator._restore_cover_states()
 
-        assert "cover.office" not in coordinator._cover_states
+        assert coordinator._cover_states["cover.office"] == CoverStatus.AUTO
 
     def test_restore_paused_no_pause_until(self, coordinator, mock_storage) -> None:
         """PAUSED without pause_until is reset to AUTO."""

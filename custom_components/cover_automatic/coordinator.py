@@ -76,8 +76,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _restore_cover_states(self) -> None:
         """Restore cover states from persisted storage data.
 
-        Ensures PAUSED status (with unexpired pause_until) survives HA restarts.
-        LOCKED and MANUAL states are re-detected from sensor states / auto_enabled.
+        Only restores PAUSED (with unexpired timer). All other statuses start
+        as AUTO and get re-derived from sensor states by _sync_cover_statuses.
         """
         for entity_id, cover_data in self.storage._data.get("covers", {}).items():
             stored_status = cover_data.get("status", "auto")
@@ -85,15 +85,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 pause_until = cover_data.get("pause_until")
                 if pause_until and dt_util.now().timestamp() < pause_until:
                     self._cover_states[entity_id] = CoverStatus.PAUSED
-                else:
-                    # Pause expired during downtime, reset to AUTO
-                    self._cover_states[entity_id] = CoverStatus.AUTO
-                    self.storage.update_cover_status(
-                        entity_id, CoverStatus.AUTO.value, None
-                    )
-            elif stored_status == CoverStatus.LOCKED.value:
-                # Pre-populate so _sync_cover_statuses won't re-send position
-                self._cover_states[entity_id] = CoverStatus.LOCKED
+                    continue
+            # Reset everything else to AUTO (lock/vent re-detected from sensors)
+            self._cover_states[entity_id] = CoverStatus.AUTO
+            if stored_status != CoverStatus.AUTO.value:
+                self.storage.update_cover_status(
+                    entity_id, CoverStatus.AUTO.value, None
+                )
 
     async def _async_setup_default_scenarios(self) -> None:
         """Create default scenarios if none exist."""

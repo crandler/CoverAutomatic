@@ -151,9 +151,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.7.1
+1.7.2
 
 ## Changelog
+
+### 1.7.2 (2026-03-31)
+
+- All cover statuses (except PAUSED with valid timer) reset to AUTO on restart, then re-derived from sensor states
 
 ### 1.7.1 (2026-03-31)
 
