@@ -174,7 +174,7 @@ class TestCoverStatus:
     def test_sync_sets_locked_when_vent_sensor_open(
         self, coordinator, mock_hass, mock_storage
     ) -> None:
-        """Test _sync_cover_statuses sets LOCKED when vent sensor is open."""
+        """Test _sync_cover_statuses sets VENTING when vent sensor is open."""
         mock_storage._data = {
             "covers": {
                 "cover.test": {
@@ -194,9 +194,9 @@ class TestCoverStatus:
             mock_dt.now.return_value.timestamp.return_value = 1000.0
             coordinator._sync_cover_statuses()
 
-        assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED
+        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
         status = coordinator.get_cover_status("cover.test")
-        assert status == CoverStatus.LOCKED
+        assert status == CoverStatus.VENTING
 
     def test_get_cover_status_returns_auto_when_sensors_closed(
         self, coordinator, mock_hass, mock_storage
@@ -805,7 +805,7 @@ class TestLockVentTransition:
     def test_lock_to_vent_transition(
         self, coordinator, mock_hass, mock_storage
     ) -> None:
-        """Lock sensor closes while vent sensor still open -> vent position applied."""
+        """Lock sensor closes while vent sensor still open -> switches to VENTING."""
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
         cover_raw = {
             "lock_position": 100,
@@ -819,20 +819,15 @@ class TestLockVentTransition:
         # Vent sensor is still open
         mock_hass.states.get.return_value = MockState("on")
 
-        with patch.object(coordinator, "_lock_cover") as mock_lock, patch.object(
-            coordinator, "_unlock_cover"
-        ) as mock_unlock:
-            # Lock sensor closes (is_open=False), cover is LOCKED
-            coordinator._handle_contact_sensor_change(
-                "binary_sensor.window",
-                ["cover.test"],  # lock_covers
-                [],              # vent_covers
-                MockState("on"),
-                MockState("off"),
-            )
-            # Should switch to vent position, not unlock
-            mock_lock.assert_called_once_with("cover.test", 30, lock_tilt=None)
-            mock_unlock.assert_not_called()
+        coordinator._handle_contact_sensor_change(
+            "binary_sensor.window",
+            ["cover.test"],  # lock_covers
+            [],              # vent_covers
+            MockState("on"),
+            MockState("off"),
+        )
+        # Should switch to VENTING, not unlock
+        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
 
 
 class TestLockCoverInverted:
@@ -1499,52 +1494,19 @@ class TestUpdateLastPositionFromState:
 class TestVentSensorWithTilt:
     """Tests for vent sensor handling with tilt position."""
 
-    def test_vent_sensor_open_sends_tilt(
+    def test_vent_sensor_open_sets_venting_and_moves_if_below(
         self, coordinator, mock_hass, mock_storage
     ) -> None:
-        """Test vent sensor opening sends both position and tilt."""
+        """Test vent sensor sets VENTING and moves cover up if below vent_position."""
         cover_raw = {
             "lock_sensor": None,
             "vent_sensor": "binary_sensor.vent",
             "vent_position": 30,
-            "vent_tilt_position": 20,
-            "inverted": False,
-            "supports_tilt": True,
-            "inverted_tilt": False,
-        }
-        mock_storage.get_cover_raw.return_value = cover_raw
-        mock_hass.states.get.return_value = None  # No lock sensor
-        mock_hass.async_create_task = MagicMock()
-
-        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
-
-        with patch("custom_components.cover_automatic.coordinator.time_mod"):
-            coordinator._handle_contact_sensor_change(
-                "binary_sensor.vent",
-                [],  # lock_covers
-                ["cover.test"],  # vent_covers
-                MockState("off"),
-                MockState("on"),
-            )
-
-        assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED
-        assert coordinator._last_tilt_positions["cover.test"] == 20
-        # position + tilt = 2 async_create_task calls
-        assert mock_hass.async_create_task.call_count == 2
-
-    def test_vent_sensor_open_no_tilt_when_not_configured(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
-        """Test vent sensor opening without tilt configuration."""
-        cover_raw = {
-            "lock_sensor": None,
-            "vent_sensor": "binary_sensor.vent",
-            "vent_position": 30,
-            "vent_tilt_position": None,
             "inverted": False,
         }
         mock_storage.get_cover_raw.return_value = cover_raw
-        mock_hass.states.get.return_value = None
+        # Current position 10 < vent_position 30
+        mock_hass.states.get.return_value = MockState("on", {"current_position": 10})
         mock_hass.async_create_task = MagicMock()
 
         coordinator._cover_states["cover.test"] = CoverStatus.AUTO
@@ -1558,15 +1520,43 @@ class TestVentSensorWithTilt:
                 MockState("on"),
             )
 
-        assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED
-        assert "cover.test" not in coordinator._last_tilt_positions
-        # Only position, no tilt
+        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
         assert mock_hass.async_create_task.call_count == 1
 
-    def test_lock_to_vent_transition_with_tilt(
+    def test_vent_sensor_open_no_move_if_above(
         self, coordinator, mock_hass, mock_storage
     ) -> None:
-        """Test lock->vent transition includes vent tilt position."""
+        """Test vent sensor sets VENTING but does not move if already above vent_position."""
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": "binary_sensor.vent",
+            "vent_position": 30,
+            "inverted": False,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        # Current position 100 > vent_position 30
+        mock_hass.states.get.return_value = MockState("on", {"current_position": 100})
+        mock_hass.async_create_task = MagicMock()
+
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod"):
+            coordinator._handle_contact_sensor_change(
+                "binary_sensor.vent",
+                [],
+                ["cover.test"],
+                MockState("off"),
+                MockState("on"),
+            )
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
+        # No move command
+        assert mock_hass.async_create_task.call_count == 0
+
+    def test_lock_to_vent_transition_sets_venting(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test lock->vent transition switches to VENTING status."""
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
         cover_raw = {
             "lock_position": 100,
@@ -1582,14 +1572,12 @@ class TestVentSensorWithTilt:
         mock_hass.states.get.return_value = MockState("on")  # Vent still open
         mock_hass.async_create_task = MagicMock()
 
-        with patch.object(coordinator, "_lock_cover") as mock_lock:
-            coordinator._handle_contact_sensor_change(
-                "binary_sensor.window",
-                ["cover.test"],
-                [],
-                MockState("on"),
-                MockState("off"),  # Lock sensor closes
-            )
-            mock_lock.assert_called_once_with(
-                "cover.test", 30, lock_tilt=50
-            )
+        coordinator._handle_contact_sensor_change(
+            "binary_sensor.window",
+            ["cover.test"],
+            [],
+            MockState("on"),
+            MockState("off"),  # Lock sensor closes
+        )
+        # Lock closed but vent still open -> switches to VENTING
+        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING

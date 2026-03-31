@@ -425,8 +425,8 @@ class TestStateTransitionIntegration:
                 new_state=new_state,
             )
 
-        # Cover should be locked at vent position
-        assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED
+        # Cover should be in VENTING state (automation continues with min position)
+        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
 
 
 class TestHysteresisIntegration:

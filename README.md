@@ -151,9 +151,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.6.2
+1.7.0
 
 ## Changelog
+
+### 1.7.0 (2026-03-31)
+
+- New VENTING status: vent sensor now sets minimum position but allows automation to continue (shading works with tilted windows)
+- Lock sensor: skip redundant commands when cover is already at or above lock position
+- Fix false manual override detection during lock/vent transitions
 
 ### 1.6.2 (2026-03-31)
 

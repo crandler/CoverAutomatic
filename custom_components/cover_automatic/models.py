@@ -16,6 +16,7 @@ class CoverStatus(StrEnum):
     PAUSED = "paused"
     MANUAL = "manual"
     LOCKED = "locked"
+    VENTING = "venting"
 
 
 class ConditionType(StrEnum):
