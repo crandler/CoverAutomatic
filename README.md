@@ -151,9 +151,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.5.2
+1.6.0
 
 ## Changelog
+
+### 1.6.0 (2026-03-31)
+
+- Global default pause duration setting (default 10 min, was 2 min per cover)
+- Per-cover pause duration is now optional, falls back to global default
+- Description hints for all form fields across covers, facades, rules, and settings tabs
 
 ### 1.5.2 (2026-03-31)
 

@@ -32,20 +32,30 @@ const I18N = {
     no: "No",
     // Covers
     cover_facade: "Facade",
+    cover_facade_hint: "Determines which facade rules apply to this cover.",
     cover_status: "Status",
     cover_pause_duration: "Pause duration (min)",
+    cover_pause_duration_hint: "How long automation pauses after manual operation. Empty = use global default.",
     cover_indoor_temp: "Indoor temperature sensor",
+    cover_indoor_temp_hint: "Per-cover sensor for comfort mode. Overrides global sensor.",
     cover_lock_sensor: "Lock sensor",
+    cover_lock_sensor_hint: "Window contact sensor. When open, cover moves to lock position (safety).",
     cover_lock_position: "Lock position",
+    cover_lock_position_hint: "Target position when window is open (100 = fully open).",
     cover_vent_sensor: "Vent sensor",
+    cover_vent_sensor_hint: "Tilt contact sensor. When tilted, cover moves to vent position.",
     cover_vent_position: "Vent position",
+    cover_vent_position_hint: "Target position when window is tilted (e.g. 30 for ventilation gap).",
     cover_inverted: "Inverted",
+    cover_inverted_hint: "Enable if 100% means closed (reversed motor direction).",
     cover_supports_tilt: "Supports tilt",
     cover_lock_tilt: "Lock tilt position",
     cover_vent_tilt: "Vent tilt position",
     cover_inverted_tilt: "Inverted tilt",
     cover_min_pos_change: "Min. position change",
+    cover_min_pos_change_hint: "Minimum position difference to trigger a move (prevents micro-adjustments).",
     cover_min_time: "Min. time between changes (s)",
+    cover_min_time_hint: "Minimum seconds between position changes (protects the motor).",
     cover_section_base: "General",
     cover_section_sensors: "Sensors",
     cover_section_advanced: "Advanced",
@@ -54,9 +64,12 @@ const I18N = {
     cover_add: "Add covers",
     // Facades
     facade_direction: "Direction",
+    facade_direction_hint: "Presets azimuth values with house rotation applied.",
     facade_azimuth_start: "Azimuth start",
     facade_azimuth_end: "Azimuth end",
+    facade_azimuth_hint: "Real compass bearings where sun enters/exits this facade.",
     facade_min_elevation: "Min. elevation",
+    facade_min_elevation_hint: "Minimum sun elevation for this facade to count as sun-exposed.",
     facade_covers: "Assigned covers",
     facade_add: "Add facade",
     facade_no_covers: "No covers assigned",
@@ -67,13 +80,16 @@ const I18N = {
     // Rules
     rule_priority: "Priority",
     rule_target_pos: "Target position",
+    rule_target_pos_hint: "Cover position when this rule matches (0 = closed, 100 = fully open).",
     rule_target_tilt: "Target tilt position",
     rule_operator: "Condition operator",
+    rule_operator_hint: "AND = all conditions must match. OR = any condition is enough.",
     rule_operator_and: "AND (all must match)",
     rule_operator_or: "OR (any must match)",
     rule_conditions: "Conditions",
     rule_facades: "Facades",
     rule_covers: "Covers",
+    rule_assignment_hint: "Limit this rule to specific facades/covers. Empty = applies to all covers.",
     rule_add: "Add rule",
     rule_add_condition: "Add condition",
     rule_no_conditions: "No conditions",
@@ -122,6 +138,9 @@ const I18N = {
     settings_section_house: "House",
     settings_section_sensors: "Sensors",
     settings_section_comfort: "Comfort",
+    settings_section_automation: "Automation",
+    settings_pause_duration: "Default pause duration (min)",
+    settings_pause_duration_hint: "How long automation pauses after manual cover operation. Can be overridden per cover.",
     settings_entity_placeholder: "e.g. sensor.outdoor_temperature",
   },
   de: {
@@ -147,20 +166,30 @@ const I18N = {
     yes: "Ja",
     no: "Nein",
     cover_facade: "Fassade",
+    cover_facade_hint: "Bestimmt, welche Fassadenregeln für dieses Rollo gelten.",
     cover_status: "Status",
     cover_pause_duration: "Pausendauer (Min.)",
+    cover_pause_duration_hint: "Wie lange die Automatik nach manueller Bedienung pausiert. Leer = globaler Standard.",
     cover_indoor_temp: "Innentemperatur-Sensor",
+    cover_indoor_temp_hint: "Sensor für den Komfortmodus dieses Rollos. Überschreibt den globalen Sensor.",
     cover_lock_sensor: "Sperr-Sensor",
+    cover_lock_sensor_hint: "Fensterkontakt. Bei geöffnetem Fenster fährt das Rollo auf Sperrposition (Sicherheit).",
     cover_lock_position: "Sperrposition",
+    cover_lock_position_hint: "Zielposition bei geöffnetem Fenster (100 = vollständig offen).",
     cover_vent_sensor: "Lüftungssensor",
+    cover_vent_sensor_hint: "Kippkontakt. Bei gekipptem Fenster fährt das Rollo auf Lüftungsposition.",
     cover_vent_position: "Lüftungsposition",
+    cover_vent_position_hint: "Zielposition bei gekipptem Fenster (z. B. 30 für Lüftungsspalt).",
     cover_inverted: "Invertiert",
+    cover_inverted_hint: "Aktivieren, wenn 100 % geschlossen bedeutet (umgekehrte Motorrichtung).",
     cover_supports_tilt: "Unterstützt Tilt",
     cover_lock_tilt: "Sperr-Tiltposition",
     cover_vent_tilt: "Lüftungs-Tiltposition",
     cover_inverted_tilt: "Invertierter Tilt",
     cover_min_pos_change: "Min. Positionsänderung",
+    cover_min_pos_change_hint: "Mindestabweichung für eine Fahrt (verhindert Mikrobewegungen).",
     cover_min_time: "Min. Zeit zwischen Änderungen (s)",
+    cover_min_time_hint: "Mindestabstand in Sekunden zwischen Positionsänderungen (schont den Motor).",
     cover_section_base: "Allgemein",
     cover_section_sensors: "Sensoren",
     cover_section_advanced: "Erweitert",
@@ -168,9 +197,12 @@ const I18N = {
     cover_auto_enabled: "Automatik aktiviert",
     cover_add: "Rollos hinzufügen",
     facade_direction: "Richtung",
+    facade_direction_hint: "Setzt Azimutwerte mit Hausrotation automatisch.",
     facade_azimuth_start: "Azimut Start",
     facade_azimuth_end: "Azimut Ende",
+    facade_azimuth_hint: "Echte Kompasspeilungen, an denen die Sonne die Fassade erreicht/verlässt.",
     facade_min_elevation: "Min. Elevation",
+    facade_min_elevation_hint: "Minimale Sonnenhöhe, damit diese Fassade als besonnt gilt.",
     facade_covers: "Zugewiesene Rollos",
     facade_add: "Fassade hinzufügen",
     facade_no_covers: "Keine Rollos zugewiesen",
@@ -180,13 +212,16 @@ const I18N = {
     facade_dir_west: "Westen",
     rule_priority: "Priorität",
     rule_target_pos: "Zielposition",
+    rule_target_pos_hint: "Position bei Regelübereinstimmung (0 = geschlossen, 100 = offen).",
     rule_target_tilt: "Ziel-Tiltposition",
     rule_operator: "Bedingungsoperator",
+    rule_operator_hint: "UND = alle Bedingungen müssen zutreffen. ODER = eine reicht.",
     rule_operator_and: "UND (alle müssen zutreffen)",
     rule_operator_or: "ODER (eine muss zutreffen)",
     rule_conditions: "Bedingungen",
     rule_facades: "Fassaden",
     rule_covers: "Rollos",
+    rule_assignment_hint: "Regel auf bestimmte Fassaden/Rollos beschränken. Leer = gilt für alle.",
     rule_add: "Regel hinzufügen",
     rule_add_condition: "Bedingung hinzufügen",
     rule_no_conditions: "Keine Bedingungen",
@@ -231,6 +266,9 @@ const I18N = {
     settings_section_house: "Haus",
     settings_section_sensors: "Sensoren",
     settings_section_comfort: "Komfort",
+    settings_section_automation: "Automatik",
+    settings_pause_duration: "Standard-Pausendauer (Min.)",
+    settings_pause_duration_hint: "Wie lange die Automatik nach manueller Bedienung pausiert. Kann pro Rollo überschrieben werden.",
     settings_entity_placeholder: "z. B. sensor.außentemperatur",
   }
 };
@@ -1033,6 +1071,11 @@ class CoverAutomaticPanel extends HTMLElement {
     return s[key] !== undefined ? s[key] : ((I18N.en[section] || {})[key] || key);
   }
 
+  _hint(key) {
+    const text = this._t(key);
+    return text !== key ? `<div style="font-size:12px;color:var(--ca-secondary-text);margin-top:4px">${text}</div>` : "";
+  }
+
   /* ---------- Lifecycle ---------- */
   _initialize() {
     this._initialized = true;
@@ -1311,10 +1354,14 @@ class CoverAutomaticPanel extends HTMLElement {
         s += this._renderToggle("cover_auto_enabled", cover.auto_enabled, "cover-toggle", cover.entity_id, "auto_enabled");
         // Facade
         s += this._renderFacadeDropdown(cover);
+        s += this._hint("cover_facade_hint");
         // Pause duration
+        const globalPause = (this._config.settings || {}).pause_duration || 10;
+        const coverPause = cover.pause_duration != null ? cover.pause_duration : "";
         s += `<div class="form-group">
           <label>${this._t("cover_pause_duration")}</label>
-          <input type="number" min="0" max="480" value="${cover.pause_duration || 120}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="pause_duration">
+          <input type="number" min="0" max="480" value="${coverPause}" placeholder="${globalPause}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="pause_duration">
+          ${this._hint("cover_pause_duration_hint")}
         </div>`;
         return s;
       });
@@ -1325,22 +1372,27 @@ class CoverAutomaticPanel extends HTMLElement {
         s += `<div class="form-group">
           <label>${this._t("cover_indoor_temp")}</label>
           ${this._renderCoverEntitySelect("indoor_temp_sensor", cover.indoor_temp_sensor, cover.entity_id, "sensor", "temperature")}
+          ${this._hint("cover_indoor_temp_hint")}
         </div>`;
         s += `<div class="form-group">
           <label>${this._t("cover_lock_sensor")}</label>
           ${this._renderCoverEntitySelect("lock_sensor", cover.lock_sensor, cover.entity_id, "binary_sensor", null)}
+          ${this._hint("cover_lock_sensor_hint")}
         </div>`;
         s += `<div class="form-group">
           <label>${this._t("cover_lock_position")}</label>
           <input type="number" min="0" max="100" value="${cover.lock_position}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="lock_position">
+          ${this._hint("cover_lock_position_hint")}
         </div>`;
         s += `<div class="form-group">
           <label>${this._t("cover_vent_sensor")}</label>
           ${this._renderCoverEntitySelect("vent_sensor", cover.vent_sensor, cover.entity_id, "binary_sensor", null)}
+          ${this._hint("cover_vent_sensor_hint")}
         </div>`;
         s += `<div class="form-group">
           <label>${this._t("cover_vent_position")}</label>
           <input type="number" min="0" max="100" value="${cover.vent_position}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="vent_position">
+          ${this._hint("cover_vent_position_hint")}
         </div>`;
         return s;
       });
@@ -1349,13 +1401,16 @@ class CoverAutomaticPanel extends HTMLElement {
       html += this._renderSection("advanced", this._t("cover_section_advanced"), () => {
         let s = '';
         s += this._renderToggle("cover_inverted", cover.inverted, "cover-toggle", cover.entity_id, "inverted");
+        s += this._hint("cover_inverted_hint");
         s += `<div class="form-group">
           <label>${this._t("cover_min_pos_change")}</label>
           <input type="number" min="1" max="50" value="${cover.min_position_change}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_position_change">
+          ${this._hint("cover_min_pos_change_hint")}
         </div>`;
         s += `<div class="form-group">
           <label>${this._t("cover_min_time")}</label>
           <input type="number" min="60" max="3600" value="${cover.min_time_between_changes}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_time_between_changes">
+          ${this._hint("cover_min_time_hint")}
         </div>`;
         return s;
       });
@@ -1496,6 +1551,7 @@ class CoverAutomaticPanel extends HTMLElement {
         <select data-facade-field="direction">
           ${["north","east","south","west"].map(d => `<option value="${d}"${f.direction===d?" selected":""}>${this._t("facade_dir_"+d)}</option>`).join("")}
         </select>
+        ${this._hint("facade_direction_hint")}
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -1507,9 +1563,11 @@ class CoverAutomaticPanel extends HTMLElement {
           <input type="number" min="0" max="360" step="0.1" value="${f.azimuth_end}" data-facade-field="azimuth_end">
         </div>
       </div>
+      ${this._hint("facade_azimuth_hint")}
       <div class="form-group">
         <label>${this._t("facade_min_elevation")}</label>
         <input type="number" min="0" max="90" step="0.5" value="${f.min_elevation}" data-facade-field="min_elevation">
+        ${this._hint("facade_min_elevation_hint")}
       </div>
       <div class="form-group">
         <label>${this._t("facade_covers")}</label>
@@ -1542,6 +1600,7 @@ class CoverAutomaticPanel extends HTMLElement {
         <select data-facade-field="direction">
           ${["north","east","south","west"].map(d => `<option value="${d}"${d==="south"?" selected":""}>${this._t("facade_dir_"+d)}</option>`).join("")}
         </select>
+        ${this._hint("facade_direction_hint")}
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -1553,9 +1612,11 @@ class CoverAutomaticPanel extends HTMLElement {
           <input type="number" min="0" max="360" step="0.1" value="225" data-facade-field="azimuth_end">
         </div>
       </div>
+      ${this._hint("facade_azimuth_hint")}
       <div class="form-group">
         <label>${this._t("facade_min_elevation")}</label>
         <input type="number" min="0" max="90" step="0.5" value="0" data-facade-field="min_elevation">
+        ${this._hint("facade_min_elevation_hint")}
       </div>
       <div class="form-group">
         <label>${this._t("facade_covers")}</label>
@@ -1658,6 +1719,7 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<div class="form-group">
       <label>${this._t("rule_target_pos")}</label>
       <input type="number" min="0" max="100" value="${rule.target_position}" data-action="rule-field" data-id="${this._esc(rule.id)}" data-field="target_position">
+      ${this._hint("rule_target_pos_hint")}
     </div>`;
     html += `<div class="form-group">
       <label>${this._t("rule_target_tilt")}</label>
@@ -1671,6 +1733,7 @@ class CoverAutomaticPanel extends HTMLElement {
         <option value="and"${rule.condition_operator==="and"?" selected":""}>${this._t("rule_operator_and")}</option>
         <option value="or"${rule.condition_operator==="or"?" selected":""}>${this._t("rule_operator_or")}</option>
       </select>
+      ${this._hint("rule_operator_hint")}
     </div>`;
 
     // Facades multi-select
@@ -1692,6 +1755,7 @@ class CoverAutomaticPanel extends HTMLElement {
       html += `<button class="ms-item${sel}" data-action="rule-cover-toggle" data-rule="${this._esc(rule.id)}" data-cover="${this._esc(c.entity_id)}">${this._esc(c.name)}</button>`;
     }
     html += '</div></div>';
+    html += this._hint("rule_assignment_hint");
 
     // Conditions
     html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px">${this._t("rule_conditions")}</div>`;
@@ -2032,6 +2096,14 @@ class CoverAutomaticPanel extends HTMLElement {
       <input type="number" step="0.5" value="${s.comfort_temp_max != null ? s.comfort_temp_max : 25}" data-settings-field="comfort_temp_max">
     </div>`;
     html += '</div>';
+
+    // Automation section
+    html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_automation")}</div>`;
+    html += `<div class="form-group">
+      <label>${this._t("settings_pause_duration")}</label>
+      <input type="number" min="1" max="480" value="${s.pause_duration != null ? s.pause_duration : 10}" data-settings-field="pause_duration">
+      <div style="${hintStyle}">${this._t("settings_pause_duration_hint")}</div>
+    </div>`;
 
     // House section
     html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_house")}</div>`;

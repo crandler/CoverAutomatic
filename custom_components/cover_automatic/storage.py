@@ -178,6 +178,16 @@ class CoverAutomaticStorage:
         self._data["comfort_temp_max"] = value
 
     @property
+    def pause_duration(self) -> int:
+        """Get global default pause duration in seconds."""
+        return self._data.get("pause_duration", 600)
+
+    @pause_duration.setter
+    def pause_duration(self, value: int) -> None:
+        """Set global default pause duration in seconds."""
+        self._data["pause_duration"] = int(value)
+
+    @property
     def house_rotation(self) -> float:
         """Get global house rotation offset in degrees."""
         return self._data.get("house_rotation", 0.0)

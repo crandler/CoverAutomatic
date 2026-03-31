@@ -74,7 +74,7 @@ class TestCoverConfig:
             entity_id="cover.test",
             name="Test",
         )
-        assert cover.pause_duration == 120
+        assert cover.pause_duration is None
         assert cover.lock_position == 100
         assert cover.vent_position == 30
         assert cover.inverted is False

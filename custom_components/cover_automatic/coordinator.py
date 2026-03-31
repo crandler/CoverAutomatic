@@ -490,7 +490,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def pause_cover(self, cover: CoverConfig) -> None:
         """Pause automation for a cover."""
         self._cover_states[cover.entity_id] = CoverStatus.PAUSED
-        pause_until = dt_util.now().timestamp() + (cover.pause_duration * 60)
+        duration = cover.pause_duration or self.storage.pause_duration
+        pause_until = dt_util.now().timestamp() + (duration * 60)
         self.storage.update_cover_status(
             cover.entity_id, CoverStatus.PAUSED.value, pause_until
         )

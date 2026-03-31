@@ -203,7 +203,7 @@ class CoverConfig:
     name: str
     facade_id: str | None = None
     auto_enabled: bool = True
-    pause_duration: int = 120
+    pause_duration: int | None = None
     status: CoverStatus = CoverStatus.AUTO
     pause_until: float | None = None
     lock_sensor: str | None = None
@@ -267,7 +267,7 @@ class CoverConfig:
             name=data["name"],
             facade_id=data.get("facade_id"),
             auto_enabled=data.get("auto_enabled", True),
-            pause_duration=data.get("pause_duration", 120),
+            pause_duration=data.get("pause_duration"),
             status=status,
             pause_until=data.get("pause_until"),
             lock_sensor=data.get("lock_sensor"),
