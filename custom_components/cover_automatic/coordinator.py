@@ -574,7 +574,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Check vent sensor state - also above auto_enabled
             if self._is_sensor_open(cover_raw, "vent_sensor"):
-                if self._cover_states.get(entity_id) not in (CoverStatus.LOCKED, CoverStatus.VENTING):
+                if self._cover_states.get(entity_id) != CoverStatus.VENTING:
                     vent_pos = cover_raw.get("vent_position", 30)
                     current = self._get_current_position(entity_id)
                     if current is not None and current < vent_pos:

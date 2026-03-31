@@ -151,9 +151,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.7.0
+1.7.1
 
 ## Changelog
+
+### 1.7.1 (2026-03-31)
+
+- Fix vent sensor stuck as LOCKED after upgrade: sync now corrects old LOCKED status to VENTING when only vent sensor is open
 
 ### 1.7.0 (2026-03-31)
 
