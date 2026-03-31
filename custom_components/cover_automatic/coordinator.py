@@ -299,11 +299,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._unlock_cover(cover_id)
                 else:
                     # Lock sensor closed but vent still open -> switch to vent position
-                    self._lock_cover(
-                        cover_id,
-                        cover_raw.get("vent_position", 30),
-                        lock_tilt=cover_raw.get("vent_tilt_position"),
-                    )
+                    vent_pos = cover_raw.get("vent_position", 30)
+                    current = self._get_current_position(cover_id)
+                    if current is None or current < vent_pos:
+                        self._lock_cover(cover_id, vent_pos, lock_tilt=cover_raw.get("vent_tilt_position"))
+                    else:
+                        self._cover_states[cover_id] = CoverStatus.LOCKED
+                        self.storage.update_cover_status(cover_id, CoverStatus.LOCKED.value, None)
 
         # Handle vent sensor covers (vent open -> ventilation position)
         for cover_id in vent_covers:
@@ -318,13 +320,34 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             current_status = self._cover_states.get(cover_id, CoverStatus.AUTO)
 
             if is_open and current_status != CoverStatus.LOCKED:
-                self._lock_cover(
-                    cover_id,
-                    cover_raw.get("vent_position", 30),
-                    lock_tilt=cover_raw.get("vent_tilt_position"),
-                )
+                vent_pos = cover_raw.get("vent_position", 30)
+                current = self._get_current_position(cover_id)
+                if current is None or current < vent_pos:
+                    self._lock_cover(cover_id, vent_pos, lock_tilt=cover_raw.get("vent_tilt_position"))
+                else:
+                    # Already above vent position, just mark as locked
+                    if cover_id not in self._pre_lock_states:
+                        self._pre_lock_states[cover_id] = current_status
+                    self._cover_states[cover_id] = CoverStatus.LOCKED
+                    self.storage.update_cover_status(cover_id, CoverStatus.LOCKED.value, None)
+                    if self.data is not None:
+                        self.async_set_updated_data(self.data)
             elif not is_open and current_status == CoverStatus.LOCKED:
                 self._unlock_cover(cover_id)
+
+    def _get_current_position(self, entity_id: str) -> int | None:
+        """Get current cover position (handles inverted covers)."""
+        state = self.hass.states.get(entity_id)
+        if state is None:
+            return None
+        try:
+            pos = int(state.attributes.get("current_position", 0))
+        except (ValueError, TypeError):
+            return None
+        cover_raw = self.storage.get_cover_raw(entity_id)
+        if cover_raw and cover_raw.get("inverted", False):
+            pos = 100 - pos
+        return pos
 
     def _lock_cover(
         self, entity_id: str, lock_position: int, *, lock_tilt: int | None = None
@@ -537,11 +560,14 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Check vent sensor state - also above auto_enabled
             if self._is_sensor_open(cover_raw, "vent_sensor"):
                 if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
-                    self._lock_cover(
-                        entity_id,
-                        cover_raw.get("vent_position", 30),
-                        lock_tilt=cover_raw.get("vent_tilt_position"),
-                    )
+                    vent_pos = cover_raw.get("vent_position", 30)
+                    current = self._get_current_position(entity_id)
+                    if current is None or current < vent_pos:
+                        self._lock_cover(entity_id, vent_pos, lock_tilt=cover_raw.get("vent_tilt_position"))
+                    else:
+                        self._pre_lock_states[entity_id] = self._cover_states.get(entity_id, CoverStatus.AUTO)
+                        self._cover_states[entity_id] = CoverStatus.LOCKED
+                        self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
                 continue
 
             # If was locked but both sensors now closed, unlock

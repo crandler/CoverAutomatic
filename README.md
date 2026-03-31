@@ -151,9 +151,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.6.1
+1.6.2
 
 ## Changelog
+
+### 1.6.2 (2026-03-31)
+
+- Fix vent sensor: only move to vent position if cover is currently below it (don't close an open cover)
 
 ### 1.6.1 (2026-03-31)
 
