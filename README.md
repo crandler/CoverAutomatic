@@ -151,9 +151,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.4.0
+1.4.1
 
 ## Changelog
+
+### 1.4.1 (2026-03-31)
+
+- Fix panel stuck on loading screen after config fetch (partial render skipped full render when shell had no data-region elements)
 
 ### 1.4.0 (2026-03-31)
 

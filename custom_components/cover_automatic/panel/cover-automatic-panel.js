@@ -1087,9 +1087,9 @@ class CoverAutomaticPanel extends HTMLElement {
   _render() {
     const root = this.shadowRoot;
 
-    // Full render when no shell exists, or loading/error states
+    // Full render when no shell exists, loading/error, or shell has no regions yet
     const shell = root.querySelector(".panel-container");
-    if (!shell || !this._config || this._error) {
+    if (!shell || !this._config || this._error || !shell.querySelector("[data-region]")) {
       this._fullRender();
       return;
     }
