@@ -230,7 +230,7 @@ class RuleEngine:
 
     def _eval_sun_elevation(self, condition: Condition, *, above: bool) -> bool:
         """Evaluate sun elevation above/below threshold."""
-        threshold = condition.params.get("value", 0)
+        threshold = condition.params.get("elevation") or condition.params.get("value", 0)
         position = get_sun_position(self.hass)
         if position is None:
             return False
@@ -239,7 +239,7 @@ class RuleEngine:
     def _eval_temp_threshold(self, condition: Condition, *, above: bool) -> bool:
         """Evaluate outdoor temperature above/below threshold."""
         sensor_id = condition.params.get("sensor") or self.storage.outdoor_temp_sensor
-        threshold = condition.params.get("value", 0)
+        threshold = condition.params.get("temperature") or condition.params.get("value", 0)
 
         if not sensor_id:
             return False
@@ -256,8 +256,8 @@ class RuleEngine:
 
     def _eval_time_between(self, condition: Condition) -> bool:
         """Evaluate time_between condition."""
-        start_str = condition.params.get("start", "00:00")
-        end_str = condition.params.get("end", "23:59")
+        start_str = condition.params.get("start_time") or condition.params.get("start", "00:00")
+        end_str = condition.params.get("end_time") or condition.params.get("end", "23:59")
 
         try:
             start_parts = start_str.split(":")
@@ -296,7 +296,7 @@ class RuleEngine:
 
     def _eval_state_is(self, condition: Condition) -> bool:
         """Evaluate state_is condition."""
-        entity_id = condition.params.get("entity")
+        entity_id = condition.params.get("entity_id") or condition.params.get("entity")
         expected_state = condition.params.get("state")
 
         if not entity_id or expected_state is None:
@@ -330,7 +330,9 @@ class RuleEngine:
         Checks if current weather matches expected conditions.
         Supports: sunny, cloudy, rainy, snowy, windy, clear
         """
-        expected_states = condition.params.get("states", [])
+        # Panel sends single "weather" key, legacy uses "states" list
+        weather_val = condition.params.get("weather")
+        expected_states = [weather_val] if weather_val else condition.params.get("states", [])
         if isinstance(expected_states, str):
             expected_states = [expected_states]
 

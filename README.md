@@ -151,9 +151,14 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.9.0
+1.9.1
 
 ## Changelog
+
+### 1.9.1 (2026-03-31)
+
+- Fix critical param key mismatch between panel and engine for: time_between, sun_elevation, temperature, state_is, weather_is conditions
+- All conditions now accept both panel keys and legacy keys
 
 ### 1.9.0 (2026-03-31)
 
