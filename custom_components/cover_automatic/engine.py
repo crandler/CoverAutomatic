@@ -30,10 +30,13 @@ _WEATHER_MAP: dict[str, set[str]] = {
 class RuleEngine:
     """Evaluate rules and determine cover positions."""
 
+    COMFORT_HYSTERESIS = 0.5
+
     def __init__(self, hass: HomeAssistant, storage: CoverAutomaticStorage) -> None:
         """Initialize rule engine."""
         self.hass = hass
         self.storage = storage
+        self._last_comfort_mode: dict[str, ComfortMode] = {}
 
     def evaluate_cover(self, cover: CoverConfig) -> CoverTarget | None:
         """Evaluate rules for a cover and return target position/tilt.
@@ -167,12 +170,12 @@ class RuleEngine:
         if not is_sun_on_facade(self.hass, facade):
             return False
 
-        # Auto comfort check: skip shading in HEATING mode
+        # Auto comfort check: only shade in COOLING mode
         comfort_mode = self._get_comfort_mode(cover)
-        if comfort_mode == ComfortMode.HEATING:
+        if comfort_mode is not None and comfort_mode != ComfortMode.COOLING:
             _LOGGER.debug(
-                "[%s] sun_on_facade: skipping shading (HEATING mode)",
-                cover.entity_id,
+                "[%s] sun_on_facade: skipping shading (%s mode)",
+                cover.entity_id, comfort_mode.value,
             )
             return False
 
@@ -180,6 +183,10 @@ class RuleEngine:
 
     def _get_comfort_mode(self, cover: CoverConfig) -> ComfortMode | None:
         """Determine comfort mode from indoor temperature sensor.
+
+        Applies hysteresis to prevent oscillation at threshold boundaries:
+        - Exit HEATING only when temp >= comfort_min + hysteresis
+        - Exit COOLING only when temp <= comfort_max - hysteresis
 
         Returns None if no sensor is configured or unavailable.
         """
@@ -196,11 +203,29 @@ class RuleEngine:
         except (ValueError, TypeError):
             return None
 
-        if temp >= self.storage.comfort_temp_max:
-            return ComfortMode.COOLING
-        if temp <= self.storage.comfort_temp_min:
-            return ComfortMode.HEATING
-        return ComfortMode.NEUTRAL
+        h = self.COMFORT_HYSTERESIS
+        prev = self._last_comfort_mode.get(cover.entity_id)
+        comfort_min = self.storage.comfort_temp_min
+        comfort_max = self.storage.comfort_temp_max
+
+        if prev == ComfortMode.HEATING:
+            mode = ComfortMode.HEATING if temp < comfort_min + h else ComfortMode.NEUTRAL
+        elif prev == ComfortMode.COOLING:
+            mode = ComfortMode.COOLING if temp > comfort_max - h else ComfortMode.NEUTRAL
+        elif temp >= comfort_max:
+            mode = ComfortMode.COOLING
+        elif temp <= comfort_min:
+            mode = ComfortMode.HEATING
+        else:
+            mode = ComfortMode.NEUTRAL
+
+        if mode != prev:
+            _LOGGER.debug(
+                "[%s] Comfort mode: %s -> %s (%.1f°, range %.1f-%.1f)",
+                cover.entity_id, prev, mode.value, temp, comfort_min, comfort_max,
+            )
+        self._last_comfort_mode[cover.entity_id] = mode
+        return mode
 
     def _eval_sun_elevation(self, condition: Condition, *, above: bool) -> bool:
         """Evaluate sun elevation above/below threshold."""

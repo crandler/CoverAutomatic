@@ -785,10 +785,10 @@ class TestSunOnFacadeCondition:
         assert engine._eval_sun_on_facade(condition, cover) is True
 
     @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
-    def test_eval_sun_on_facade_shades_in_neutral_mode(
+    def test_eval_sun_on_facade_skips_in_neutral_mode(
         self, mock_is_sun_on_facade, engine, mock_storage
     ) -> None:
-        """Test sun_on_facade returns True in NEUTRAL mode (prevention)."""
+        """Test sun_on_facade returns False in NEUTRAL mode (keep current position)."""
         facade = Facade(
             id="south", name="South", azimuth_start=135.0,
             azimuth_end=225.0, direction="south",
@@ -803,7 +803,7 @@ class TestSunOnFacadeCondition:
         cover = CoverConfig(entity_id="cover.test", name="Test", facade_id="south")
         condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
 
-        assert engine._eval_sun_on_facade(condition, cover) is True
+        assert engine._eval_sun_on_facade(condition, cover) is False
 
     @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
     def test_eval_sun_on_facade_no_sensor_always_shades(

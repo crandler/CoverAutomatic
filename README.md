@@ -151,9 +151,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.7.3
+1.8.0
 
 ## Changelog
+
+### 1.8.0 (2026-03-31)
+
+- Comfort shading: only shade in COOLING mode (above max). NEUTRAL (between min/max) now keeps current position instead of shading.
+- Comfort temperature hysteresis (0.5 degree): prevents oscillation at threshold boundaries
+- Detailed logging for all cover state changes, rule matches, and comfort mode transitions
 
 ### 1.7.3 (2026-03-31)
 
