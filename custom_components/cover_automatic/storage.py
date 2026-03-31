@@ -66,7 +66,15 @@ class CoverAutomaticStorage:
             }
         else:
             self._data = data
+            self._migrate()
         self._invalidate_cache()
+
+    def _migrate(self) -> None:
+        """Run data migrations for older storage versions."""
+        # v1.6.0: Remove per-cover pause_duration if it matches the old default (120)
+        for cover_data in self._data.get("covers", {}).values():
+            if cover_data.get("pause_duration") == 120:
+                cover_data["pause_duration"] = None
 
     async def async_save(self) -> None:
         """Save data to storage.

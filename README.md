@@ -151,9 +151,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.6.0
+1.6.1
 
 ## Changelog
+
+### 1.6.1 (2026-03-31)
+
+- Auto-migrate existing covers with pause_duration 120 (old default) to null (use global default)
 
 ### 1.6.0 (2026-03-31)
 
