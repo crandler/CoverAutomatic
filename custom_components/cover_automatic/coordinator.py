@@ -313,8 +313,26 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._unlock_cover(cover_id)
                 else:
                     _LOGGER.info("[%s] Lock sensor closed, vent still open -> VENTING", cover_id)
+                    # Move to vent position if currently below it
+                    vent_pos = cover_raw.get("vent_position", 30)
+                    current = self._get_current_position(cover_id)
+                    if current is not None and current < vent_pos:
+                        inverted = cover_raw.get("inverted", False)
+                        actual = (100 - vent_pos) if inverted else vent_pos
+                        self._last_positions[cover_id] = actual
+                        self._last_command_time[cover_id] = time_mod.monotonic()
+                        self.hass.async_create_task(
+                            self.hass.services.async_call(
+                                "cover", "set_cover_position",
+                                {"entity_id": cover_id, "position": actual},
+                                blocking=False,
+                            )
+                        )
+                    self._pre_lock_states.pop(cover_id, None)
                     self._cover_states[cover_id] = CoverStatus.VENTING
                     self.storage.update_cover_status(cover_id, CoverStatus.VENTING.value, None)
+                    if self.data is not None:
+                        self.async_set_updated_data(self.data)
 
         # Handle vent sensor covers (vent open -> min position, automation continues)
         for cover_id in vent_covers:
@@ -453,6 +471,19 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.async_set_updated_data(self.data)
             return
 
+        # Restore VENTING if vent sensor is still open
+        if previous == CoverStatus.VENTING:
+            cover_raw = self.storage.get_cover_raw(entity_id)
+            if cover_raw and self._is_sensor_open(cover_raw, "vent_sensor"):
+                self._cover_states[entity_id] = CoverStatus.VENTING
+                self.storage.update_cover_status(
+                    entity_id, CoverStatus.VENTING.value, None
+                )
+                self._update_last_position_from_state(entity_id)
+                if self.data is not None:
+                    self.async_set_updated_data(self.data)
+                return
+
         self._cover_states[entity_id] = CoverStatus.AUTO
         self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
         # Update expected position to current to prevent false override
@@ -528,7 +559,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if position_mismatch or tilt_mismatch:
             if cover.auto_enabled and self._cover_states.get(entity_id) == CoverStatus.AUTO:
                 _LOGGER.info(
-                    "[%s] Manual override -> PAUSED (expected pos %s, got %s)",
+                    "[%s] Manual override -> PAUSED (expected pos %s, got %s, expected tilt %s)",
                     entity_id,
                     expected_position,
                     current_position,

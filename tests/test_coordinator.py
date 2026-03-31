@@ -725,6 +725,45 @@ class TestUnlockCoverRestore:
         # Must NOT schedule refresh (stays MANUAL)
         coordinator.async_request_refresh.assert_not_awaited()
 
+    def test_unlock_restores_venting_when_sensor_still_open(
+        self, coordinator, mock_storage
+    ) -> None:
+        """When previous was VENTING and vent sensor still open, restores VENTING."""
+        coordinator._pre_lock_states["cover.test"] = CoverStatus.VENTING
+        coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
+        mock_storage.get_cover_raw.return_value = {"vent_sensor": "binary_sensor.vent"}
+        coordinator.hass.states.get.side_effect = lambda eid: {
+            "binary_sensor.vent": MockState("on"),
+            "cover.test": MockState("open", {"current_position": 30}),
+        }.get(eid)
+
+        coordinator._unlock_cover("cover.test")
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
+        mock_storage.update_cover_status.assert_called_with(
+            "cover.test", CoverStatus.VENTING.value, None
+        )
+        coordinator.async_request_refresh.assert_not_awaited()
+
+    def test_unlock_restores_auto_when_venting_sensor_closed(
+        self, coordinator, mock_storage
+    ) -> None:
+        """When previous was VENTING but vent sensor now closed, restores AUTO."""
+        coordinator._pre_lock_states["cover.test"] = CoverStatus.VENTING
+        coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
+        mock_storage.get_cover_raw.return_value = {"vent_sensor": "binary_sensor.vent"}
+        coordinator.hass.states.get.side_effect = lambda eid: {
+            "binary_sensor.vent": MockState("off"),
+            "cover.test": MockState("open", {"current_position": 30}),
+        }.get(eid)
+
+        coordinator._unlock_cover("cover.test")
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
+        mock_storage.update_cover_status.assert_called_with(
+            "cover.test", CoverStatus.AUTO.value, None
+        )
+
 
 class TestManualOverrideDetection:
     """Tests for _handle_cover_state_change manual override detection."""
@@ -1581,3 +1620,45 @@ class TestVentSensorWithTilt:
         )
         # Lock closed but vent still open -> switches to VENTING
         assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
+        # Must update UI
+        coordinator.async_set_updated_data.assert_called()
+
+    def test_lock_to_vent_moves_cover_if_below_vent_position(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test lock->vent transition moves cover to vent_position if below it."""
+        coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
+        coordinator._pre_lock_states["cover.test"] = CoverStatus.AUTO
+        cover_raw = {
+            "lock_position": 100,
+            "vent_position": 30,
+            "vent_sensor": "binary_sensor.vent",
+            "inverted": False,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        # Vent sensor open, cover at position 10 (below vent_position 30)
+        mock_hass.states.get.side_effect = lambda eid: {
+            "binary_sensor.vent": MockState("on"),
+            "cover.test": MockState("open", {"current_position": 10}),
+        }.get(eid)
+        mock_hass.async_create_task = MagicMock()
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod"):
+            coordinator._handle_contact_sensor_change(
+                "binary_sensor.window",
+                ["cover.test"],
+                [],
+                MockState("on"),
+                MockState("off"),
+            )
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
+        assert coordinator._last_positions["cover.test"] == 30
+        # Must issue move command
+        mock_hass.services.async_call.assert_called_with(
+            "cover", "set_cover_position",
+            {"entity_id": "cover.test", "position": 30},
+            blocking=False,
+        )
+        # Must clean up pre_lock_states
+        assert "cover.test" not in coordinator._pre_lock_states

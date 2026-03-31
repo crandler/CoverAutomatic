@@ -109,6 +109,7 @@ const I18N = {
     cond_time_after_sunset: "Time after sunset",
     cond_state_is: "State is",
     cond_weather_is: "Weather is",
+    cond_day_of_week: "Day of week",
     // Condition params
     param_elevation: "Elevation",
     param_temperature: "Temperature",
@@ -119,7 +120,9 @@ const I18N = {
     param_state: "State",
     param_weather: "Weather condition",
     param_mode: "Mode",
+    param_days: "Days",
     param_select_type: "Select condition type",
+    day_mon: "Mon", day_tue: "Tue", day_wed: "Wed", day_thu: "Thu", day_fri: "Fri", day_sat: "Sat", day_sun: "Sun",
     // Scenarios
     scenario_add: "Add scenario",
     scenario_icon: "Icon (mdi:...)",
@@ -243,6 +246,7 @@ const I18N = {
     cond_time_after_sunset: "Zeit nach Sonnenuntergang",
     cond_state_is: "Status ist",
     cond_weather_is: "Wetter ist",
+    cond_day_of_week: "Wochentag",
     param_elevation: "Elevation",
     param_temperature: "Temperatur",
     param_start_time: "Startzeit",
@@ -252,7 +256,9 @@ const I18N = {
     param_state: "Status",
     param_weather: "Wetterbedingung",
     param_mode: "Modus",
+    param_days: "Tage",
     param_select_type: "Bedingungstyp wählen",
+    day_mon: "Mo", day_tue: "Di", day_wed: "Mi", day_thu: "Do", day_fri: "Fr", day_sat: "Sa", day_sun: "So",
     scenario_add: "Szenario hinzufügen",
     scenario_icon: "Icon (mdi:...)",
     scenario_rules_disabled: "Deaktivierte Regeln",
@@ -306,7 +312,8 @@ const CONDITION_PARAMS = {
     { key: "entity_id", type: "text", default: "" },
     { key: "state", type: "text", default: "on" }
   ],
-  weather_is: [{ key: "weather", type: "select", options: ["sunny", "cloudy", "partlycloudy", "rainy", "snowy", "windy", "fog", "clear-night"], default: "sunny" }]
+  weather_is: [{ key: "weather", type: "select", options: ["sunny", "cloudy", "partlycloudy", "rainy", "snowy", "windy", "fog", "clear-night"], default: "sunny" }],
+  day_of_week: [{ key: "days", type: "dayselect", default: ["mon","tue","wed","thu","fri"] }]
 };
 
 const FACADE_PRESETS = {
@@ -823,6 +830,15 @@ const PANEL_STYLES = `
     gap: 8px;
   }
   .condition-card .cond-params .form-group { margin-bottom: 0; }
+  .day-select { display: flex; gap: 4px; flex-wrap: wrap; }
+  .day-btn {
+    padding: 4px 8px; border: 1px solid var(--ca-border); border-radius: 4px;
+    background: var(--ca-card-bg); color: var(--ca-text); cursor: pointer;
+    font-size: 13px; min-width: 36px; text-align: center;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .day-btn:hover { border-color: var(--ca-primary); }
+  .day-btn.selected { background: var(--ca-primary); color: #fff; border-color: var(--ca-primary); }
 
   /* Scenario card */
   .scenario-card {
@@ -1827,6 +1843,15 @@ class CoverAutomaticPanel extends HTMLElement {
           html += '</select>';
         } else if (p.type === "time") {
           html += `<input type="time" value="${this._esc(String(val))}" data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
+        } else if (p.type === "dayselect") {
+          const ALL_DAYS = ["mon","tue","wed","thu","fri","sat","sun"];
+          const selected = Array.isArray(val) ? val : p.default;
+          html += `<div class="day-select" data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
+          for (const d of ALL_DAYS) {
+            const active = selected.includes(d);
+            html += `<button type="button" class="day-btn${active ? " selected" : ""}" data-action="day-toggle" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}" data-day="${d}">${this._t("day_" + d)}</button>`;
+          }
+          html += '</div>';
         } else if (p.type === "number") {
           html += `<input type="number" value="${val}"${p.step ? ' step="' + p.step + '"' : ""} data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
         } else {
@@ -2236,6 +2261,7 @@ class CoverAutomaticPanel extends HTMLElement {
       case "facade-add-cancel": this._addingFacade = false; this._render(); break;
       case "facade-edit": this._editingFacade = actionEl.dataset.id; this._render(); break;
       case "facade-edit-cancel": this._editingFacade = null; this._render(); break;
+      case "day-toggle": this._onDayToggle(actionEl); break;
       case "facade-cover-toggle": actionEl.classList.toggle("selected"); break;
       case "facade-add-save": this._onFacadeAddSave(actionEl); break;
       case "facade-edit-save": this._onFacadeEditSave(actionEl); break;
@@ -2578,6 +2604,26 @@ class CoverAutomaticPanel extends HTMLElement {
     }
   }
 
+  _onDayToggle(el) {
+    const ruleId = el.dataset.rule;
+    const idx = parseInt(el.dataset.idx, 10);
+    const key = el.dataset.key;
+    const day = el.dataset.day;
+    const rule = (this._config.rules || {})[ruleId];
+    if (rule && rule.conditions && rule.conditions[idx]) {
+      if (!rule.conditions[idx].params) rule.conditions[idx].params = {};
+      let days = rule.conditions[idx].params[key];
+      if (!Array.isArray(days)) days = [];
+      if (days.includes(day)) {
+        days = days.filter(d => d !== day);
+      } else {
+        days.push(day);
+      }
+      rule.conditions[idx].params[key] = days;
+      el.classList.toggle("selected");
+    }
+  }
+
   async _onScenarioActivate(scenarioId) {
     try {
       const result = await this._ws("cover_automatic/scenario/update", { scenario_id: scenarioId, activate: true });
@@ -2665,7 +2711,7 @@ class CoverAutomaticPanel extends HTMLElement {
     const opEl = root.querySelector(`[data-action="rule-field"][data-id="${ruleId}"][data-field="condition_operator"]`);
 
     const name = nameEl ? nameEl.value.trim() : rule.name;
-    const tp = tpEl ? parseInt(tpEl.value, 10) : rule.target_position;
+    const tp = tpEl && tpEl.value !== "" ? parseInt(tpEl.value, 10) : rule.target_position;
     const ttpVal = ttpEl ? ttpEl.value : null;
     const ttp = (ttpVal !== "" && ttpVal != null) ? parseInt(ttpVal, 10) : null;
     const op = opEl ? opEl.value : rule.condition_operator;
