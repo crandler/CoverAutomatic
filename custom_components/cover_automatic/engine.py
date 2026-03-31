@@ -58,11 +58,16 @@ class RuleEngine:
                 matching_rules.append((rule.priority, rule.id, rule))
 
         if not matching_rules:
+            _LOGGER.debug("[%s] No rule matched", cover.entity_id)
             return None
 
         # Sort by priority desc, then by rule ID asc for deterministic order
         matching_rules.sort(key=lambda x: (-x[0], x[1]))
         winner = matching_rules[0][2]
+        _LOGGER.debug(
+            "[%s] Rule '%s' (P%d) -> position %d",
+            cover.entity_id, winner.name, winner.priority, winner.target_position,
+        )
         return CoverTarget(
             position=winner.target_position,
             tilt_position=winner.target_tilt_position,
@@ -165,6 +170,10 @@ class RuleEngine:
         # Auto comfort check: skip shading in HEATING mode
         comfort_mode = self._get_comfort_mode(cover)
         if comfort_mode == ComfortMode.HEATING:
+            _LOGGER.debug(
+                "[%s] sun_on_facade: skipping shading (HEATING mode)",
+                cover.entity_id,
+            )
             return False
 
         return True

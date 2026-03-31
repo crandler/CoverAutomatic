@@ -151,9 +151,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.7.2
+1.7.3
 
 ## Changelog
+
+### 1.7.3 (2026-03-31)
+
+- Add detailed logging for all cover state changes (lock, vent, rule match, position move, manual override, comfort mode)
 
 ### 1.7.2 (2026-03-31)
 
