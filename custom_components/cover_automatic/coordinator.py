@@ -295,7 +295,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 else:
                     _LOGGER.info("[%s] Lock sensor open -> LOCKED (already at %d%%)", cover_id, current)
                     if cover_id not in self._pre_lock_states:
-                        self._pre_lock_states[cover_id] = self._cover_states.get(cover_id, CoverStatus.AUTO)
+                        prev = self._cover_states.get(cover_id, CoverStatus.AUTO)
+                        self._pre_lock_states[cover_id] = CoverStatus.AUTO if prev == CoverStatus.PAUSED else prev
                     self._cover_states[cover_id] = CoverStatus.LOCKED
                     self.storage.update_cover_status(cover_id, CoverStatus.LOCKED.value, None)
                     self._update_last_position_from_state(cover_id)
@@ -375,10 +376,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     ) -> None:
         """Lock a cover due to open contact sensor."""
         # Save previous state for restoration after unlock
+        # If paused, save as AUTO (pause cancelled by lock priority)
         if entity_id not in self._pre_lock_states:
-            self._pre_lock_states[entity_id] = self._cover_states.get(
-                entity_id, CoverStatus.AUTO
-            )
+            prev = self._cover_states.get(entity_id, CoverStatus.AUTO)
+            self._pre_lock_states[entity_id] = CoverStatus.AUTO if prev == CoverStatus.PAUSED else prev
         self._cover_states[entity_id] = CoverStatus.LOCKED
         self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
 
@@ -576,7 +577,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     if current is None or current < lock_pos:
                         self._lock_cover(entity_id, lock_pos, lock_tilt=cover_raw.get("lock_tilt_position"))
                     else:
-                        self._pre_lock_states[entity_id] = self._cover_states.get(entity_id, CoverStatus.AUTO)
+                        prev = self._cover_states.get(entity_id, CoverStatus.AUTO)
+                        self._pre_lock_states[entity_id] = CoverStatus.AUTO if prev == CoverStatus.PAUSED else prev
                         self._cover_states[entity_id] = CoverStatus.LOCKED
                         self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
                         self._update_last_position_from_state(entity_id)

@@ -151,9 +151,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.8.1
+1.9.0
 
 ## Changelog
+
+### 1.9.0 (2026-03-31)
+
+- Per-cover comfort temperature ranges (comfort_temp_min/max per room, fallback to global)
+- Fix temperature_comfort condition to use hysteresis-aware comfort mode (consistent with sun_on_facade)
+- Pause cancelled when lock/vent sensor activates (safety has priority over pause)
 
 ### 1.8.1 (2026-03-31)
 

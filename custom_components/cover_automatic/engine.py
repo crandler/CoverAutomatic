@@ -205,8 +205,8 @@ class RuleEngine:
 
         h = self.COMFORT_HYSTERESIS
         prev = self._last_comfort_mode.get(cover.entity_id)
-        comfort_min = self.storage.comfort_temp_min
-        comfort_max = self.storage.comfort_temp_max
+        comfort_min = cover.comfort_temp_min if cover.comfort_temp_min is not None else self.storage.comfort_temp_min
+        comfort_max = cover.comfort_temp_max if cover.comfort_temp_max is not None else self.storage.comfort_temp_max
 
         # Hard boundaries first, then hysteresis in the transition bands
         if temp >= comfort_max:
@@ -311,38 +311,17 @@ class RuleEngine:
     def _eval_temp_comfort(self, condition: Condition, cover: CoverConfig) -> bool:
         """Evaluate temperature_comfort condition.
 
-        Checks if current mode matches expected mode (cooling/heating/neutral).
-        Uses indoor temp sensor (per-cover > global fallback) and comfort range from storage.
+        Uses hysteresis-aware _get_comfort_mode() for consistent behavior.
         """
         mode_val = condition.params.get("mode", ComfortMode.COOLING.value)
         try:
             expected_mode = ComfortMode(str(mode_val))
         except ValueError:
             expected_mode = ComfortMode.COOLING
-        sensor_id = condition.params.get("sensor") or cover.indoor_temp_sensor or self.storage.indoor_temp_sensor
 
-        if not sensor_id:
+        current_mode = self._get_comfort_mode(cover)
+        if current_mode is None:
             return False
-
-        state = self.hass.states.get(sensor_id)
-        if state is None:
-            return False
-
-        try:
-            temp = float(state.state)
-        except (ValueError, TypeError):
-            return False
-
-        comfort_min = self.storage.comfort_temp_min
-        comfort_max = self.storage.comfort_temp_max
-
-        if temp >= comfort_max:
-            current_mode = ComfortMode.COOLING
-        elif temp <= comfort_min:
-            current_mode = ComfortMode.HEATING
-        else:
-            current_mode = ComfortMode.NEUTRAL
-
         return current_mode == expected_mode
 
     def _eval_weather_is(self, condition: Condition) -> bool:

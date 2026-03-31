@@ -217,6 +217,8 @@ class CoverConfig:
     vent_tilt_position: int | None = None
     inverted_tilt: bool = False
     indoor_temp_sensor: str | None = None
+    comfort_temp_min: float | None = None
+    comfort_temp_max: float | None = None
     min_position_change: int = 5
     min_time_between_changes: int = 300
     last_position_change: float | None = None
@@ -241,6 +243,8 @@ class CoverConfig:
             "vent_tilt_position": self.vent_tilt_position,
             "inverted_tilt": self.inverted_tilt,
             "indoor_temp_sensor": self.indoor_temp_sensor,
+            "comfort_temp_min": self.comfort_temp_min,
+            "comfort_temp_max": self.comfort_temp_max,
             "min_position_change": self.min_position_change,
             "min_time_between_changes": self.min_time_between_changes,
             "last_position_change": self.last_position_change,
@@ -281,6 +285,8 @@ class CoverConfig:
             vent_tilt_position=data.get("vent_tilt_position"),
             inverted_tilt=data.get("inverted_tilt", False),
             indoor_temp_sensor=data.get("indoor_temp_sensor"),
+            comfort_temp_min=data.get("comfort_temp_min"),
+            comfort_temp_max=data.get("comfort_temp_max"),
             min_position_change=data.get("min_position_change", 5),
             min_time_between_changes=data.get("min_time_between_changes", 300),
             last_position_change=data.get("last_position_change"),

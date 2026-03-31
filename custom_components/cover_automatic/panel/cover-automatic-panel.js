@@ -46,6 +46,9 @@ const I18N = {
     cover_vent_sensor_hint: "Tilt contact sensor. When tilted, cover moves to vent position.",
     cover_vent_position: "Vent position",
     cover_vent_position_hint: "Target position when window is tilted (e.g. 30 for ventilation gap).",
+    cover_comfort_min: "Comfort temp min",
+    cover_comfort_max: "Comfort temp max",
+    cover_comfort_hint: "Per-room comfort range. Empty = use global values from settings.",
     cover_inverted: "Inverted",
     cover_inverted_hint: "Enable if 100% means closed (reversed motor direction).",
     cover_supports_tilt: "Supports tilt",
@@ -180,6 +183,9 @@ const I18N = {
     cover_vent_sensor_hint: "Kippkontakt. Bei gekipptem Fenster fährt das Rollo auf Lüftungsposition.",
     cover_vent_position: "Lüftungsposition",
     cover_vent_position_hint: "Zielposition bei gekipptem Fenster (z. B. 30 für Lüftungsspalt).",
+    cover_comfort_min: "Komfort-Temp. min",
+    cover_comfort_max: "Komfort-Temp. max",
+    cover_comfort_hint: "Komfortbereich pro Raum. Leer = globale Werte aus Einstellungen.",
     cover_inverted: "Invertiert",
     cover_inverted_hint: "Aktivieren, wenn 100 % geschlossen bedeutet (umgekehrte Motorrichtung).",
     cover_supports_tilt: "Unterstützt Tilt",
@@ -1374,6 +1380,19 @@ class CoverAutomaticPanel extends HTMLElement {
           ${this._renderCoverEntitySelect("indoor_temp_sensor", cover.indoor_temp_sensor, cover.entity_id, "sensor", "temperature")}
           ${this._hint("cover_indoor_temp_hint")}
         </div>`;
+        const globalMin = (this._config.settings || {}).comfort_temp_min || 22;
+        const globalMax = (this._config.settings || {}).comfort_temp_max || 24;
+        s += '<div class="form-row">';
+        s += `<div class="form-group">
+          <label>${this._t("cover_comfort_min")}</label>
+          <input type="number" step="0.5" value="${cover.comfort_temp_min != null ? cover.comfort_temp_min : ""}" placeholder="${globalMin}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="comfort_temp_min">
+        </div>`;
+        s += `<div class="form-group">
+          <label>${this._t("cover_comfort_max")}</label>
+          <input type="number" step="0.5" value="${cover.comfort_temp_max != null ? cover.comfort_temp_max : ""}" placeholder="${globalMax}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="comfort_temp_max">
+        </div>`;
+        s += '</div>';
+        s += this._hint("cover_comfort_hint");
         s += `<div class="form-group">
           <label>${this._t("cover_lock_sensor")}</label>
           ${this._renderCoverEntitySelect("lock_sensor", cover.lock_sensor, cover.entity_id, "binary_sensor", null)}
