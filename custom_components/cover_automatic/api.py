@@ -529,9 +529,11 @@ async def ws_cover_resume(
         connection.send_error(msg["id"], "not_found", f"Cover '{entity_id}' not found")
         return
     coordinator.resume_cover(entity_id)
+    await coordinator.async_request_refresh()
     result = _build_config_response(storage, hass)
     result["active_rules"] = coordinator.get_active_rules()
     result["live_covers"] = coordinator.get_live_cover_data()
+    result["live_facades"] = coordinator.get_live_facade_data()
     connection.send_result(msg["id"], result)
 
 

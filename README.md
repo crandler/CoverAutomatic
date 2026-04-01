@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.18.1 (2026-04-01)
+
+- Fix: resume from pause now triggers immediate rule re-evaluation, no page refresh needed
+
 ### 1.18.0 (2026-04-01)
 
 - Facades tab: sun position info bar (azimuth/elevation) at top
