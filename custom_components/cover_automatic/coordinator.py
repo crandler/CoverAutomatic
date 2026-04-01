@@ -807,9 +807,12 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         result: dict[str, dict[str, Any]] = {}
         if self.data:
             for entity_id, cover_data in self.data.get("covers", {}).items():
+                cover_raw = self.storage.get_cover_raw(entity_id)
+                pause_until = cover_raw.get("pause_until") if cover_raw else None
                 result[entity_id] = {
                     "target_position": cover_data.get("target_position"),
                     "hysteresis": self._hysteresis_info.get(entity_id),
+                    "pause_until": pause_until,
                 }
         return result
 

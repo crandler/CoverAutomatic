@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.15.5 (2026-04-01)
+
+- Covers table: show remaining pause time as countdown (m:ss) next to "Paused" status badge
+- Countdown updates live via HA state change propagation
+
 ### 1.15.4 (2026-04-01)
 
 - Fix: covers table live refresh now updates only position/status cells instead of re-rendering entire tab

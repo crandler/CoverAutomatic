@@ -1504,7 +1504,8 @@ class CoverAutomaticPanel extends HTMLElement {
       html += `<tr class="${selected}">`;
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(c.name)}</td>`;
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(facadeName)}</td>`;
-      html += `<td data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span></td>`;
+      const pauseLeft = (c.status === "paused" && live.pause_until) ? this._formatPauseRemaining(live.pause_until) : "";
+      html += `<td data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? ' <span style="font-size:11px;color:var(--ca-secondary-text)">' + pauseLeft + '</span>' : ''}</td>`;
       html += `<td data-live-current="${this._esc(c.entity_id)}">${currentPos != null ? currentPos + "%" : "–"}</td>`;
       html += `<td data-live-target="${this._esc(c.entity_id)}">${targetPos != null ? targetPos + "%" : "–"}${infoIcon}</td>`;
       html += `<td>${c.auto_enabled ? this._t("enabled") : this._t("disabled")}</td>`;
@@ -2444,7 +2445,7 @@ class CoverAutomaticPanel extends HTMLElement {
         else if (hyst === "time") txt += " \u23F2";
         tCell.textContent = txt;
       }
-      // Status badge (safe: values come from our own enum, not user input)
+      // Status + pause remaining
       const c = covers[eid];
       const sCell = root.querySelector('[data-live-status="' + eid + '"]');
       if (sCell && c) {
@@ -2454,8 +2455,33 @@ class CoverAutomaticPanel extends HTMLElement {
           badge.className = "status-badge status-" + st;
           badge.textContent = this._t("status_" + st) || st;
         }
+        let pauseSpan = sCell.querySelector(".pause-remaining");
+        if (st === "paused" && live.pause_until) {
+          const txt = this._formatPauseRemaining(live.pause_until);
+          if (txt) {
+            if (!pauseSpan) {
+              pauseSpan = document.createElement("span");
+              pauseSpan.className = "pause-remaining";
+              pauseSpan.style.cssText = "font-size:11px;color:var(--ca-secondary-text);margin-left:4px";
+              sCell.appendChild(pauseSpan);
+            }
+            pauseSpan.textContent = txt;
+          } else if (pauseSpan) {
+            pauseSpan.remove();
+          }
+        } else if (pauseSpan) {
+          pauseSpan.remove();
+        }
       }
     }
+  }
+
+  _formatPauseRemaining(pauseUntil) {
+    const remaining = Math.max(0, Math.round(pauseUntil - Date.now() / 1000));
+    if (remaining <= 0) return "";
+    const min = Math.floor(remaining / 60);
+    const sec = remaining % 60;
+    return "(" + min + ":" + (sec < 10 ? "0" : "") + sec + ")";
   }
 
   _startLiveRefresh() {
