@@ -213,7 +213,7 @@ class CoverAutomaticStorage:
     @property
     def pause_duration(self) -> int:
         """Get global default pause duration in seconds."""
-        return self._data.get("pause_duration", 600)
+        return self._data.get("pause_duration", 10)
 
     @pause_duration.setter
     def pause_duration(self, value: int) -> None:
