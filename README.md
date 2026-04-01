@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.15.8 (2026-04-01)
+
+- Fix: settings save failed because pause_duration was missing from WebSocket schema validation
+
 ### 1.15.7 (2026-04-01)
 
 - Fix: global pause_duration default was 600 minutes (10 hours) instead of 10 minutes (typo)

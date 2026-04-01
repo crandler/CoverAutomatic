@@ -704,6 +704,7 @@ def async_setup_api(
                 vol.Optional("comfort_temp_min"): vol.Coerce(float),
                 vol.Optional("comfort_temp_max"): vol.Coerce(float),
                 vol.Optional("comfort_hysteresis"): vol.All(vol.Coerce(float), vol.Range(min=0.1, max=5.0)),
+                vol.Optional("pause_duration"): vol.All(vol.Coerce(int), vol.Range(min=1, max=480)),
                 vol.Optional("house_rotation"): vol.All(vol.Coerce(float), vol.Range(min=-180, max=180)),
                 vol.Optional("active_scenario"): str,
                 vol.Optional("wind_sensor"): vol.Any(str, None),
