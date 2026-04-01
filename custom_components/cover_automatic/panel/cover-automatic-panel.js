@@ -1178,6 +1178,7 @@ class CoverAutomaticPanel extends HTMLElement {
     this._editingFacade = null;
     this._addingFacade = false;
     this._addingRule = false;
+    this._addingCover = false;
     this._addingScenario = false;
     this._editingScenario = null;
     this._confirmCallback = null;
@@ -1457,21 +1458,27 @@ class CoverAutomaticPanel extends HTMLElement {
 
     let html = '';
 
-    // Add covers section
+    // Collapsible add covers section
     if (available.length > 0) {
-      html += '<div class="card" style="margin-bottom:16px"><div class="card-header">';
-      html += `<span>${this._t("cover_add")}</span></div>`;
-      html += '<div class="card-body"><div class="form-row">';
-      html += `<select id="cover-add-select" multiple style="width:100%;min-height:80px;padding:8px;border:1px solid var(--divider-color);border-radius:6px;background:var(--ha-card-background,var(--card-background-color));color:var(--primary-text-color)">`;
-      for (const a of available) {
-        html += `<option value="${this._esc(a.entity_id)}">${this._esc(a.name)} (${this._esc(a.entity_id)})</option>`;
+      if (this._addingCover) {
+        html += '<div class="card" style="margin-bottom:16px"><div class="card-header">';
+        html += `<span>${this._t("cover_add")}</span>`;
+        html += `<button class="btn-icon" data-action="cover-add-cancel" title="${this._t("cancel")}">&#10005;</button>`;
+        html += '</div>';
+        html += '<div class="card-body"><div class="form-row">';
+        html += `<select id="cover-add-select" multiple style="width:100%;min-height:80px;padding:8px;border:1px solid var(--divider-color);border-radius:6px;background:var(--ha-card-background,var(--card-background-color));color:var(--primary-text-color)">`;
+        for (const a of available) {
+          html += `<option value="${this._esc(a.entity_id)}">${this._esc(a.name)} (${this._esc(a.entity_id)})</option>`;
+        }
+        html += '</select></div>';
+        html += `<div class="form-row" style="margin-top:8px"><button class="btn btn-primary" data-action="cover-add">${this._t("add")}</button></div>`;
+        html += '</div></div>';
+      } else {
+        html += `<div style="margin-bottom:12px"><button class="btn btn-sm" data-action="cover-add-start">+ ${this._t("cover_add")}</button></div>`;
       }
-      html += '</select></div>';
-      html += `<div class="form-row" style="margin-top:8px"><button class="btn btn-primary" data-action="cover-add">${this._t("add")}</button></div>`;
-      html += '</div></div>';
     }
 
-    if (entries.length === 0) {
+    if (entries.length === 0 && !this._addingCover) {
       return html + `<div class="empty-state">${this._t("none")}</div>`;
     }
 
@@ -1505,7 +1512,7 @@ class CoverAutomaticPanel extends HTMLElement {
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(c.name)}</td>`;
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(facadeName)}</td>`;
       const pauseLeft = (c.status === "paused" && live.pause_until) ? this._formatPauseRemaining(live.pause_until) : "";
-      html += `<td data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? ' <span style="font-size:11px;color:var(--ca-secondary-text)">' + pauseLeft + '</span>' : ''}</td>`;
+      html += `<td data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining" style="font-size:11px;color:var(--ca-secondary-text);margin-left:4px">' + pauseLeft + '</span>' : ''}</td>`;
       html += `<td data-live-current="${this._esc(c.entity_id)}">${currentPos != null ? currentPos + "%" : "–"}</td>`;
       html += `<td data-live-target="${this._esc(c.entity_id)}">${targetPos != null ? targetPos + "%" : "–"}${infoIcon}</td>`;
       html += `<td>${c.auto_enabled ? this._t("enabled") : this._t("disabled")}</td>`;
@@ -2572,6 +2579,7 @@ class CoverAutomaticPanel extends HTMLElement {
       this._slideOpen = false;
       this._expandedRule = null;
       this._editingFacade = null;
+      this._addingCover = false;
       this._addingFacade = false;
       this._addingRule = false;
       this._addingScenario = false;
@@ -2593,6 +2601,8 @@ class CoverAutomaticPanel extends HTMLElement {
 
     switch (action) {
       case "retry": this._loadConfig(); break;
+      case "cover-add-start": this._addingCover = true; this._render(); break;
+      case "cover-add-cancel": this._addingCover = false; this._render(); break;
       case "cover-add": this._onCoverAdd(); break;
       case "cover-delete": this._onCoverDelete(actionEl.dataset.id); break;
       case "select-cover":
@@ -2828,6 +2838,7 @@ class CoverAutomaticPanel extends HTMLElement {
     if (ids.length === 0) return;
     try {
       const result = await this._ws("cover_automatic/cover/add", { entity_ids: ids });
+      this._addingCover = false;
       this._updateConfigFromResult(result);
       this._showToast();
     } catch (e) { console.error(e); }
