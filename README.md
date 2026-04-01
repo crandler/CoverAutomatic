@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.20.2 (2026-04-01)
+
+- Fix: all WS responses now include live data (active_rules, live_covers, live_facades)
+- Rule active indicators, cover positions, and facade sun status no longer lost after config changes
+
 ### 1.20.1 (2026-04-01)
 
 - Fix: adding/deleting rule conditions now auto-saves immediately (no more lost changes when collapsing rule)

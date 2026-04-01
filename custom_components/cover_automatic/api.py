@@ -71,6 +71,7 @@ def _sanitize_id(name: str) -> str:
 
 def _build_config_response(
     storage: CoverAutomaticStorage, hass: HomeAssistant | None = None,
+    coordinator: CoverAutomaticCoordinator | None = None,
 ) -> dict[str, Any]:
     """Build full config response dict from storage."""
     result: dict[str, Any] = {
@@ -102,6 +103,10 @@ def _build_config_response(
             for s in hass.states.async_all("cover")
             if s.entity_id not in managed
         ]
+    if coordinator:
+        result["active_rules"] = coordinator.get_active_rules()
+        result["live_covers"] = coordinator.get_live_cover_data()
+        result["live_facades"] = coordinator.get_live_facade_data()
     return result
 
 
@@ -174,11 +179,7 @@ async def ws_get_config(
     coordinator: CoverAutomaticCoordinator,
 ) -> None:
     """Handle cover_automatic/config."""
-    result = _build_config_response(storage, hass)
-    result["active_rules"] = coordinator.get_active_rules()
-    result["live_covers"] = coordinator.get_live_cover_data()
-    result["live_facades"] = coordinator.get_live_facade_data()
-    connection.send_result(msg["id"], result)
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_cover_update(
@@ -211,7 +212,7 @@ async def ws_cover_update(
     storage._invalidate_cache()
     await storage.async_save()
     coordinator.refresh_state_tracking()
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_cover_add(
@@ -235,7 +236,7 @@ async def ws_cover_add(
     if added:
         await storage.async_save()
     coordinator.refresh_state_tracking()
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_cover_delete(
@@ -248,7 +249,7 @@ async def ws_cover_delete(
     """Handle cover_automatic/cover/delete."""
     await storage.async_remove_cover(msg["entity_id"])
     coordinator.refresh_state_tracking()
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_facade_add(
@@ -277,7 +278,7 @@ async def ws_facade_add(
     await storage.async_add_facade(facade, save=False)
     _sync_cover_facade_ids(storage, facade_id, new_cover_ids)
     await storage.async_save()
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_facade_update(
@@ -308,7 +309,7 @@ async def ws_facade_update(
     # Sync cover.facade_id with facade.cover_ids
     _sync_cover_facade_ids(storage, facade_id, new_cover_ids)
     await storage.async_save()
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_facade_delete(
@@ -325,7 +326,7 @@ async def ws_facade_delete(
         return
 
     await storage.async_remove_facade(facade_id)
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_rule_add(
@@ -355,7 +356,7 @@ async def ws_rule_add(
         target_tilt_position=msg.get("target_tilt_position"),
     )
     await storage.async_add_rule(rule)
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_rule_update(
@@ -393,7 +394,7 @@ async def ws_rule_update(
         target_tilt_position=msg.get("target_tilt_position", existing.target_tilt_position),
     )
     await storage.async_add_rule(updated)
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_rule_delete(
@@ -410,7 +411,7 @@ async def ws_rule_delete(
         return
 
     await storage.async_remove_rule(rule_id)
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_rule_reorder(
@@ -435,7 +436,7 @@ async def ws_rule_reorder(
 
     storage._invalidate_cache()
     await storage.async_save()
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_scenario_add(
@@ -454,7 +455,7 @@ async def ws_scenario_add(
         rules_disabled=msg.get("rules_disabled", []),
     )
     await storage.async_add_scenario(scenario)
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_scenario_update(
@@ -481,7 +482,7 @@ async def ws_scenario_update(
         storage.active_scenario = scenario_id
     await storage.async_add_scenario(updated)
 
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_scenario_delete(
@@ -498,7 +499,7 @@ async def ws_scenario_delete(
         return
 
     await storage.async_remove_scenario(scenario_id)
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_settings_update(
@@ -515,7 +516,7 @@ async def ws_settings_update(
 
     await storage.async_save()
     coordinator.refresh_state_tracking()
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_cover_resume(
@@ -532,11 +533,7 @@ async def ws_cover_resume(
         return
     coordinator.resume_cover(entity_id)
     await coordinator.async_request_refresh()
-    result = _build_config_response(storage, hass)
-    result["active_rules"] = coordinator.get_active_rules()
-    result["live_covers"] = coordinator.get_live_cover_data()
-    result["live_facades"] = coordinator.get_live_facade_data()
-    connection.send_result(msg["id"], result)
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
 async def ws_get_log(
