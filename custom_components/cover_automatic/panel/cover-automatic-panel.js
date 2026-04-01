@@ -1203,10 +1203,8 @@ class CoverAutomaticPanel extends HTMLElement {
       this._initialize();
       return;
     }
-    // Live-update covers table when hass state changes
     if (this._config && this._activeTab === "covers") {
-      const shell = this.shadowRoot.querySelector(".panel-container");
-      if (shell) this._updateRegion(shell, "content", this._renderContent());
+      this._updateLiveCells();
     }
   }
 
@@ -1506,9 +1504,9 @@ class CoverAutomaticPanel extends HTMLElement {
       html += `<tr class="${selected}">`;
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(c.name)}</td>`;
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(facadeName)}</td>`;
-      html += `<td><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span></td>`;
-      html += `<td>${currentPos != null ? currentPos + "%" : "–"}</td>`;
-      html += `<td>${targetPos != null ? targetPos + "%" : "–"}${infoIcon}</td>`;
+      html += `<td data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span></td>`;
+      html += `<td data-live-current="${this._esc(c.entity_id)}">${currentPos != null ? currentPos + "%" : "–"}</td>`;
+      html += `<td data-live-target="${this._esc(c.entity_id)}">${targetPos != null ? targetPos + "%" : "–"}${infoIcon}</td>`;
       html += `<td>${c.auto_enabled ? this._t("enabled") : this._t("disabled")}</td>`;
       html += `<td><button class="btn-icon" data-action="cover-delete" data-id="${this._esc(c.entity_id)}" title="${this._t("delete")}">&#10005;</button></td>`;
       html += '</tr>';
@@ -2424,6 +2422,42 @@ class CoverAutomaticPanel extends HTMLElement {
     this._render();
   }
 
+  _updateLiveCells() {
+    const root = this.shadowRoot;
+    if (!root || !this._config) return;
+    const covers = this._config.covers || {};
+    const liveCvrs = this._config.live_covers || {};
+    for (const eid of Object.keys(covers)) {
+      // Current position from HA state
+      const haState = this._hass && this._hass.states ? this._hass.states[eid] : null;
+      const curPos = haState && haState.attributes ? haState.attributes.current_position : null;
+      const cell = root.querySelector('[data-live-current="' + eid + '"]');
+      if (cell) cell.textContent = curPos != null ? curPos + "%" : "\u2013";
+      // Target position + hysteresis from coordinator
+      const live = liveCvrs[eid] || {};
+      const tgtPos = live.target_position;
+      const hyst = live.hysteresis;
+      const tCell = root.querySelector('[data-live-target="' + eid + '"]');
+      if (tCell) {
+        let txt = tgtPos != null ? tgtPos + "%" : "\u2013";
+        if (hyst === "position") txt += " \u2195";
+        else if (hyst === "time") txt += " \u23F2";
+        tCell.textContent = txt;
+      }
+      // Status badge (safe: values come from our own enum, not user input)
+      const c = covers[eid];
+      const sCell = root.querySelector('[data-live-status="' + eid + '"]');
+      if (sCell && c) {
+        const st = c.status || "auto";
+        const badge = sCell.querySelector(".status-badge");
+        if (badge) {
+          badge.className = "status-badge status-" + st;
+          badge.textContent = this._t("status_" + st) || st;
+        }
+      }
+    }
+  }
+
   _startLiveRefresh() {
     this._stopLiveRefresh();
     this._liveRefreshTimer = setInterval(() => this._refreshLiveCovers(), 30000);
@@ -2443,11 +2477,11 @@ class CoverAutomaticPanel extends HTMLElement {
     }
     try {
       const result = await this._ws("cover_automatic/config");
-      if (result && result.live_covers) {
-        this._config.live_covers = result.live_covers;
-        this._config.active_rules = result.active_rules;
-        const shell = this.shadowRoot.querySelector(".panel-container");
-        if (shell) this._updateRegion(shell, "content", this._renderContent());
+      if (result) {
+        if (result.live_covers) this._config.live_covers = result.live_covers;
+        if (result.active_rules) this._config.active_rules = result.active_rules;
+        if (result.covers) this._config.covers = result.covers;
+        this._updateLiveCells();
       }
     } catch (e) { /* silent */ }
   }

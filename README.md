@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.15.4 (2026-04-01)
+
+- Fix: covers table live refresh now updates only position/status cells instead of re-rendering entire tab
+- Add covers form and slide-out panel no longer disrupted by auto-refresh
+
 ### 1.15.3 (2026-04-01)
 
 - Covers table: live auto-refresh of current position (via HA state updates) and target/hysteresis (every 30s)
