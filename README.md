@@ -155,6 +155,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.21.0 (2026-04-01)
+
+- Global defaults for lock_position, vent_position, min_position_change, min_time_between_changes
+- Per-cover values now optional with fallback to global defaults (empty = use global)
+- New settings fields in Automation section for all 4 parameters
+- Updated cover hints to indicate global fallback behavior
+
 ### 1.20.2 (2026-04-01)
 
 - Fix: all WS responses now include live data (active_rules, live_covers, live_facades)

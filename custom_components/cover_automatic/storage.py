@@ -221,6 +221,46 @@ class CoverAutomaticStorage:
         self._data["pause_duration"] = int(value)
 
     @property
+    def lock_position(self) -> int:
+        """Get global default lock position."""
+        return self._data.get("lock_position", 100)
+
+    @lock_position.setter
+    def lock_position(self, value: int) -> None:
+        """Set global default lock position."""
+        self._data["lock_position"] = int(value)
+
+    @property
+    def vent_position(self) -> int:
+        """Get global default vent position."""
+        return self._data.get("vent_position", 30)
+
+    @vent_position.setter
+    def vent_position(self, value: int) -> None:
+        """Set global default vent position."""
+        self._data["vent_position"] = int(value)
+
+    @property
+    def min_position_change(self) -> int:
+        """Get global default minimum position change."""
+        return self._data.get("min_position_change", 5)
+
+    @min_position_change.setter
+    def min_position_change(self, value: int) -> None:
+        """Set global default minimum position change."""
+        self._data["min_position_change"] = int(value)
+
+    @property
+    def min_time_between_changes(self) -> int:
+        """Get global default minimum time between changes."""
+        return self._data.get("min_time_between_changes", 300)
+
+    @min_time_between_changes.setter
+    def min_time_between_changes(self, value: int) -> None:
+        """Set global default minimum time between changes."""
+        self._data["min_time_between_changes"] = int(value)
+
+    @property
     def wind_sensor(self) -> str | None:
         """Get wind speed sensor entity ID."""
         return self._data.get("wind_sensor")

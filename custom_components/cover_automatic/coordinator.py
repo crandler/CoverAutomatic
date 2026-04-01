@@ -74,6 +74,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_matching_rules: dict[str, str | None] = {}
         self.log_storage: ActivityLogStorage | None = None
 
+    def _cover_val(self, cover_raw: dict[str, Any], key: str) -> Any:
+        """Get cover config value with global fallback from storage."""
+        val = cover_raw.get(key)
+        if val is not None:
+            return val
+        return getattr(self.storage, key, None)
+
     async def async_setup(self) -> None:
         """Set up the coordinator."""
         await self.storage.async_load()
@@ -397,7 +404,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
 
             if is_open:
-                lock_pos = cover_raw.get("lock_position", 100)
+                lock_pos = self._cover_val(cover_raw, "lock_position")
                 current = self._get_current_position(cover_id)
                 if current is None or current < lock_pos:
                     _LOGGER.info("[%s] Lock sensor open -> LOCKED at %d%%", cover_id, lock_pos)
@@ -420,7 +427,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 else:
                     _LOGGER.info("[%s] Lock sensor closed, vent still open -> VENTING", cover_id)
                     # Move to vent position if currently below it
-                    vent_pos = cover_raw.get("vent_position", 30)
+                    vent_pos = self._cover_val(cover_raw, "vent_position")
                     current = self._get_current_position(cover_id)
                     if current is not None and current < vent_pos:
                         inverted = cover_raw.get("inverted", False)
@@ -453,7 +460,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             current_status = self._cover_states.get(cover_id, CoverStatus.AUTO)
 
             if is_open and current_status not in (CoverStatus.LOCKED, CoverStatus.VENTING):
-                vent_pos = cover_raw.get("vent_position", 30)
+                vent_pos = self._cover_val(cover_raw, "vent_position")
                 current = self._get_current_position(cover_id)
                 # Move up to vent_position if currently below it
                 if current is not None and current < vent_pos:
@@ -734,7 +741,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Check lock sensor state (window contact)
             if self._is_sensor_open(cover_raw, "lock_sensor"):
                 if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
-                    lock_pos = cover_raw.get("lock_position", 100)
+                    lock_pos = self._cover_val(cover_raw, "lock_position")
                     current = self._get_current_position(entity_id)
                     if current is None or current < lock_pos:
                         self._lock_cover(entity_id, lock_pos, lock_tilt=cover_raw.get("lock_tilt_position"))
@@ -749,7 +756,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Check vent sensor state - also above auto_enabled
             if self._is_sensor_open(cover_raw, "vent_sensor"):
                 if self._cover_states.get(entity_id) != CoverStatus.VENTING:
-                    vent_pos = cover_raw.get("vent_position", 30)
+                    vent_pos = self._cover_val(cover_raw, "vent_position")
                     current = self._get_current_position(entity_id)
                     if current is not None and current < vent_pos:
                         inverted = cover_raw.get("inverted", False)
@@ -938,7 +945,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Enforce vent minimum position (logical, before inversion)
             original_target = target
             if status == CoverStatus.VENTING:
-                vent_min = cover_raw.get("vent_position", 30)
+                vent_min = self._cover_val(cover_raw, "vent_position")
                 if target < vent_min:
                     target = vent_min
                     _LOGGER.debug("[%s] VENTING: clamped %d%% -> %d%% (vent min)", entity_id, original_target, target)
@@ -948,7 +955,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 target = 100 - target
 
             # Check hysteresis: minimum position change
-            min_change = cover_raw.get("min_position_change", 5)
+            min_change = self._cover_val(cover_raw, "min_position_change")
             position_diff = abs(current - target)
             if position_diff < min_change and position_diff > 0:
                 _LOGGER.debug(
@@ -960,7 +967,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
 
             # Check hysteresis: minimum time between changes
-            min_time = cover_raw.get("min_time_between_changes", 300)
+            min_time = self._cover_val(cover_raw, "min_time_between_changes")
             last_change = cover_raw.get("last_position_change")
             if last_change and (now - last_change) < min_time:
                 _LOGGER.debug(

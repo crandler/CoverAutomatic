@@ -41,11 +41,11 @@ const I18N = {
     cover_lock_sensor: "Lock sensor",
     cover_lock_sensor_hint: "Window contact sensor. When open, cover moves to lock position (safety).",
     cover_lock_position: "Lock position",
-    cover_lock_position_hint: "Target position when window is open (100 = fully open).",
+    cover_lock_position_hint: "Target position when window is open. Empty = use global default.",
     cover_vent_sensor: "Vent sensor",
     cover_vent_sensor_hint: "Tilt contact sensor. When tilted, cover moves to vent position.",
     cover_vent_position: "Vent position",
-    cover_vent_position_hint: "Target position when window is tilted (e.g. 30 for ventilation gap).",
+    cover_vent_position_hint: "Target position when window is tilted. Empty = use global default.",
     cover_comfort_min: "Comfort temp min",
     cover_comfort_max: "Comfort temp max",
     cover_comfort_hint: "Per-room comfort range. Empty = use global values from settings.",
@@ -56,9 +56,9 @@ const I18N = {
     cover_vent_tilt: "Vent tilt position",
     cover_inverted_tilt: "Inverted tilt",
     cover_min_pos_change: "Min. position change",
-    cover_min_pos_change_hint: "Minimum position difference to trigger a move (prevents micro-adjustments).",
+    cover_min_pos_change_hint: "Minimum position difference to trigger a move. Empty = use global default.",
     cover_min_time: "Min. time between changes (s)",
-    cover_min_time_hint: "Minimum seconds between position changes (protects the motor).",
+    cover_min_time_hint: "Minimum seconds between position changes. Empty = use global default.",
     cover_section_base: "General",
     cover_section_sensors: "Sensors",
     cover_section_advanced: "Advanced",
@@ -166,6 +166,14 @@ const I18N = {
     settings_section_automation: "Automation",
     settings_pause_duration: "Default pause duration (min)",
     settings_pause_duration_hint: "How long automation pauses after manual cover operation. Can be overridden per cover.",
+    settings_lock_position: "Default lock position",
+    settings_lock_position_hint: "Target position when window is open (100 = fully open). Can be overridden per cover.",
+    settings_vent_position: "Default vent position",
+    settings_vent_position_hint: "Target position when window is tilted (e.g. 30 for ventilation gap). Can be overridden per cover.",
+    settings_min_position_change: "Default min. position change",
+    settings_min_position_change_hint: "Minimum position difference to trigger a move. Can be overridden per cover.",
+    settings_min_time: "Default min. time between changes (s)",
+    settings_min_time_hint: "Minimum seconds between position changes (motor protection). Can be overridden per cover.",
     settings_entity_placeholder: "e.g. sensor.outdoor_temperature",
     settings_current_value: "Current",
     settings_validation_min_max: "Min must be less than max",
@@ -229,11 +237,11 @@ const I18N = {
     cover_lock_sensor: "Sperr-Sensor",
     cover_lock_sensor_hint: "Fensterkontakt. Bei geöffnetem Fenster fährt der Behang auf Sperrposition (Sicherheit).",
     cover_lock_position: "Sperrposition",
-    cover_lock_position_hint: "Zielposition bei geöffnetem Fenster (100 = vollständig offen).",
+    cover_lock_position_hint: "Zielposition bei geöffnetem Fenster. Leer = globaler Standard.",
     cover_vent_sensor: "Lüftungssensor",
     cover_vent_sensor_hint: "Kippkontakt. Bei gekipptem Fenster fährt der Behang auf Lüftungsposition.",
     cover_vent_position: "Lüftungsposition",
-    cover_vent_position_hint: "Zielposition bei gekipptem Fenster (z. B. 30 für Lüftungsspalt).",
+    cover_vent_position_hint: "Zielposition bei gekipptem Fenster. Leer = globaler Standard.",
     cover_comfort_min: "Komfort-Temp. min",
     cover_comfort_max: "Komfort-Temp. max",
     cover_comfort_hint: "Komfortbereich pro Raum. Leer = globale Werte aus Einstellungen.",
@@ -244,9 +252,9 @@ const I18N = {
     cover_vent_tilt: "Lüftungs-Tiltposition",
     cover_inverted_tilt: "Invertierter Tilt",
     cover_min_pos_change: "Min. Positionsänderung",
-    cover_min_pos_change_hint: "Mindestabweichung für eine Fahrt (verhindert Mikrobewegungen).",
+    cover_min_pos_change_hint: "Mindestabweichung für eine Fahrt. Leer = globaler Standard.",
     cover_min_time: "Min. Zeit zwischen Änderungen (s)",
-    cover_min_time_hint: "Mindestabstand in Sekunden zwischen Positionsänderungen (schont den Motor).",
+    cover_min_time_hint: "Mindestabstand in Sekunden zwischen Positionsänderungen. Leer = globaler Standard.",
     cover_section_base: "Allgemein",
     cover_section_sensors: "Sensoren",
     cover_section_advanced: "Erweitert",
@@ -348,6 +356,14 @@ const I18N = {
     settings_section_automation: "Automatik",
     settings_pause_duration: "Standard-Pausendauer (Min.)",
     settings_pause_duration_hint: "Wie lange die Automatik nach manueller Bedienung pausiert. Kann pro Behang überschrieben werden.",
+    settings_lock_position: "Standard-Sperrposition",
+    settings_lock_position_hint: "Zielposition bei geöffnetem Fenster (100 = offen). Kann pro Behang überschrieben werden.",
+    settings_vent_position: "Standard-Lüftungsposition",
+    settings_vent_position_hint: "Zielposition bei gekipptem Fenster (z. B. 30). Kann pro Behang überschrieben werden.",
+    settings_min_position_change: "Standard min. Positionsänderung",
+    settings_min_position_change_hint: "Mindestabweichung für eine Fahrt. Kann pro Behang überschrieben werden.",
+    settings_min_time: "Standard min. Zeit zwischen Änderungen (s)",
+    settings_min_time_hint: "Mindestabstand in Sekunden zwischen Positionsänderungen (Motorschutz). Kann pro Behang überschrieben werden.",
     settings_entity_placeholder: "z. B. sensor.außentemperatur",
     settings_current_value: "Aktuell",
     settings_validation_min_max: "Min muss kleiner als Max sein",
@@ -2418,6 +2434,30 @@ class CoverAutomaticPanel extends HTMLElement {
       <input type="number" min="1" max="480" value="${s.pause_duration != null ? s.pause_duration : 10}" data-settings-field="pause_duration">
       <div style="${hintStyle}">${this._t("settings_pause_duration_hint")}</div>
     </div>`;
+    html += '<div class="form-row">';
+    html += `<div class="form-group">
+      <label>${this._t("settings_lock_position")}</label>
+      <input type="number" min="0" max="100" value="${s.lock_position != null ? s.lock_position : 100}" data-settings-field="lock_position">
+      <div style="${hintStyle}">${this._t("settings_lock_position_hint")}</div>
+    </div>`;
+    html += `<div class="form-group">
+      <label>${this._t("settings_vent_position")}</label>
+      <input type="number" min="0" max="100" value="${s.vent_position != null ? s.vent_position : 30}" data-settings-field="vent_position">
+      <div style="${hintStyle}">${this._t("settings_vent_position_hint")}</div>
+    </div>`;
+    html += '</div>';
+    html += '<div class="form-row">';
+    html += `<div class="form-group">
+      <label>${this._t("settings_min_position_change")}</label>
+      <input type="number" min="1" max="50" value="${s.min_position_change != null ? s.min_position_change : 5}" data-settings-field="min_position_change">
+      <div style="${hintStyle}">${this._t("settings_min_position_change_hint")}</div>
+    </div>`;
+    html += `<div class="form-group">
+      <label>${this._t("settings_min_time")}</label>
+      <input type="number" min="60" max="3600" value="${s.min_time_between_changes != null ? s.min_time_between_changes : 300}" data-settings-field="min_time_between_changes">
+      <div style="${hintStyle}">${this._t("settings_min_time_hint")}</div>
+    </div>`;
+    html += '</div>';
 
     // Wind protection section
     html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_wind")}</div>`;
