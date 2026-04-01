@@ -1190,6 +1190,7 @@ class CoverAutomaticPanel extends HTMLElement {
     this._latestVersion = null;
     this._logEntries = null;
     this._logFilter = null;
+    this._liveRefreshTimer = null;
     this._expandedSections = { base: true, sensors: true, advanced: false, tilt: false };
 
 
@@ -1200,11 +1201,21 @@ class CoverAutomaticPanel extends HTMLElement {
     this._hass = hass;
     if (!this._initialized) {
       this._initialize();
+      return;
+    }
+    // Live-update covers table when hass state changes
+    if (this._config && this._activeTab === "covers") {
+      const shell = this.shadowRoot.querySelector(".panel-container");
+      if (shell) this._updateRegion(shell, "content", this._renderContent());
     }
   }
 
   set panel(panel) {
     this._panel = panel;
+  }
+
+  disconnectedCallback() {
+    this._stopLiveRefresh();
   }
 
   /* ---------- i18n helper ---------- */
@@ -1250,6 +1261,7 @@ class CoverAutomaticPanel extends HTMLElement {
     this._render();
     try {
       this._config = await this._ws("cover_automatic/config");
+      if (this._activeTab === "covers") this._startLiveRefresh();
       this._render();
       this._checkForUpdate();
     } catch (e) {
@@ -2412,6 +2424,34 @@ class CoverAutomaticPanel extends HTMLElement {
     this._render();
   }
 
+  _startLiveRefresh() {
+    this._stopLiveRefresh();
+    this._liveRefreshTimer = setInterval(() => this._refreshLiveCovers(), 30000);
+  }
+
+  _stopLiveRefresh() {
+    if (this._liveRefreshTimer) {
+      clearInterval(this._liveRefreshTimer);
+      this._liveRefreshTimer = null;
+    }
+  }
+
+  async _refreshLiveCovers() {
+    if (!this._config || this._activeTab !== "covers") {
+      this._stopLiveRefresh();
+      return;
+    }
+    try {
+      const result = await this._ws("cover_automatic/config");
+      if (result && result.live_covers) {
+        this._config.live_covers = result.live_covers;
+        this._config.active_rules = result.active_rules;
+        const shell = this.shadowRoot.querySelector(".panel-container");
+        if (shell) this._updateRegion(shell, "content", this._renderContent());
+      }
+    } catch (e) { /* silent */ }
+  }
+
   _getCoverName(entityId) {
     const covers = this._config ? (this._config.covers || {}) : {};
     const cover = covers[entityId];
@@ -2477,6 +2517,11 @@ class CoverAutomaticPanel extends HTMLElement {
       this._addingScenario = false;
       this._editingScenario = null;
       this._logEntries = null;
+      if (this._activeTab === "covers") {
+        this._startLiveRefresh();
+      } else {
+        this._stopLiveRefresh();
+      }
       this._render();
       return;
     }

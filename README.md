@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.15.3 (2026-04-01)
+
+- Covers table: live auto-refresh of current position (via HA state updates) and target/hysteresis (every 30s)
+- Timer cleanup on tab switch and panel disconnect
+
 ### 1.15.2 (2026-04-01)
 
 - Fix: sun_on_facade now waits for sensor data before acting after restart
