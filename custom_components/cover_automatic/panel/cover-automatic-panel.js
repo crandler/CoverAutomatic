@@ -71,6 +71,10 @@ const I18N = {
     cover_rule: "Rule",
     cover_no_rule: "–",
     cover_resume: "Resume",
+    cover_last_change: "Last change",
+    cover_just_now: "just now",
+    cover_minutes_ago: "min ago",
+    cover_hours_ago: "h ago",
     comfort_cooling: "Cooling",
     comfort_heating: "Heating",
     comfort_neutral: "Neutral",
@@ -250,6 +254,10 @@ const I18N = {
     cover_rule: "Regel",
     cover_no_rule: "–",
     cover_resume: "Fortsetzen",
+    cover_last_change: "Letzte Änderung",
+    cover_just_now: "gerade",
+    cover_minutes_ago: "Min.",
+    cover_hours_ago: "Std.",
     comfort_cooling: "Kühlen",
     comfort_heating: "Heizen",
     comfort_neutral: "Neutral",
@@ -1502,6 +1510,7 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<th>${this._t("cover_current_pos")}</th>`;
     html += `<th>${this._t("cover_target_pos")}</th>`;
     html += `<th>${this._t("cover_rule")}</th>`;
+    html += `<th>${this._t("cover_last_change")}</th>`;
     html += '<th></th>';
     html += '</tr></thead><tbody>';
 
@@ -1528,16 +1537,22 @@ class CoverAutomaticPanel extends HTMLElement {
       else if (cm === "neutral") comfortIcon = '<span title="' + this._esc(this._t("comfort_neutral")) + '" style="font-size:12px;margin-left:2px">\u25CF</span>';
       // Rule name
       const ruleName = live.rule_name || this._t("cover_no_rule");
+      // Sun on facade
+      const liveFacade = c.facade_id ? ((this._config.live_facades || {})[c.facade_id] || {}) : {};
+      const sunIcon = liveFacade.sun_on_facade ? ' <span title="Sun on facade" style="font-size:12px">\u2600</span>' : '';
+      // Last change
+      const lastChange = live.last_change ? this._formatTimeAgo(live.last_change) : "";
       // Pause info
       const pauseLeft = (c.status === "paused" && live.pause_until) ? this._formatPauseRemaining(live.pause_until) : "";
       const resumeBtn = c.status === "paused" ? ' <button class="btn-sm" data-action="cover-resume" data-id="' + this._esc(c.entity_id) + '" style="font-size:10px;padding:1px 6px">' + this._t("cover_resume") + '</button>' : '';
       html += `<tr class="${selected}">`;
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(c.name)}${comfortIcon}</td>`;
-      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(facadeName)}</td>`;
+      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(facadeName)}${sunIcon}</td>`;
       html += `<td data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining" style="font-size:11px;color:var(--ca-secondary-text);margin-left:4px">' + pauseLeft + '</span>' : ''}${resumeBtn}</td>`;
       html += `<td data-live-current="${this._esc(c.entity_id)}">${currentPos != null ? currentPos + "%" : "–"}</td>`;
       html += `<td data-live-target="${this._esc(c.entity_id)}">${targetPos != null ? targetPos + "%" : "–"}${infoIcon}</td>`;
       html += `<td data-live-rule="${this._esc(c.entity_id)}">${this._esc(ruleName)}</td>`;
+      html += `<td data-live-lastchange="${this._esc(c.entity_id)}" style="font-size:12px;color:var(--ca-secondary-text);white-space:nowrap">${lastChange}</td>`;
       html += `<td><button class="btn-icon" data-action="cover-delete" data-id="${this._esc(c.entity_id)}" title="${this._t("delete")}">&#10005;</button></td>`;
       html += '</tr>';
     }
@@ -2505,7 +2520,20 @@ class CoverAutomaticPanel extends HTMLElement {
       // Rule name
       const rCell = root.querySelector('[data-live-rule="' + eid + '"]');
       if (rCell) rCell.textContent = live.rule_name || this._t("cover_no_rule");
+      // Last change
+      const lcCell = root.querySelector('[data-live-lastchange="' + eid + '"]');
+      if (lcCell) lcCell.textContent = live.last_change ? this._formatTimeAgo(live.last_change) : "";
     }
+  }
+
+  _formatTimeAgo(ts) {
+    const sec = Math.max(0, Math.round(Date.now() / 1000 - ts));
+    if (sec < 60) return this._t("cover_just_now");
+    const min = Math.floor(sec / 60);
+    if (min < 60) return min + " " + this._t("cover_minutes_ago");
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return h + ":" + (m < 10 ? "0" : "") + m + " " + this._t("cover_hours_ago");
   }
 
   _formatPauseRemaining(pauseUntil) {
@@ -2537,6 +2565,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const result = await this._ws("cover_automatic/config");
       if (result) {
         if (result.live_covers) this._config.live_covers = result.live_covers;
+        if (result.live_facades) this._config.live_facades = result.live_facades;
         if (result.active_rules) this._config.active_rules = result.active_rules;
         if (result.covers) this._config.covers = result.covers;
         this._updateLiveCells();

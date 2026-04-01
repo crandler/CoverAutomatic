@@ -177,6 +177,7 @@ async def ws_get_config(
     result = _build_config_response(storage, hass)
     result["active_rules"] = coordinator.get_active_rules()
     result["live_covers"] = coordinator.get_live_cover_data()
+    result["live_facades"] = coordinator.get_live_facade_data()
     connection.send_result(msg["id"], result)
 
 

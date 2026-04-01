@@ -155,6 +155,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.17.0 (2026-04-01)
+
+- Covers table: sun-on-facade indicator (sun icon next to facade name when sun is shining on it)
+- Covers table: "Last change" column showing relative time since last position change
+- Live facade data (sun_on_facade) exposed via WebSocket API
+
 ### 1.16.0 (2026-04-01)
 
 - Covers table: active rule name column shows which rule is currently winning

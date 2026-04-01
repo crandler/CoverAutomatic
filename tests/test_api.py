@@ -86,6 +86,7 @@ def _make_coordinator() -> MagicMock:
     coordinator.refresh_state_tracking = MagicMock()
     coordinator.get_active_rules = MagicMock(return_value={})
     coordinator.get_live_cover_data = MagicMock(return_value={})
+    coordinator.get_live_facade_data = MagicMock(return_value={})
     coordinator.log_storage = None
     return coordinator
 

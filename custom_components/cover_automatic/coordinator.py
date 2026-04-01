@@ -823,8 +823,15 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "rule_id": rule_id,
                     "rule_name": rule_name,
                     "comfort_mode": comfort.value if comfort else None,
+                    "last_change": cover_raw.get("last_position_change") if cover_raw else None,
                 }
         return result
+
+    def get_live_facade_data(self) -> dict[str, dict[str, Any]]:
+        """Get live runtime data for facades (sun on facade)."""
+        if self.data:
+            return self.data.get("facades", {})
+        return {}
 
     def _log(
         self, event_type: str, entity_id: str | None = None,
