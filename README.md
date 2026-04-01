@@ -155,10 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
-### 1.15.1 (2026-04-01)
+### 1.15.2 (2026-04-01)
 
-- Fix: comfort mode on restart no longer jumps from None to NEUTRAL when sensor becomes available
-- On first comfort evaluation (after restart), hysteresis bands are conservatively assigned to COOLING/HEATING to prevent abrupt shading changes
+- Fix: sun_on_facade now waits for sensor data before acting after restart
+- When indoor temp sensor is configured but unavailable, shading is deferred instead of blindly activated
+- On first comfort evaluation, hysteresis bands conservatively assigned to prevent mode jumps
 
 ### 1.15.0 (2026-04-01)
 

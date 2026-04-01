@@ -160,6 +160,8 @@ class RuleEngine:
         Automatically considers indoor comfort temperature when a sensor is
         configured (per-cover > global fallback). In HEATING mode, returns
         False to let sunlight in and save heating energy.
+        When a sensor is configured but unavailable, returns False (wait for
+        reliable data before acting).
         """
         facade_id = condition.params.get("facade") or cover.facade_id
         if not facade_id:
@@ -173,13 +175,22 @@ class RuleEngine:
             return False
 
         # Auto comfort check: only shade in COOLING mode
-        comfort_mode = self._get_comfort_mode(cover)
-        if comfort_mode is not None and comfort_mode != ComfortMode.COOLING:
-            _LOGGER.debug(
-                "[%s] sun_on_facade: skipping shading (%s mode)",
-                cover.entity_id, comfort_mode.value,
-            )
-            return False
+        sensor_id = cover.indoor_temp_sensor or self.storage.indoor_temp_sensor
+        if sensor_id:
+            comfort_mode = self._get_comfort_mode(cover)
+            if comfort_mode is None:
+                # Sensor configured but unavailable -- don't act without data
+                _LOGGER.debug(
+                    "[%s] sun_on_facade: sensor unavailable, deferring",
+                    cover.entity_id,
+                )
+                return False
+            if comfort_mode != ComfortMode.COOLING:
+                _LOGGER.debug(
+                    "[%s] sun_on_facade: skipping shading (%s mode)",
+                    cover.entity_id, comfort_mode.value,
+                )
+                return False
 
         return True
 
