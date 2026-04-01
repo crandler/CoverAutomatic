@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.13.0 (2026-04-01)
+
+- Global master switch toggle in panel header to enable/disable all automation
+- Master switch state exposed via WebSocket API (config response + settings/update)
+
 ### 1.12.1 (2026-04-01)
 
 - Show active rule indicator in rules tab (green dot for currently matching rules)

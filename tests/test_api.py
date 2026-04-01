@@ -31,6 +31,7 @@ def _make_storage(
     covers: dict | None = None,
     rules: dict | None = None,
     scenarios: dict | None = None,
+    enabled: bool = True,
     active_scenario: str = "everyday",
     outdoor_temp_sensor: str | None = None,
     indoor_temp_sensor: str | None = None,
@@ -47,6 +48,7 @@ def _make_storage(
     storage.covers = covers or {}
     storage.rules = rules or {}
     storage.scenarios = scenarios or {}
+    storage.enabled = enabled
     storage.active_scenario = active_scenario
     storage.outdoor_temp_sensor = outdoor_temp_sensor
     storage.indoor_temp_sensor = indoor_temp_sensor
@@ -232,6 +234,17 @@ class TestBuildConfigResponse:
         assert result["settings"]["wind_sensor"] is None
         assert result["settings"]["wind_speed_threshold"] == 0.0
         assert result["settings"]["wind_speed_hysteresis"] == 0.0
+
+    def test_enabled_default_true(self) -> None:
+        storage = _make_storage()
+        result = _build_config_response(storage)
+        assert result["enabled"] is True
+
+    def test_enabled_false(self) -> None:
+        storage = _make_storage()
+        storage.enabled = False
+        result = _build_config_response(storage)
+        assert result["enabled"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -1004,4 +1017,25 @@ class TestWsSettingsUpdate:
         assert storage.comfort_temp_min == 18.0
         # outdoor_temp_sensor not in msg, should not be changed
         # (we check it wasn't overwritten by verifying send_result was called)
+        conn.send_result.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_update_enabled(self) -> None:
+        from custom_components.cover_automatic.api import ws_settings_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/settings/update",
+            "enabled": False,
+        }
+
+        await ws_settings_update(hass, conn, msg, storage, coordinator)
+
+        assert storage.enabled is False
+        storage.async_save.assert_awaited_once()
         conn.send_result.assert_called_once()

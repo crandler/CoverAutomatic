@@ -162,6 +162,7 @@ const I18N = {
     rule_active_for: "Active for",
     rule_covers_count: "cover(s)",
     rule_inactive: "Not matching",
+    master_enabled: "Automation active",
   },
   de: {
     title: "CoverAutomatic",
@@ -310,6 +311,7 @@ const I18N = {
     rule_active_for: "Aktiv für",
     rule_covers_count: "Rollo(s)",
     rule_inactive: "Nicht aktiv",
+    master_enabled: "Automatik aktiv",
   }
 };
 
@@ -673,6 +675,46 @@ const PANEL_STYLES = `
     background: var(--ca-primary);
   }
   .toggle input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+  }
+
+  /* Master toggle in header */
+  .master-toggle {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .master-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+  }
+  .master-toggle .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--ca-border);
+    border-radius: 12px;
+    transition: background var(--ca-transition);
+  }
+  .master-toggle .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 3px;
+    bottom: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform var(--ca-transition);
+  }
+  .master-toggle input:checked + .toggle-slider {
+    background: var(--ca-primary);
+  }
+  .master-toggle input:checked + .toggle-slider::before {
     transform: translateX(20px);
   }
 
@@ -1290,6 +1332,7 @@ class CoverAutomaticPanel extends HTMLElement {
   _renderHeaderContent() {
     const activeScenario = this._getActiveScenario();
     const version = this._config ? this._config.version : "";
+    const enabled = this._config ? this._config.enabled !== false : true;
     let html = '<div><h1 style="display:inline">' + this._t("title") + '</h1>';
     if (version) html += ' <span class="version-info">v' + this._esc(version) + '</span>';
     html += '</div><div style="display:flex;align-items:center;gap:8px">';
@@ -1299,6 +1342,10 @@ class CoverAutomaticPanel extends HTMLElement {
     if (activeScenario) {
       html += '<span class="scenario-badge">' + this._esc(activeScenario.name) + '</span>';
     }
+    html += '<label class="master-toggle" title="' + this._t("master_enabled") + '">';
+    html += '<input type="checkbox" ' + (enabled ? 'checked ' : '') + 'data-action="master-toggle">';
+    html += '<span class="toggle-slider"></span>';
+    html += '</label>';
     html += '</div>';
     return html;
   }
@@ -2360,6 +2407,12 @@ class CoverAutomaticPanel extends HTMLElement {
   _handleChange(e) {
     const el = e.target;
 
+    // Master toggle
+    if (el.matches('[data-action="master-toggle"]')) {
+      this._onMasterToggle(el.checked);
+      return;
+    }
+
     // Cover select (dropdown) changes
     if (el.matches('[data-action="cover-select"]')) {
       this._debouncedCoverSave(el.dataset.id, el.dataset.field, el.value || null);
@@ -2739,6 +2792,13 @@ class CoverAutomaticPanel extends HTMLElement {
         this._updateConfigFromResult(result);
       } catch (e) { console.error(e); }
     });
+  }
+
+  async _onMasterToggle(checked) {
+    try {
+      const result = await this._ws("cover_automatic/settings/update", { enabled: checked });
+      this._updateConfigFromResult(result);
+    } catch (e) { console.error(e); }
   }
 
   async _onSettingsSave() {

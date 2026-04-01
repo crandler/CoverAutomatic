@@ -34,6 +34,7 @@ _UPDATABLE_COVER_FIELDS = (
 
 # Settings fields that can be updated via WS API
 _SETTINGS_FIELDS = (
+    "enabled",
     "outdoor_temp_sensor", "indoor_temp_sensor", "weather_entity",
     "comfort_temp_min", "comfort_temp_max", "pause_duration",
     "house_rotation", "active_scenario",
@@ -74,6 +75,7 @@ def _build_config_response(
     """Build full config response dict from storage."""
     result: dict[str, Any] = {
         "version": _VERSION,
+        "enabled": storage.enabled,
         "covers": {k: v.to_dict() for k, v in storage.covers.items()},
         "facades": {k: v.to_dict() for k, v in storage.facades.items()},
         "rules": {k: v.to_dict() for k, v in storage.rules.items()},
@@ -674,6 +676,7 @@ def async_setup_api(
             f"{DOMAIN}/settings/update",
             ws_settings_update,
             {
+                vol.Optional("enabled"): bool,
                 vol.Optional("outdoor_temp_sensor"): vol.Any(str, None),
                 vol.Optional("indoor_temp_sensor"): vol.Any(str, None),
                 vol.Optional("weather_entity"): vol.Any(str, None),
