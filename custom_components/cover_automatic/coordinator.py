@@ -16,12 +16,16 @@ from .const import (
     BINARY_SENSOR_ON_STATES,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    LOG_EVENT_POSITION,
+    LOG_EVENT_RULE,
+    LOG_EVENT_STATUS,
+    LOG_EVENT_WIND,
     TILT_COMMAND_DELAY,
     TILT_FEATURE_FLAG,
 )
 from .engine import RuleEngine
 from .models import CoverConfig, CoverStatus
-from .storage import CoverAutomaticStorage
+from .storage import ActivityLogStorage, CoverAutomaticStorage
 from .sun import SUN_ENTITY_ID, is_sun_on_facade
 
 if TYPE_CHECKING:
@@ -66,6 +70,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_command_time: dict[str, float] = {}
         self._pre_lock_states: dict[str, CoverStatus] = {}
         self._wind_protected: bool = False
+        self._hysteresis_info: dict[str, str | None] = {}
+        self._last_matching_rules: dict[str, str | None] = {}
+        self.log_storage: ActivityLogStorage | None = None
 
     async def async_setup(self) -> None:
         """Set up the coordinator."""
@@ -258,10 +265,12 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if not self._wind_protected and wind_speed >= threshold > 0:
             _LOGGER.info("Wind protection ACTIVATED (%.1f >= %.1f)", wind_speed, threshold)
             self._wind_protected = True
+            self._log(LOG_EVENT_WIND, None, f"Activated ({wind_speed:.1f} >= {threshold:.1f})")
             self._activate_wind_protection()
         elif self._wind_protected and wind_speed <= threshold - hysteresis:
             _LOGGER.info("Wind protection DEACTIVATED (%.1f <= %.1f)", wind_speed, threshold - hysteresis)
             self._wind_protected = False
+            self._log(LOG_EVENT_WIND, None, f"Deactivated ({wind_speed:.1f} <= {threshold - hysteresis:.1f})")
             self._deactivate_wind_protection()
 
     def _activate_wind_protection(self) -> None:
@@ -500,6 +509,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             prev = self._cover_states.get(entity_id, CoverStatus.AUTO)
             self._pre_lock_states[entity_id] = CoverStatus.AUTO if prev == CoverStatus.PAUSED else prev
         self._cover_states[entity_id] = CoverStatus.LOCKED
+        prev_val = self._pre_lock_states.get(entity_id, CoverStatus.AUTO).value
+        self._log(LOG_EVENT_STATUS, entity_id, f"{prev_val} -> locked")
         self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
 
         # Handle inverted covers
@@ -540,6 +551,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
 
         _LOGGER.debug("Unlocking cover %s", entity_id)
+        self._log(LOG_EVENT_STATUS, entity_id, "locked -> unlocked")
 
         # Restore previous state if was PAUSED and pause not expired
         previous = self._pre_lock_states.pop(entity_id, CoverStatus.AUTO)
@@ -670,7 +682,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def pause_cover(self, cover: CoverConfig) -> None:
         """Pause automation for a cover."""
+        prev = self._cover_states.get(cover.entity_id, CoverStatus.AUTO)
         self._cover_states[cover.entity_id] = CoverStatus.PAUSED
+        if prev != CoverStatus.PAUSED:
+            self._log(LOG_EVENT_STATUS, cover.entity_id, f"{prev.value} -> paused")
         duration = cover.pause_duration or self.storage.pause_duration
         pause_until = dt_util.now().timestamp() + (duration * 60)
         self.storage.update_cover_status(
@@ -787,6 +802,25 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return self.data["active_rules"]
         return {}
 
+    def get_live_cover_data(self) -> dict[str, dict[str, Any]]:
+        """Get live runtime data for all covers (target position, hysteresis)."""
+        result: dict[str, dict[str, Any]] = {}
+        if self.data:
+            for entity_id, cover_data in self.data.get("covers", {}).items():
+                result[entity_id] = {
+                    "target_position": cover_data.get("target_position"),
+                    "hysteresis": self._hysteresis_info.get(entity_id),
+                }
+        return result
+
+    def _log(
+        self, event_type: str, entity_id: str | None = None,
+        message: str = "", data: dict[str, Any] | None = None,
+    ) -> None:
+        """Add an activity log entry if log_storage is available."""
+        if self.log_storage:
+            self.log_storage.add_entry(event_type, entity_id, message, data)
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Update data and evaluate rules."""
         # Sync cover statuses from sensors before evaluation
@@ -819,6 +853,18 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     matching_rule_id = engine_result.rule_id
                     if matching_rule_id:
                         active_rules.setdefault(matching_rule_id, []).append(entity_id)
+
+            # Log rule match changes
+            prev_rule = self._last_matching_rules.get(entity_id)
+            if matching_rule_id != prev_rule:
+                self._last_matching_rules[entity_id] = matching_rule_id
+                if matching_rule_id:
+                    rule_name = self.storage.rules.get(matching_rule_id)
+                    rn = rule_name.name if rule_name else matching_rule_id
+                    self._log(
+                        LOG_EVENT_RULE, entity_id, f"{rn} -> {target_position}%",
+                        {"rule_id": matching_rule_id, "position": target_position},
+                    )
 
             result["covers"][entity_id] = {
                 "status": status.value,
@@ -853,6 +899,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             target = cover_data.get("target_position")
             if target is None:
+                self._hysteresis_info[entity_id] = None
                 continue
 
             cover_raw = self.storage.get_cover_raw(entity_id)
@@ -888,7 +935,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "Skipping %s: position change %d < min %d",
                     entity_id, position_diff, min_change
                 )
-                # Accept current position as expected
+                self._hysteresis_info[entity_id] = "position"
                 self._last_positions[entity_id] = current
                 continue
 
@@ -900,7 +947,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "Skipping %s: only %ds since last change (min %ds)",
                     entity_id, int(now - last_change), min_time
                 )
-                # Accept current position as expected
+                self._hysteresis_info[entity_id] = "time"
                 self._last_positions[entity_id] = current
                 continue
 
@@ -916,8 +963,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             position_changed = current != target
             if position_changed:
                 _LOGGER.info("[%s] Moving %d%% -> %d%%", entity_id, current, target)
+                self._hysteresis_info[entity_id] = None
                 self._last_positions[entity_id] = target
                 self._last_command_time[entity_id] = time_mod.monotonic()
+                self._log(
+                    LOG_EVENT_POSITION, entity_id, f"{current}% -> {target}%",
+                    {"from": current, "to": target, "rule_id": cover_data.get("matching_rule_id")},
+                )
                 await self.hass.services.async_call(
                     "cover",
                     "set_cover_position",
@@ -926,6 +978,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
                 self.storage.update_cover_last_change(entity_id, now)
             else:
+                self._hysteresis_info[entity_id] = None
                 self._last_positions[entity_id] = current
 
             # Send tilt if changed (after position with delay, or immediately)
@@ -994,8 +1047,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         for unsub in self._unsub_state_change:
             unsub()
         self._unsub_state_change.clear()
-        # Flush pending debounced save to prevent data loss
+        # Flush pending debounced saves to prevent data loss
         self.storage.flush_pending_save()
+        if self.log_storage:
+            self.log_storage.flush_pending_save()
         try:
             await self.storage.async_save()
         except Exception:

@@ -26,3 +26,11 @@ BINARY_SENSOR_ON_STATES: Final = frozenset({"on", "open", "true", "1"})
 # Storage
 STORAGE_KEY: Final = f"{DOMAIN}.storage"
 STORAGE_VERSION: Final = 1
+
+# Activity log
+LOG_STORAGE_KEY: Final = f"{DOMAIN}.log"
+LOG_RETENTION_DAYS: Final = 3
+LOG_EVENT_POSITION: Final = "position"
+LOG_EVENT_STATUS: Final = "status"
+LOG_EVENT_RULE: Final = "rule"
+LOG_EVENT_WIND: Final = "wind"

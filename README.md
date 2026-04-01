@@ -155,6 +155,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.15.0 (2026-04-01)
+
+- Covers table: current position (Ist) and target position (Soll) columns
+- Covers table: hysteresis indicator when position change or time threshold blocks movement
+- New "Log" tab with persistent activity log (3-day retention, survives restarts)
+- Log tracks position changes, status transitions, rule matches, wind protection events
+- Log filter by event type (position, status, rule, wind)
+- Live cover data (target position, hysteresis state) exposed via WebSocket API
+
 ### 1.14.0 (2026-04-01)
 
 - Configurable comfort temperature hysteresis (default changed from 0.5 to 1.0 degree)

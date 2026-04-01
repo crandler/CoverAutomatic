@@ -16,7 +16,7 @@ from .api import async_setup_api
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
 from .coordinator import CoverAutomaticCoordinator
 from .services import async_setup_services, async_unload_services
-from .storage import CoverAutomaticStorage
+from .storage import ActivityLogStorage, CoverAutomaticStorage
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,12 +47,15 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntry) -> bool:
     """Set up CoverAutomatic from a config entry."""
     storage = CoverAutomaticStorage(hass)
+    log_storage = ActivityLogStorage(hass)
     scan_interval = entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
     coordinator = CoverAutomaticCoordinator(
         hass, storage, scan_interval, config_entry=entry
     )
+    coordinator.log_storage = log_storage
 
     await coordinator.async_setup()
+    await log_storage.async_load()
 
     async def async_options_updated(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Handle options update by reloading entry to recreate entities."""

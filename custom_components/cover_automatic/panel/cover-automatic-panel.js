@@ -10,7 +10,7 @@
 const I18N = {
   en: {
     title: "CoverAutomatic",
-    tabs: { covers: "Covers", facades: "Facades", rules: "Rules", scenarios: "Scenarios", settings: "Settings" },
+    tabs: { covers: "Covers", facades: "Facades", rules: "Rules", scenarios: "Scenarios", settings: "Settings", log: "Log" },
     loading: "Loading configuration...",
     error_load: "Failed to load configuration.",
     retry: "Retry",
@@ -64,6 +64,10 @@ const I18N = {
     cover_section_advanced: "Advanced",
     cover_section_tilt: "Tilt",
     cover_auto_enabled: "Automation enabled",
+    cover_current_pos: "Current",
+    cover_target_pos: "Target",
+    cover_hysteresis_position: "Position change too small",
+    cover_hysteresis_time: "Too soon since last change",
     cover_add: "Add covers",
     // Facades
     facade_direction: "Direction",
@@ -166,10 +170,21 @@ const I18N = {
     rule_inactive: "Not matching",
     master_enabled: "Automation",
     master_enabled_hint: "Lock and vent protection remain active even when automation is disabled.",
+    log_time: "Time",
+    log_event: "Event",
+    log_cover: "Cover",
+    log_message: "Details",
+    log_type_position: "Position",
+    log_type_status: "Status",
+    log_type_rule: "Rule",
+    log_type_wind: "Wind",
+    log_loading: "Loading log...",
+    log_empty: "No log entries in the last 3 days.",
+    log_filter_all: "All",
   },
   de: {
     title: "CoverAutomatic",
-    tabs: { covers: "Behänge", facades: "Fassaden", rules: "Regeln", scenarios: "Szenarien", settings: "Einstellungen" },
+    tabs: { covers: "Behänge", facades: "Fassaden", rules: "Regeln", scenarios: "Szenarien", settings: "Einstellungen", log: "Protokoll" },
     loading: "Konfiguration wird geladen...",
     error_load: "Konfiguration konnte nicht geladen werden.",
     retry: "Erneut versuchen",
@@ -222,6 +237,10 @@ const I18N = {
     cover_section_advanced: "Erweitert",
     cover_section_tilt: "Tilt",
     cover_auto_enabled: "Automatik aktiviert",
+    cover_current_pos: "Ist",
+    cover_target_pos: "Soll",
+    cover_hysteresis_position: "Positionsänderung zu gering",
+    cover_hysteresis_time: "Zu kurz seit letzter Änderung",
     cover_add: "Behänge hinzufügen",
     facade_direction: "Richtung",
     facade_direction_hint: "Setzt Azimutwerte mit Hausrotation automatisch.",
@@ -318,6 +337,17 @@ const I18N = {
     rule_inactive: "Nicht aktiv",
     master_enabled: "Automatik",
     master_enabled_hint: "Sperr- und Lüftungsschutz bleiben auch bei deaktivierter Automatik aktiv.",
+    log_time: "Zeit",
+    log_event: "Ereignis",
+    log_cover: "Behang",
+    log_message: "Details",
+    log_type_position: "Position",
+    log_type_status: "Status",
+    log_type_rule: "Regel",
+    log_type_wind: "Wind",
+    log_loading: "Protokoll wird geladen...",
+    log_empty: "Keine Einträge in den letzten 3 Tagen.",
+    log_filter_all: "Alle",
   }
 };
 
@@ -814,6 +844,7 @@ const PANEL_STYLES = `
     color: var(--primary-text-color);
   }
   .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-sm.active { background: var(--ca-primary); color: #fff; }
 
   /* Chips */
   .chip {
@@ -1157,6 +1188,8 @@ class CoverAutomaticPanel extends HTMLElement {
     this._dragOverId = null;
     this._error = null;
     this._latestVersion = null;
+    this._logEntries = null;
+    this._logFilter = null;
     this._expandedSections = { base: true, sensors: true, advanced: false, tilt: false };
 
 
@@ -1372,7 +1405,7 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   _renderTabsContent() {
-    const tabs = ["covers", "facades", "rules", "scenarios", "settings"];
+    const tabs = ["covers", "facades", "rules", "scenarios", "settings", "log"];
     let html = '';
     for (const tab of tabs) {
       const active = this._activeTab === tab ? " active" : "";
@@ -1388,6 +1421,7 @@ class CoverAutomaticPanel extends HTMLElement {
       case "rules": return this._renderRules();
       case "scenarios": return this._renderScenarios();
       case "settings": return this._renderSettings();
+      case "log": return this._renderLog();
       default: return '';
     }
   }
@@ -1436,6 +1470,8 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<th>${this._t("name")}</th>`;
     html += `<th>${this._t("cover_facade")}</th>`;
     html += `<th>${this._t("cover_status")}</th>`;
+    html += `<th>${this._t("cover_current_pos")}</th>`;
+    html += `<th>${this._t("cover_target_pos")}</th>`;
     html += `<th>${this._t("cover_auto_enabled")}</th>`;
     html += '<th></th>';
     html += '</tr></thead><tbody>';
@@ -1444,10 +1480,23 @@ class CoverAutomaticPanel extends HTMLElement {
       const facadeName = this._getFacadeName(c.facade_id);
       const selected = this._selectedCover === c.entity_id ? " selected" : "";
       const statusClass = "status-" + (c.status || "auto");
+      const haState = this._hass && this._hass.states ? this._hass.states[c.entity_id] : null;
+      const currentPos = haState && haState.attributes ? haState.attributes.current_position : null;
+      const live = (this._config.live_covers || {})[c.entity_id] || {};
+      const targetPos = live.target_position;
+      const hysteresis = live.hysteresis;
+      let infoIcon = '';
+      if (hysteresis === "position") {
+        infoIcon = ' <span class="status-badge status-paused" title="' + this._esc(this._t("cover_hysteresis_position")) + '" style="font-size:11px">&#8597;</span>';
+      } else if (hysteresis === "time") {
+        infoIcon = ' <span class="status-badge status-paused" title="' + this._esc(this._t("cover_hysteresis_time")) + '" style="font-size:11px">&#9202;</span>';
+      }
       html += `<tr class="${selected}">`;
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(c.name)}</td>`;
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(facadeName)}</td>`;
       html += `<td><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span></td>`;
+      html += `<td>${currentPos != null ? currentPos + "%" : "–"}</td>`;
+      html += `<td>${targetPos != null ? targetPos + "%" : "–"}${infoIcon}</td>`;
       html += `<td>${c.auto_enabled ? this._t("enabled") : this._t("disabled")}</td>`;
       html += `<td><button class="btn-icon" data-action="cover-delete" data-id="${this._esc(c.entity_id)}" title="${this._t("delete")}">&#10005;</button></td>`;
       html += '</tr>';
@@ -2302,6 +2351,73 @@ class CoverAutomaticPanel extends HTMLElement {
     return html;
   }
 
+  _renderLog() {
+    if (this._logEntries === null) {
+      this._loadLog();
+      return '<div class="empty-state">' + this._t("log_loading") + '</div>';
+    }
+
+    let html = '';
+
+    // Filter buttons
+    const filters = [null, "position", "status", "rule", "wind"];
+    html += '<div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap">';
+    for (const f of filters) {
+      const active = this._logFilter === f ? " active" : "";
+      const label = f ? this._t("log_type_" + f) : this._t("log_filter_all");
+      html += '<button class="btn btn-sm' + active + '" data-action="log-filter" data-filter="' + (f || '') + '">' + label + '</button>';
+    }
+    html += '</div>';
+
+    let entries = this._logEntries;
+    if (this._logFilter) {
+      entries = entries.filter(e => e.type === this._logFilter);
+    }
+
+    if (entries.length === 0) {
+      return html + '<div class="empty-state">' + this._t("log_empty") + '</div>';
+    }
+
+    html += '<div class="card"><div style="overflow-x:auto"><table class="data-table">';
+    html += '<thead><tr>';
+    html += '<th>' + this._t("log_time") + '</th>';
+    html += '<th>' + this._t("log_event") + '</th>';
+    html += '<th>' + this._t("log_cover") + '</th>';
+    html += '<th>' + this._t("log_message") + '</th>';
+    html += '</tr></thead><tbody>';
+
+    for (const e of entries) {
+      const time = new Date(e.ts * 1000).toLocaleString();
+      const typeLabel = this._t("log_type_" + e.type) || e.type;
+      const coverName = e.entity_id ? this._getCoverName(e.entity_id) : "–";
+      const typeClass = e.type === "wind" ? "status-wind_protected" : e.type === "status" ? "status-paused" : "";
+      html += '<tr>';
+      html += '<td style="white-space:nowrap">' + this._esc(time) + '</td>';
+      html += '<td><span class="status-badge ' + typeClass + '">' + this._esc(typeLabel) + '</span></td>';
+      html += '<td>' + this._esc(coverName) + '</td>';
+      html += '<td>' + this._esc(e.message) + '</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table></div></div>';
+    return html;
+  }
+
+  async _loadLog() {
+    try {
+      const result = await this._ws("cover_automatic/log");
+      this._logEntries = result.entries || [];
+    } catch (e) {
+      this._logEntries = [];
+    }
+    this._render();
+  }
+
+  _getCoverName(entityId) {
+    const covers = this._config ? (this._config.covers || {}) : {};
+    const cover = covers[entityId];
+    return cover ? cover.name : entityId;
+  }
+
   /* ============================================================
    * Helpers
    * ============================================================ */
@@ -2360,6 +2476,7 @@ class CoverAutomaticPanel extends HTMLElement {
       this._addingRule = false;
       this._addingScenario = false;
       this._editingScenario = null;
+      this._logEntries = null;
       this._render();
       return;
     }
@@ -2419,6 +2536,10 @@ class CoverAutomaticPanel extends HTMLElement {
       case "scenario-edit-save": this._onScenarioEditSave(actionEl); break;
       case "scenario-delete": this._onScenarioDelete(actionEl.dataset.id); break;
       case "settings-save": this._onSettingsSave(); break;
+      case "log-filter":
+        this._logFilter = actionEl.dataset.filter || null;
+        this._render();
+        break;
       case "confirm-ok":
         if (this._confirmCallback) this._confirmCallback();
         this._hideConfirm();

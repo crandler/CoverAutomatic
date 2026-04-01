@@ -8,7 +8,9 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.helpers.storage import Store
 
-from .const import STORAGE_KEY, STORAGE_VERSION
+from homeassistant.util import dt as dt_util
+
+from .const import LOG_RETENTION_DAYS, LOG_STORAGE_KEY, STORAGE_KEY, STORAGE_VERSION
 from .models import CoverConfig, Facade, Rule, Scenario
 
 if TYPE_CHECKING:
@@ -478,6 +480,96 @@ class CoverAutomaticStorage:
             pass
         except Exception as err:
             _LOGGER.error("Failed to save runtime changes: %s", err)
+        finally:
+            if self._save_task is current:
+                self._save_task = None
+
+
+class ActivityLogStorage:
+    """Persistent activity log with automatic 3-day retention."""
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.hass = hass
+        self._store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, LOG_STORAGE_KEY)
+        self._entries: list[dict[str, Any]] = []
+        self._save_task: asyncio.Task | None = None
+        self._save_lock = asyncio.Lock()
+
+    async def async_load(self) -> None:
+        """Load log entries from storage."""
+        data = await self._store.async_load()
+        if data and isinstance(data.get("entries"), list):
+            self._entries = data["entries"]
+        else:
+            self._entries = []
+        self._cleanup_old_entries()
+
+    def _cleanup_old_entries(self) -> None:
+        """Remove entries older than LOG_RETENTION_DAYS."""
+        cutoff = dt_util.now().timestamp() - (LOG_RETENTION_DAYS * 86400)
+        self._entries = [e for e in self._entries if e.get("ts", 0) > cutoff]
+
+    def add_entry(
+        self,
+        event_type: str,
+        entity_id: str | None = None,
+        message: str = "",
+        data: dict[str, Any] | None = None,
+    ) -> None:
+        """Add a log entry and schedule debounced save."""
+        self._cleanup_old_entries()
+        entry: dict[str, Any] = {
+            "ts": dt_util.now().timestamp(),
+            "type": event_type,
+            "entity_id": entity_id,
+            "message": message,
+        }
+        if data:
+            entry["data"] = data
+        self._entries.append(entry)
+        self._schedule_save()
+
+    def get_entries(
+        self,
+        event_type: str | None = None,
+        entity_id: str | None = None,
+        limit: int = 500,
+    ) -> list[dict[str, Any]]:
+        """Get log entries, newest first, with optional filters."""
+        self._cleanup_old_entries()
+        entries = self._entries
+        if event_type:
+            entries = [e for e in entries if e.get("type") == event_type]
+        if entity_id:
+            entries = [e for e in entries if e.get("entity_id") == entity_id]
+        return list(reversed(entries))[:limit]
+
+    def flush_pending_save(self) -> None:
+        """Cancel pending debounced save task."""
+        if self._save_task is not None:
+            self._save_task.cancel()
+            self._save_task = None
+
+    def _schedule_save(self) -> None:
+        """Schedule a debounced save."""
+        if self._save_task is not None:
+            self._save_task.cancel()
+        self._save_task = self.hass.async_create_task(
+            self._debounced_save(),
+            name="cover_automatic_log_save",
+        )
+
+    async def _debounced_save(self) -> None:
+        """Perform debounced save after delay."""
+        current = asyncio.current_task()
+        try:
+            await asyncio.sleep(SAVE_DEBOUNCE_DELAY)
+            async with self._save_lock:
+                await self._store.async_save({"entries": self._entries})
+        except asyncio.CancelledError:
+            pass
+        except Exception as err:
+            _LOGGER.error("Failed to save activity log: %s", err)
         finally:
             if self._save_task is current:
                 self._save_task = None

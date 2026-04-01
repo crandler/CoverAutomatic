@@ -176,6 +176,7 @@ async def ws_get_config(
     """Handle cover_automatic/config."""
     result = _build_config_response(storage, hass)
     result["active_rules"] = coordinator.get_active_rules()
+    result["live_covers"] = coordinator.get_live_cover_data()
     connection.send_result(msg["id"], result)
 
 
@@ -514,6 +515,25 @@ async def ws_settings_update(
     connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
+async def ws_get_log(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    storage: CoverAutomaticStorage,
+    coordinator: CoverAutomaticCoordinator,
+) -> None:
+    """Handle cover_automatic/log."""
+    if not coordinator.log_storage:
+        connection.send_result(msg["id"], {"entries": []})
+        return
+    entries = coordinator.log_storage.get_entries(
+        event_type=msg.get("event_type"),
+        entity_id=msg.get("entity_id"),
+        limit=msg.get("limit", 500),
+    )
+    connection.send_result(msg["id"], {"entries": entries})
+
+
 # ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
@@ -689,6 +709,15 @@ def async_setup_api(
                 vol.Optional("wind_sensor"): vol.Any(str, None),
                 vol.Optional("wind_speed_threshold"): vol.All(vol.Coerce(float), vol.Range(min=0)),
                 vol.Optional("wind_speed_hysteresis"): vol.All(vol.Coerce(float), vol.Range(min=0)),
+            },
+        ),
+        (
+            f"{DOMAIN}/log",
+            ws_get_log,
+            {
+                vol.Optional("event_type"): str,
+                vol.Optional("entity_id"): str,
+                vol.Optional("limit"): vol.All(int, vol.Range(min=1, max=2000)),
             },
         ),
     ]
