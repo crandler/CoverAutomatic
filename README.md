@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.13.1 (2026-04-01)
+
+- Master toggle labeled with text and tooltip explaining lock/vent protection stays active
+- Panel i18n: replaced "Rollo/Rollos" with generic "Behang/Behaenge" (covers all types: blinds, shutters, raffstores)
+
 ### 1.13.0 (2026-04-01)
 
 - Global master switch toggle in panel header to enable/disable all automation

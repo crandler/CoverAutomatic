@@ -162,11 +162,12 @@ const I18N = {
     rule_active_for: "Active for",
     rule_covers_count: "cover(s)",
     rule_inactive: "Not matching",
-    master_enabled: "Automation active",
+    master_enabled: "Automation",
+    master_enabled_hint: "Lock and vent protection remain active even when automation is disabled.",
   },
   de: {
     title: "CoverAutomatic",
-    tabs: { covers: "Rollos", facades: "Fassaden", rules: "Regeln", scenarios: "Szenarien", settings: "Einstellungen" },
+    tabs: { covers: "Behänge", facades: "Fassaden", rules: "Regeln", scenarios: "Szenarien", settings: "Einstellungen" },
     loading: "Konfiguration wird geladen...",
     error_load: "Konfiguration konnte nicht geladen werden.",
     retry: "Erneut versuchen",
@@ -187,18 +188,18 @@ const I18N = {
     yes: "Ja",
     no: "Nein",
     cover_facade: "Fassade",
-    cover_facade_hint: "Bestimmt, welche Fassadenregeln für dieses Rollo gelten.",
+    cover_facade_hint: "Bestimmt, welche Fassadenregeln für diesen Behang gelten.",
     cover_status: "Status",
     cover_pause_duration: "Pausendauer (Min.)",
     cover_pause_duration_hint: "Wie lange die Automatik nach manueller Bedienung pausiert. Leer = globaler Standard.",
     cover_indoor_temp: "Innentemperatur-Sensor",
-    cover_indoor_temp_hint: "Sensor für den Komfortmodus dieses Rollos. Überschreibt den globalen Sensor.",
+    cover_indoor_temp_hint: "Sensor für den Komfortmodus dieses Behangs. Überschreibt den globalen Sensor.",
     cover_lock_sensor: "Sperr-Sensor",
-    cover_lock_sensor_hint: "Fensterkontakt. Bei geöffnetem Fenster fährt das Rollo auf Sperrposition (Sicherheit).",
+    cover_lock_sensor_hint: "Fensterkontakt. Bei geöffnetem Fenster fährt der Behang auf Sperrposition (Sicherheit).",
     cover_lock_position: "Sperrposition",
     cover_lock_position_hint: "Zielposition bei geöffnetem Fenster (100 = vollständig offen).",
     cover_vent_sensor: "Lüftungssensor",
-    cover_vent_sensor_hint: "Kippkontakt. Bei gekipptem Fenster fährt das Rollo auf Lüftungsposition.",
+    cover_vent_sensor_hint: "Kippkontakt. Bei gekipptem Fenster fährt der Behang auf Lüftungsposition.",
     cover_vent_position: "Lüftungsposition",
     cover_vent_position_hint: "Zielposition bei gekipptem Fenster (z. B. 30 für Lüftungsspalt).",
     cover_comfort_min: "Komfort-Temp. min",
@@ -219,7 +220,7 @@ const I18N = {
     cover_section_advanced: "Erweitert",
     cover_section_tilt: "Tilt",
     cover_auto_enabled: "Automatik aktiviert",
-    cover_add: "Rollos hinzufügen",
+    cover_add: "Behänge hinzufügen",
     facade_direction: "Richtung",
     facade_direction_hint: "Setzt Azimutwerte mit Hausrotation automatisch.",
     facade_azimuth_start: "Azimut Start",
@@ -227,9 +228,9 @@ const I18N = {
     facade_azimuth_hint: "Echte Kompasspeilungen, an denen die Sonne die Fassade erreicht/verlässt.",
     facade_min_elevation: "Min. Elevation",
     facade_min_elevation_hint: "Minimale Sonnenhöhe, damit diese Fassade als besonnt gilt.",
-    facade_covers: "Zugewiesene Rollos",
+    facade_covers: "Zugewiesene Behänge",
     facade_add: "Fassade hinzufügen",
-    facade_no_covers: "Keine Rollos zugewiesen",
+    facade_no_covers: "Keine Behänge zugewiesen",
     facade_dir_north: "Norden",
     facade_dir_east: "Osten",
     facade_dir_south: "Süden",
@@ -244,8 +245,8 @@ const I18N = {
     rule_operator_or: "ODER (eine muss zutreffen)",
     rule_conditions: "Bedingungen",
     rule_facades: "Fassaden",
-    rule_covers: "Rollos",
-    rule_assignment_hint: "Regel auf bestimmte Fassaden/Rollos beschränken. Leer = gilt für alle.",
+    rule_covers: "Behänge",
+    rule_assignment_hint: "Regel auf bestimmte Fassaden/Behänge beschränken. Leer = gilt für alle.",
     rule_add: "Regel hinzufügen",
     rule_add_condition: "Bedingung hinzufügen",
     rule_no_conditions: "Keine Bedingungen",
@@ -282,7 +283,7 @@ const I18N = {
     settings_outdoor_temp: "Außentemperatur-Sensor",
     settings_outdoor_temp_hint: "Wird für temperaturbasierte Regelbedingungen verwendet (Außentemperatur über/unter).",
     settings_indoor_temp: "Innentemperatur-Sensor (global)",
-    settings_indoor_temp_hint: "Fallback für Rollos ohne eigenen Innensensor. Wird für Komfortmodus und Beschattungsentscheidungen verwendet.",
+    settings_indoor_temp_hint: "Fallback für Behänge ohne eigenen Innensensor. Wird für Komfortmodus und Beschattungsentscheidungen verwendet.",
     settings_weather: "Wetter-Entität",
     settings_weather_hint: "Wird für wetterbasierte Regelbedingungen verwendet (z. B. nur beschatten bei Sonne).",
     settings_comfort_min: "Komfort-Temp. min",
@@ -295,10 +296,10 @@ const I18N = {
     settings_section_comfort: "Komfort",
     settings_section_automation: "Automatik",
     settings_pause_duration: "Standard-Pausendauer (Min.)",
-    settings_pause_duration_hint: "Wie lange die Automatik nach manueller Bedienung pausiert. Kann pro Rollo überschrieben werden.",
+    settings_pause_duration_hint: "Wie lange die Automatik nach manueller Bedienung pausiert. Kann pro Behang überschrieben werden.",
     settings_entity_placeholder: "z. B. sensor.außentemperatur",
     settings_section_wind: "Windschutz",
-    settings_wind_hint: "Sicherheitsfeature: Fährt alle Rollos hoch, wenn die Windgeschwindigkeit den Schwellwert überschreitet. Deaktiviert sich, wenn die Geschwindigkeit unter Schwellwert minus Hysterese fällt.",
+    settings_wind_hint: "Sicherheitsfeature: Fährt alle Behänge hoch, wenn die Windgeschwindigkeit den Schwellwert überschreitet. Deaktiviert sich, wenn die Geschwindigkeit unter Schwellwert minus Hysterese fällt.",
     settings_wind_sensor: "Windgeschwindigkeits-Sensor",
     settings_wind_threshold: "Schwellwert (Aktivierung)",
     settings_wind_hysteresis: "Hysterese (Deaktivierungsdifferenz)",
@@ -309,9 +310,10 @@ const I18N = {
     status_venting: "Lüften",
     status_wind_protected: "Windschutz",
     rule_active_for: "Aktiv für",
-    rule_covers_count: "Rollo(s)",
+    rule_covers_count: "Behang/Behänge",
     rule_inactive: "Nicht aktiv",
-    master_enabled: "Automatik aktiv",
+    master_enabled: "Automatik",
+    master_enabled_hint: "Sperr- und Lüftungsschutz bleiben auch bei deaktivierter Automatik aktiv.",
   }
 };
 
@@ -678,7 +680,19 @@ const PANEL_STYLES = `
     transform: translateX(20px);
   }
 
-  /* Master toggle in header */
+  /* Master switch in header */
+  .master-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: default;
+  }
+  .master-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ca-secondary-text);
+    user-select: none;
+  }
   .master-toggle {
     position: relative;
     width: 44px;
@@ -1342,10 +1356,13 @@ class CoverAutomaticPanel extends HTMLElement {
     if (activeScenario) {
       html += '<span class="scenario-badge">' + this._esc(activeScenario.name) + '</span>';
     }
-    html += '<label class="master-toggle" title="' + this._t("master_enabled") + '">';
+    html += '<div class="master-switch" title="' + this._t("master_enabled_hint") + '">';
+    html += '<span class="master-label">' + this._t("master_enabled") + '</span>';
+    html += '<label class="master-toggle">';
     html += '<input type="checkbox" ' + (enabled ? 'checked ' : '') + 'data-action="master-toggle">';
     html += '<span class="toggle-slider"></span>';
     html += '</label>';
+    html += '</div>';
     html += '</div>';
     return html;
   }
