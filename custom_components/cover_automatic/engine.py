@@ -74,6 +74,8 @@ class RuleEngine:
         return CoverTarget(
             position=winner.target_position,
             tilt_position=winner.target_tilt_position,
+            rule_id=winner.id,
+            rule_name=winner.name,
         )
 
     def _rule_applies_to_cover(self, rule: Rule, cover: CoverConfig) -> bool:

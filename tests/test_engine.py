@@ -125,6 +125,8 @@ class TestRuleEngine:
         assert isinstance(result, CoverTarget)
         assert result.position == 30
         assert result.tilt_position is None
+        assert result.rule_id == "test_rule"
+        assert result.rule_name == "Test Rule"
 
     def test_evaluate_priority_ordering(
         self, engine, mock_storage, test_cover
@@ -150,6 +152,15 @@ class TestRuleEngine:
 
         result = engine.evaluate_cover(test_cover)
         assert result.position == 80
+        assert result.rule_id == "high"
+        assert result.rule_name == "High Priority"
+
+    def test_evaluate_no_match_returns_none_rule_id(
+        self, engine, mock_storage, test_cover
+    ) -> None:
+        """Test no matching rule returns None (no rule_id)."""
+        result = engine.evaluate_cover(test_cover)
+        assert result is None
 
 
 class TestRuleApplies:

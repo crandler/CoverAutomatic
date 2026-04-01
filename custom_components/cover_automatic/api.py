@@ -37,6 +37,7 @@ _SETTINGS_FIELDS = (
     "outdoor_temp_sensor", "indoor_temp_sensor", "weather_entity",
     "comfort_temp_min", "comfort_temp_max", "pause_duration",
     "house_rotation", "active_scenario",
+    "wind_sensor", "wind_speed_threshold", "wind_speed_hysteresis",
 )
 
 # Umlaut replacement map
@@ -86,6 +87,9 @@ def _build_config_response(
             "comfort_temp_max": storage.comfort_temp_max,
             "pause_duration": storage.pause_duration,
             "house_rotation": storage.house_rotation,
+            "wind_sensor": storage.wind_sensor,
+            "wind_speed_threshold": storage.wind_speed_threshold,
+            "wind_speed_hysteresis": storage.wind_speed_hysteresis,
         },
     }
     if hass:
@@ -167,7 +171,9 @@ async def ws_get_config(
     coordinator: CoverAutomaticCoordinator,
 ) -> None:
     """Handle cover_automatic/config."""
-    connection.send_result(msg["id"], _build_config_response(storage, hass))
+    result = _build_config_response(storage, hass)
+    result["active_rules"] = coordinator.get_active_rules()
+    connection.send_result(msg["id"], result)
 
 
 async def ws_cover_update(
@@ -675,6 +681,9 @@ def async_setup_api(
                 vol.Optional("comfort_temp_max"): vol.Coerce(float),
                 vol.Optional("house_rotation"): vol.All(vol.Coerce(float), vol.Range(min=-180, max=180)),
                 vol.Optional("active_scenario"): str,
+                vol.Optional("wind_sensor"): vol.Any(str, None),
+                vol.Optional("wind_speed_threshold"): vol.All(vol.Coerce(float), vol.Range(min=0)),
+                vol.Optional("wind_speed_hysteresis"): vol.All(vol.Coerce(float), vol.Range(min=0)),
             },
         ),
     ]

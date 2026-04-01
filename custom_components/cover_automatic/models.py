@@ -17,6 +17,7 @@ class CoverStatus(StrEnum):
     MANUAL = "manual"
     LOCKED = "locked"
     VENTING = "venting"
+    WIND_PROTECTED = "wind_protected"
 
 
 class ConditionType(StrEnum):
@@ -50,6 +51,8 @@ class CoverTarget:
 
     position: int
     tilt_position: int | None = None
+    rule_id: str | None = None
+    rule_name: str | None = None
 
 
 @dataclass

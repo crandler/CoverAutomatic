@@ -65,6 +65,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._tilt_tasks: dict[str, asyncio.Task[None]] = {}
         self._last_command_time: dict[str, float] = {}
         self._pre_lock_states: dict[str, CoverStatus] = {}
+        self._wind_protected: bool = False
 
     async def async_setup(self) -> None:
         """Set up the coordinator."""
@@ -183,6 +184,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self.storage.weather_entity:
             entities_to_track.add(self.storage.weather_entity)
 
+        if self.storage.wind_sensor:
+            entities_to_track.add(self.storage.wind_sensor)
+
         for rule_data in self.storage._data.get("rules", {}).values():
             for condition in rule_data.get("conditions", []):
                 if sensor := condition.get("params", {}).get("sensor"):
@@ -223,6 +227,97 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 vent_covers.append(entity_id)
         return lock_covers, vent_covers
 
+    def _get_wind_speed(self) -> float | None:
+        """Get current wind speed from sensor."""
+        sensor_id = self.storage.wind_sensor
+        if not sensor_id:
+            return None
+        state = self.hass.states.get(sensor_id)
+        if state is None:
+            return None
+        try:
+            return float(state.state)
+        except (ValueError, TypeError):
+            return None
+
+    def _check_wind_protection(self) -> None:
+        """Check wind sensor and update global wind protection state.
+
+        Uses hysteresis: activates at threshold, deactivates at
+        threshold - hysteresis to prevent oscillation in gusty wind.
+        """
+        wind_speed = self._get_wind_speed()
+        if wind_speed is None:
+            if self._wind_protected:
+                _LOGGER.warning("Wind sensor unavailable while WIND_PROTECTED, keeping protection active")
+            return
+
+        threshold = self.storage.wind_speed_threshold
+        hysteresis = self.storage.wind_speed_hysteresis
+
+        if not self._wind_protected and wind_speed >= threshold > 0:
+            _LOGGER.info("Wind protection ACTIVATED (%.1f >= %.1f)", wind_speed, threshold)
+            self._wind_protected = True
+            self._activate_wind_protection()
+        elif self._wind_protected and wind_speed <= threshold - hysteresis:
+            _LOGGER.info("Wind protection DEACTIVATED (%.1f <= %.1f)", wind_speed, threshold - hysteresis)
+            self._wind_protected = False
+            self._deactivate_wind_protection()
+
+    def _activate_wind_protection(self) -> None:
+        """Set all covers to WIND_PROTECTED and move to fully open."""
+        for entity_id in self.storage._data.get("covers", {}):
+            cover_raw = self.storage.get_cover_raw(entity_id)
+            if cover_raw is None:
+                continue
+
+            prev = self._cover_states.get(entity_id, CoverStatus.AUTO)
+            if prev not in (CoverStatus.WIND_PROTECTED,):
+                if entity_id not in self._pre_lock_states:
+                    self._pre_lock_states[entity_id] = CoverStatus.AUTO if prev == CoverStatus.PAUSED else prev
+
+            self._cover_states[entity_id] = CoverStatus.WIND_PROTECTED
+            self.storage.update_cover_status(entity_id, CoverStatus.WIND_PROTECTED.value, None)
+
+            # Move to fully open (position 100)
+            inverted = cover_raw.get("inverted", False)
+            actual_position = 0 if inverted else 100
+            self._last_positions[entity_id] = actual_position
+            self._last_command_time[entity_id] = time_mod.monotonic()
+            self.hass.async_create_task(
+                self.hass.services.async_call(
+                    "cover", "set_cover_position",
+                    {"entity_id": entity_id, "position": actual_position},
+                    blocking=False,
+                )
+            )
+
+        if self.data is not None:
+            self.async_set_updated_data(self.data)
+
+    def _deactivate_wind_protection(self) -> None:
+        """Remove WIND_PROTECTED status from all covers, re-derive from sensors."""
+        for entity_id in self.storage._data.get("covers", {}):
+            if self._cover_states.get(entity_id) == CoverStatus.WIND_PROTECTED:
+                self._cover_states[entity_id] = CoverStatus.AUTO
+                self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
+                self._pre_lock_states.pop(entity_id, None)
+                self._update_last_position_from_state(entity_id)
+
+        if self.data is not None:
+            self.async_set_updated_data(self.data)
+
+    @callback
+    def _handle_wind_sensor_change(self, new_state: Any) -> None:
+        """Handle wind sensor state change."""
+        if new_state is None:
+            return
+        if new_state.state in ("unavailable", "unknown"):
+            _LOGGER.warning("Wind sensor unavailable, keeping current protection state")
+            return
+        self._check_wind_protection()
+        self.hass.async_create_task(self.async_request_refresh())
+
     @callback
     def _async_on_state_change(self, event: Event) -> None:
         """Handle state changes of tracked entities."""
@@ -232,6 +327,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         if entity_id in self.storage._data.get("covers", {}):
             self._handle_cover_state_change(entity_id, old_state, new_state)
+        elif entity_id == self.storage.wind_sensor:
+            self._handle_wind_sensor_change(new_state)
         else:
             lock_covers, vent_covers = self._get_covers_by_sensor(entity_id)
             if lock_covers or vent_covers:
@@ -522,6 +619,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if cover is None:
             return
 
+        # Ignore manual overrides during wind protection
+        if self._wind_protected:
+            return
+
         # Ignore position changes while cover is moving
         if new_state.state in ("opening", "closing"):
             return
@@ -580,6 +681,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def resume_cover(self, entity_id: str) -> None:
         """Resume automation for a cover."""
+        # Wind protection cannot be overridden manually
+        if self._wind_protected:
+            return
         cover_raw = self.storage.get_cover_raw(entity_id)
         if cover_raw:
             # Don't override LOCKED status if lock/vent sensor is still active
@@ -596,15 +700,23 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         Updates _cover_states and storage for all covers. Called once per
         update cycle to avoid side effects in property accessors.
-        Lock/vent sensors always have highest priority (safety feature),
-        even when auto_enabled is False.
+        Priority: WIND_PROTECTED > LOCKED > VENTING > PAUSED > AUTO > MANUAL.
         """
+        # Check wind protection first (global, highest priority)
+        self._check_wind_protection()
+
         for entity_id in self.storage._data.get("covers", {}):
             cover_raw = self.storage.get_cover_raw(entity_id)
             if cover_raw is None:
                 continue
 
-            # Check lock sensor state (window contact) - always highest priority
+            # Wind protection has highest priority - skip all other checks
+            if self._wind_protected:
+                if self._cover_states.get(entity_id) != CoverStatus.WIND_PROTECTED:
+                    self._activate_wind_protection()
+                continue
+
+            # Check lock sensor state (window contact)
             if self._is_sensor_open(cover_raw, "lock_sensor"):
                 if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
                     lock_pos = cover_raw.get("lock_position", 100)
@@ -666,6 +778,15 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         return self._cover_states.get(entity_id, CoverStatus.AUTO)
 
+    def get_active_rules(self) -> dict[str, list[str]]:
+        """Get currently active rules and their matched covers.
+
+        Returns dict of {rule_id: [cover_entity_ids]}.
+        """
+        if self.data and "active_rules" in self.data:
+            return self.data["active_rules"]
+        return {}
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Update data and evaluate rules."""
         # Sync cover statuses from sensors before evaluation
@@ -676,6 +797,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "facades": {},
             "scenario": self.storage.active_scenario,
         }
+        # Track which rules are currently winning for which covers
+        active_rules: dict[str, list[str]] = {}
 
         for facade_id, facade in self.storage.facades.items():
             result["facades"][facade_id] = {
@@ -686,19 +809,26 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             status = self.get_cover_status(entity_id)
             target_position: int | None = None
             target_tilt_position: int | None = None
+            matching_rule_id: str | None = None
 
             if status in (CoverStatus.AUTO, CoverStatus.VENTING) and self.storage.enabled:
                 engine_result = self.engine.evaluate_cover(cover)
                 if engine_result is not None:
                     target_position = engine_result.position
                     target_tilt_position = engine_result.tilt_position
+                    matching_rule_id = engine_result.rule_id
+                    if matching_rule_id:
+                        active_rules.setdefault(matching_rule_id, []).append(entity_id)
 
             result["covers"][entity_id] = {
                 "status": status.value,
                 "target_position": target_position,
                 "target_tilt_position": target_tilt_position,
                 "facade_id": cover.facade_id,
+                "matching_rule_id": matching_rule_id,
             }
+
+        result["active_rules"] = active_rules
 
         # Store result first so async_apply_positions can use it
         self.data = result

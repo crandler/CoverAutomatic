@@ -35,7 +35,8 @@
           "paused": "Pausiert",
           "manual": "Manuell",
           "locked": "Gesperrt",
-          "venting": "Lüftung"
+          "venting": "Lüftung",
+          "wind_protected": "Windschutz"
         }
       },
       "sun_on_facade": {

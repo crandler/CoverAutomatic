@@ -282,6 +282,11 @@ class TestCoverStatus:
         assert CoverStatus.PAUSED.value == "paused"
         assert CoverStatus.MANUAL.value == "manual"
         assert CoverStatus.LOCKED.value == "locked"
+        assert CoverStatus.WIND_PROTECTED.value == "wind_protected"
+
+    def test_wind_protected_in_enum(self) -> None:
+        """Test WIND_PROTECTED is a valid CoverStatus."""
+        assert CoverStatus("wind_protected") == CoverStatus.WIND_PROTECTED
 
 
 class TestConditionType:

@@ -68,6 +68,9 @@ def mock_storage():
     storage.weather_entity = "weather.home"
     storage.comfort_temp_min = 21.0
     storage.comfort_temp_max = 25.0
+    storage.wind_sensor = None
+    storage.wind_speed_threshold = 0.0
+    storage.wind_speed_hysteresis = 0.0
 
     storage.async_load = AsyncMock()
     storage.async_save = AsyncMock()
@@ -94,6 +97,7 @@ def coordinator(mock_hass, mock_storage):
         coord._tilt_tasks = {}
         coord._last_command_time = {}
         coord._pre_lock_states = {}
+        coord._wind_protected = False
         coord.data = {}
         coord.logger = MagicMock()
 

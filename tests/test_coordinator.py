@@ -52,6 +52,9 @@ def mock_storage():
     storage.outdoor_temp_sensor = None
     storage.indoor_temp_sensor = None
     storage.weather_entity = None
+    storage.wind_sensor = None
+    storage.wind_speed_threshold = 0.0
+    storage.wind_speed_hysteresis = 0.0
     storage.async_load = AsyncMock()
     storage.async_save = AsyncMock()
     storage.async_add_scenario = AsyncMock()
@@ -84,6 +87,7 @@ def coordinator(mock_hass, mock_storage):
         coord._tilt_tasks = {}
         coord._last_command_time = {}
         coord._pre_lock_states = {}
+        coord._wind_protected = False
         coord.data = {}
         coord.logger = MagicMock()
         coord.name = "cover_automatic"
@@ -123,6 +127,31 @@ class TestCoordinatorInitialization:
         await coordinator.async_setup()
         # Should create 6 default scenarios
         assert mock_storage.async_add_scenario.call_count == 6
+
+
+class TestActiveRules:
+    """Tests for active rules tracking."""
+
+    def test_get_active_rules_empty_data(self, coordinator) -> None:
+        """Test get_active_rules returns empty when no data."""
+        coordinator.data = {}
+        assert coordinator.get_active_rules() == {}
+
+    def test_get_active_rules_no_data(self, coordinator) -> None:
+        """Test get_active_rules returns empty when data is None."""
+        coordinator.data = None
+        assert coordinator.get_active_rules() == {}
+
+    def test_get_active_rules_returns_mapping(self, coordinator) -> None:
+        """Test get_active_rules returns rule-to-covers mapping."""
+        coordinator.data = {
+            "active_rules": {
+                "rule1": ["cover.a", "cover.b"],
+                "rule2": ["cover.c"],
+            }
+        }
+        result = coordinator.get_active_rules()
+        assert result == {"rule1": ["cover.a", "cover.b"], "rule2": ["cover.c"]}
 
 
 class TestCoverStatus:
@@ -1662,3 +1691,142 @@ class TestVentSensorWithTilt:
         )
         # Must clean up pre_lock_states
         assert "cover.test" not in coordinator._pre_lock_states
+
+
+class TestWindProtection:
+    """Tests for wind protection feature."""
+
+    def _setup_wind(self, coordinator, mock_storage, mock_hass, wind_speed="55"):
+        """Helper to set up wind protection test scenario."""
+        mock_storage.wind_sensor = "sensor.wind_speed"
+        mock_storage.wind_speed_threshold = 50.0
+        mock_storage.wind_speed_hysteresis = 10.0
+        mock_storage._data["covers"] = {
+            "cover.test": {
+                "entity_id": "cover.test",
+                "name": "Test",
+                "auto_enabled": True,
+                "inverted": False,
+                "lock_sensor": None,
+                "vent_sensor": None,
+            }
+        }
+        mock_storage.get_cover_raw.return_value = mock_storage._data["covers"]["cover.test"]
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        mock_hass.states.get.return_value = MockState(wind_speed, {"current_position": 50})
+
+    def test_wind_activates_above_threshold(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test wind protection activates when speed >= threshold."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "55")
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is True
+        assert coordinator._cover_states["cover.test"] == CoverStatus.WIND_PROTECTED
+
+    def test_wind_does_not_activate_below_threshold(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test wind protection does not activate below threshold."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "40")
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is False
+        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
+
+    def test_wind_activates_at_exact_threshold(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test wind protection activates at exactly the threshold."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "50")
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is True
+
+    def test_wind_deactivates_below_hysteresis(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test wind protection deactivates at threshold - hysteresis."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "55")
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is True
+        # Wind drops to 40 (= 50 - 10), should deactivate
+        mock_hass.states.get.return_value = MockState("40", {"current_position": 100})
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is False
+        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
+
+    def test_wind_stays_active_in_hysteresis_band(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test wind protection stays active within hysteresis band."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "55")
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is True
+        # Wind drops to 45 (still above 50-10=40), should stay protected
+        mock_hass.states.get.return_value = MockState("45", {"current_position": 100})
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is True
+
+    def test_wind_moves_cover_to_100(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test wind protection moves covers to fully open (100)."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "55")
+        coordinator._check_wind_protection()
+        mock_hass.async_create_task.assert_called()
+        assert coordinator._last_positions["cover.test"] == 100
+
+    def test_wind_overrides_locked(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test wind protection overrides LOCKED status (highest priority)."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "55")
+        coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is True
+        assert coordinator._cover_states["cover.test"] == CoverStatus.WIND_PROTECTED
+
+    def test_wind_no_sensor_configured(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test no action when wind sensor not configured."""
+        mock_storage.wind_sensor = None
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is False
+
+    def test_wind_sensor_unavailable_keeps_state(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test unavailable sensor preserves current protection state."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "55")
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is True
+        # Sensor becomes unavailable
+        mock_hass.states.get.return_value = MockState("unavailable")
+        coordinator._check_wind_protection()
+        # Should keep protection active
+        assert coordinator._wind_protected is True
+
+    def test_wind_threshold_zero_no_activation(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test threshold=0 does not activate (opt-in guard)."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "5")
+        mock_storage.wind_speed_threshold = 0.0
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is False
+
+    def test_wind_inverted_cover_position(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test inverted cover gets position 0 (= fully open for inverted)."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "55")
+        mock_storage._data["covers"]["cover.test"]["inverted"] = True
+        coordinator._check_wind_protection()
+        assert coordinator._last_positions["cover.test"] == 0
+
+    def test_wind_blocks_manual_override(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test manual overrides are ignored during wind protection."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "55")
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is True
+        # Simulate cover state change (manual override attempt)
+        new_state = MockState("open", {"current_position": 50})
+        coordinator._handle_cover_state_change("cover.test", None, new_state)
+        # Should still be WIND_PROTECTED
+        assert coordinator._cover_states["cover.test"] == CoverStatus.WIND_PROTECTED
+
+    def test_wind_blocks_resume(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test resume_cover is blocked during wind protection."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "55")
+        coordinator._check_wind_protection()
+        coordinator.resume_cover("cover.test")
+        # Should still be WIND_PROTECTED
+        assert coordinator._cover_states["cover.test"] == CoverStatus.WIND_PROTECTED
+
+    def test_wind_sync_cover_statuses_skips_lock_vent(self, coordinator, mock_storage, mock_hass) -> None:
+        """Test _sync_cover_statuses skips lock/vent checks during wind protection."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "55")
+        mock_storage._data["covers"]["cover.test"]["lock_sensor"] = "binary_sensor.window"
+        mock_storage.enabled = True
+        mock_storage.covers = {}
+        coordinator._sync_cover_statuses()
+        # Wind should override, even with lock sensor
+        assert coordinator._cover_states["cover.test"] == CoverStatus.WIND_PROTECTED

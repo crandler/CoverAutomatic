@@ -63,6 +63,9 @@ class CoverAutomaticStorage:
                 "weather_entity": None,
                 "comfort_temp_min": 21.0,
                 "comfort_temp_max": 25.0,
+                "wind_sensor": None,
+                "wind_speed_threshold": 0.0,
+                "wind_speed_hysteresis": 0.0,
             }
         else:
             self._data = data
@@ -204,6 +207,36 @@ class CoverAutomaticStorage:
     def pause_duration(self, value: int) -> None:
         """Set global default pause duration in seconds."""
         self._data["pause_duration"] = int(value)
+
+    @property
+    def wind_sensor(self) -> str | None:
+        """Get wind speed sensor entity ID."""
+        return self._data.get("wind_sensor")
+
+    @wind_sensor.setter
+    def wind_sensor(self, value: str | None) -> None:
+        """Set wind speed sensor entity ID."""
+        self._data["wind_sensor"] = value
+
+    @property
+    def wind_speed_threshold(self) -> float:
+        """Get wind speed activation threshold."""
+        return self._data.get("wind_speed_threshold", 0.0)
+
+    @wind_speed_threshold.setter
+    def wind_speed_threshold(self, value: float) -> None:
+        """Set wind speed activation threshold."""
+        self._data["wind_speed_threshold"] = float(value)
+
+    @property
+    def wind_speed_hysteresis(self) -> float:
+        """Get wind speed deactivation hysteresis."""
+        return self._data.get("wind_speed_hysteresis", 0.0)
+
+    @wind_speed_hysteresis.setter
+    def wind_speed_hysteresis(self, value: float) -> None:
+        """Set wind speed deactivation hysteresis."""
+        self._data["wind_speed_hysteresis"] = float(value)
 
     @property
     def house_rotation(self) -> float:
@@ -364,6 +397,9 @@ class CoverAutomaticStorage:
             "weather_entity",
             "comfort_temp_min",
             "comfort_temp_max",
+            "wind_sensor",
+            "wind_speed_threshold",
+            "wind_speed_hysteresis",
         )
         for gkey in _global_keys:
             if gkey not in data:

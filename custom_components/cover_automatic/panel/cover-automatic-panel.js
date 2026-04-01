@@ -148,6 +148,20 @@ const I18N = {
     settings_pause_duration: "Default pause duration (min)",
     settings_pause_duration_hint: "How long automation pauses after manual cover operation. Can be overridden per cover.",
     settings_entity_placeholder: "e.g. sensor.outdoor_temperature",
+    settings_section_wind: "Wind protection",
+    settings_wind_hint: "Safety feature: raises all covers when wind speed exceeds the threshold. Deactivates when speed drops below threshold minus hysteresis.",
+    settings_wind_sensor: "Wind speed sensor",
+    settings_wind_threshold: "Threshold (activation)",
+    settings_wind_hysteresis: "Hysteresis (deactivation difference)",
+    status_auto: "Auto",
+    status_paused: "Paused",
+    status_manual: "Manual",
+    status_locked: "Locked",
+    status_venting: "Venting",
+    status_wind_protected: "Wind protected",
+    rule_active_for: "Active for",
+    rule_covers_count: "cover(s)",
+    rule_inactive: "Not matching",
   },
   de: {
     title: "CoverAutomatic",
@@ -282,6 +296,20 @@ const I18N = {
     settings_pause_duration: "Standard-Pausendauer (Min.)",
     settings_pause_duration_hint: "Wie lange die Automatik nach manueller Bedienung pausiert. Kann pro Rollo überschrieben werden.",
     settings_entity_placeholder: "z. B. sensor.außentemperatur",
+    settings_section_wind: "Windschutz",
+    settings_wind_hint: "Sicherheitsfeature: Fährt alle Rollos hoch, wenn die Windgeschwindigkeit den Schwellwert überschreitet. Deaktiviert sich, wenn die Geschwindigkeit unter Schwellwert minus Hysterese fällt.",
+    settings_wind_sensor: "Windgeschwindigkeits-Sensor",
+    settings_wind_threshold: "Schwellwert (Aktivierung)",
+    settings_wind_hysteresis: "Hysterese (Deaktivierungsdifferenz)",
+    status_auto: "Auto",
+    status_paused: "Pausiert",
+    status_manual: "Manuell",
+    status_locked: "Gesperrt",
+    status_venting: "Lüften",
+    status_wind_protected: "Windschutz",
+    rule_active_for: "Aktiv für",
+    rule_covers_count: "Rollo(s)",
+    rule_inactive: "Nicht aktiv",
   }
 };
 
@@ -514,6 +542,7 @@ const PANEL_STYLES = `
   .status-paused { background: #fff3e0; color: #e65100; }
   .status-manual { background: #e3f2fd; color: #1565c0; }
   .status-locked { background: #fce4ec; color: #c62828; }
+  .status-wind_protected { background: #fce4ec; color: #c62828; }
 
   /* Slide-out panel */
   .slide-overlay {
@@ -768,7 +797,13 @@ const PANEL_STYLES = `
   }
   .rule-row.dragging { opacity: 0.4; }
   .rule-info { flex: 1; min-width: 0; }
-  .rule-name { font-weight: 500; font-size: 15px; }
+  .rule-name { font-weight: 500; font-size: 15px; display: flex; align-items: center; gap: 6px; }
+  .rule-active-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: var(--ca-divider, #e0e0e0);
+    transition: background 0.2s;
+  }
+  .rule-active-dot.active { background: #4caf50; }
   .rule-meta {
     font-size: 12px;
     color: var(--ca-secondary-text);
@@ -1344,7 +1379,7 @@ class CoverAutomaticPanel extends HTMLElement {
       html += `<tr class="${selected}">`;
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(c.name)}</td>`;
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(facadeName)}</td>`;
-      html += `<td><span class="status-badge ${statusClass}">${this._esc(c.status || "auto")}</span></td>`;
+      html += `<td><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span></td>`;
       html += `<td>${c.auto_enabled ? this._t("enabled") : this._t("disabled")}</td>`;
       html += `<td><button class="btn-icon" data-action="cover-delete" data-id="${this._esc(c.entity_id)}" title="${this._t("delete")}">&#10005;</button></td>`;
       html += '</tr>';
@@ -1683,15 +1718,21 @@ class CoverAutomaticPanel extends HTMLElement {
       html += `<div class="empty-state">${this._t("none")}</div>`;
     }
 
+    const activeRules = this._config.active_rules || {};
+
     for (const r of sorted) {
       const isExpanded = this._expandedRule === r.id;
       const dragging = this._dragRuleId === r.id ? " dragging" : "";
       const dragOver = this._dragOverId === r.id ? " drag-over" : "";
+      const matchedCovers = activeRules[r.id] || [];
+      const isActive = matchedCovers.length > 0;
 
       html += `<div class="rule-row${dragging}${dragOver}" draggable="true" data-rule-id="${this._esc(r.id)}" data-action="rule-drag">`;
       html += `<span class="drag-handle" title="Drag">&#9783;</span>`;
       html += `<div class="rule-info" data-action="rule-expand" data-id="${this._esc(r.id)}">`;
-      html += `<div class="rule-name">${this._esc(r.name)}</div>`;
+      html += `<div class="rule-name">`;
+      html += `<span class="rule-active-dot ${isActive ? "active" : ""}" title="${isActive ? this._t("rule_active_for") + " " + matchedCovers.length + " " + this._t("rule_covers_count") : this._t("rule_inactive")}"></span>`;
+      html += `${this._esc(r.name)}</div>`;
       html += '<div class="rule-meta">';
       html += `<span class="priority-badge">P${r.priority}</span>`;
       html += `<span>${r.condition_operator === "or" ? "OR" : "AND"}</span>`;
@@ -2148,6 +2189,24 @@ class CoverAutomaticPanel extends HTMLElement {
       <input type="number" min="1" max="480" value="${s.pause_duration != null ? s.pause_duration : 10}" data-settings-field="pause_duration">
       <div style="${hintStyle}">${this._t("settings_pause_duration_hint")}</div>
     </div>`;
+
+    // Wind protection section
+    html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_wind")}</div>`;
+    html += `<div style="${hintStyle};margin-bottom:12px">${this._t("settings_wind_hint")}</div>`;
+    html += `<div class="form-group">
+      <label>${this._t("settings_wind_sensor")}</label>
+      ${this._renderEntitySelect("wind_sensor", s.wind_sensor, "sensor", "wind_speed")}
+    </div>`;
+    html += '<div class="form-row">';
+    html += `<div class="form-group">
+      <label>${this._t("settings_wind_threshold")}</label>
+      <input type="number" step="1" min="0" value="${s.wind_speed_threshold != null ? s.wind_speed_threshold : 0}" data-settings-field="wind_speed_threshold">
+    </div>`;
+    html += `<div class="form-group">
+      <label>${this._t("settings_wind_hysteresis")}</label>
+      <input type="number" step="1" min="0" value="${s.wind_speed_hysteresis != null ? s.wind_speed_hysteresis : 0}" data-settings-field="wind_speed_hysteresis">
+    </div>`;
+    html += '</div>';
 
     // House section
     html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_house")}</div>`;

@@ -155,6 +155,19 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.12.1 (2026-04-01)
+
+- Show active rule indicator in rules tab (green dot for currently matching rules)
+- Rules tab shows which rules are winning for which covers (tooltip with count)
+
+### 1.12.0 (2026-04-01)
+
+- Wind protection: safety feature that raises all covers when wind speed exceeds configurable threshold
+- New CoverStatus `WIND_PROTECTED` with highest priority (above LOCKED)
+- Global settings: wind sensor, activation threshold, configurable hysteresis
+- Opt-in: only active when wind sensor is configured
+- Translated status labels in cover table (EN/DE)
+
 ### 1.11.0 (2026-03-31)
 
 - New condition type: `day_of_week` - filter rules by weekday (e.g., workdays vs weekends)

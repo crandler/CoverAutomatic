@@ -37,6 +37,9 @@ def _make_storage(
     weather_entity: str | None = None,
     comfort_temp_min: float = 21.0,
     comfort_temp_max: float = 25.0,
+    wind_sensor: str | None = None,
+    wind_speed_threshold: float = 0.0,
+    wind_speed_hysteresis: float = 0.0,
 ) -> MagicMock:
     """Create a mock storage object."""
     storage = MagicMock()
@@ -50,6 +53,9 @@ def _make_storage(
     storage.weather_entity = weather_entity
     storage.comfort_temp_min = comfort_temp_min
     storage.comfort_temp_max = comfort_temp_max
+    storage.wind_sensor = wind_sensor
+    storage.wind_speed_threshold = wind_speed_threshold
+    storage.wind_speed_hysteresis = wind_speed_hysteresis
     storage.async_add_facade = AsyncMock()
     storage.async_remove_facade = AsyncMock()
     storage.async_add_cover = AsyncMock()
@@ -74,6 +80,7 @@ def _make_coordinator() -> MagicMock:
     """Create a mock coordinator."""
     coordinator = MagicMock()
     coordinator.refresh_state_tracking = MagicMock()
+    coordinator.get_active_rules = MagicMock(return_value={})
     return coordinator
 
 
@@ -208,6 +215,24 @@ class TestBuildConfigResponse:
         assert result["settings"]["comfort_temp_min"] == 20.0
         assert result["settings"]["comfort_temp_max"] == 26.0
 
+    def test_wind_settings_in_response(self) -> None:
+        storage = _make_storage(
+            wind_sensor="sensor.wind_speed",
+            wind_speed_threshold=50.0,
+            wind_speed_hysteresis=10.0,
+        )
+        result = _build_config_response(storage)
+        assert result["settings"]["wind_sensor"] == "sensor.wind_speed"
+        assert result["settings"]["wind_speed_threshold"] == 50.0
+        assert result["settings"]["wind_speed_hysteresis"] == 10.0
+
+    def test_wind_settings_defaults(self) -> None:
+        storage = _make_storage()
+        result = _build_config_response(storage)
+        assert result["settings"]["wind_sensor"] is None
+        assert result["settings"]["wind_speed_threshold"] == 0.0
+        assert result["settings"]["wind_speed_hysteresis"] == 0.0
+
 
 # ---------------------------------------------------------------------------
 # async_setup_api
@@ -281,6 +306,23 @@ class TestWsGetConfig:
         assert "rules" in result[1]
         assert "scenarios" in result[1]
         assert "settings" in result[1]
+        assert "active_rules" in result[1]
+
+    @pytest.mark.asyncio
+    async def test_active_rules_from_coordinator(self) -> None:
+        from custom_components.cover_automatic.api import ws_get_config
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+        coordinator.get_active_rules.return_value = {"rule1": ["cover.a"]}
+        msg = {"id": 1, "type": "cover_automatic/config"}
+
+        await ws_get_config(hass, conn, msg, storage, coordinator)
+
+        result = conn.send_result.call_args[0][1]
+        assert result["active_rules"] == {"rule1": ["cover.a"]}
 
 
 class TestWsCoverUpdate:

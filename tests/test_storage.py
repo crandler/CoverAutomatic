@@ -191,6 +191,33 @@ class TestStorageProperties:
         assert storage._data["comfort_temp_min"] == 19.0
         assert storage._data["comfort_temp_max"] == 27.0
 
+    def test_wind_properties(self, storage) -> None:
+        """Test wind protection properties."""
+        storage._data = {}
+        assert storage.wind_sensor is None
+        assert storage.wind_speed_threshold == 0.0
+        assert storage.wind_speed_hysteresis == 0.0
+
+        storage.wind_sensor = "sensor.wind_speed"
+        storage.wind_speed_threshold = 50.0
+        storage.wind_speed_hysteresis = 10.0
+        assert storage._data["wind_sensor"] == "sensor.wind_speed"
+        assert storage._data["wind_speed_threshold"] == 50.0
+        assert storage._data["wind_speed_hysteresis"] == 10.0
+
+    def test_wind_properties_defaults_in_fresh_storage(self, storage) -> None:
+        """Test wind settings exist with defaults after load."""
+        storage._data = {
+            "facades": {}, "covers": {}, "rules": {}, "scenarios": {},
+            "active_scenario": "everyday",
+            "wind_sensor": None,
+            "wind_speed_threshold": 0.0,
+            "wind_speed_hysteresis": 0.0,
+        }
+        assert storage.wind_sensor is None
+        assert storage.wind_speed_threshold == 0.0
+        assert storage.wind_speed_hysteresis == 0.0
+
 
 class TestStorageCRUD:
     """Tests for CRUD operations."""
