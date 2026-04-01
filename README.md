@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.15.1 (2026-04-01)
+
+- Fix: comfort mode on restart no longer jumps from None to NEUTRAL when sensor becomes available
+- On first comfort evaluation (after restart), hysteresis bands are conservatively assigned to COOLING/HEATING to prevent abrupt shading changes
+
 ### 1.15.0 (2026-04-01)
 
 - Covers table: current position (Ist) and target position (Soll) columns
