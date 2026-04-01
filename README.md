@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.20.1 (2026-04-01)
+
+- Fix: adding/deleting rule conditions now auto-saves immediately (no more lost changes when collapsing rule)
+
 ### 1.20.0 (2026-04-01)
 
 - Rule priority now determined entirely by drag order (top = wins)

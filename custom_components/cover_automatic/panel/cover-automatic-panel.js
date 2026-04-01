@@ -3046,7 +3046,7 @@ class CoverAutomaticPanel extends HTMLElement {
     } catch (e) { console.error(e); }
   }
 
-  _onRuleAddCondition(ruleId, condType) {
+  async _onRuleAddCondition(ruleId, condType) {
     if (!condType) return;
     const rule = (this._config.rules || {})[ruleId];
     if (!rule) return;
@@ -3055,14 +3055,32 @@ class CoverAutomaticPanel extends HTMLElement {
     for (const p of paramDefs) params[p.key] = p.default;
     if (!rule.conditions) rule.conditions = [];
     rule.conditions.push({ type: condType, params: params });
-    this._render();
+    // Auto-save immediately
+    const data = this._collectRuleEditorData(this.shadowRoot, ruleId);
+    if (data) {
+      try {
+        const result = await this._ws("cover_automatic/rule/update", data);
+        this._updateConfigFromResult(result);
+      } catch (e) { console.error(e); }
+    } else {
+      this._render();
+    }
   }
 
-  _onRuleDeleteCondition(ruleId, idx) {
+  async _onRuleDeleteCondition(ruleId, idx) {
     const rule = (this._config.rules || {})[ruleId];
     if (rule && rule.conditions) {
       rule.conditions.splice(parseInt(idx, 10), 1);
-      this._render();
+      // Auto-save immediately (don't require explicit save click)
+      const data = this._collectRuleEditorData(this.shadowRoot, ruleId);
+      if (data) {
+        try {
+          const result = await this._ws("cover_automatic/rule/update", data);
+          this._updateConfigFromResult(result);
+        } catch (e) { console.error(e); }
+      } else {
+        this._render();
+      }
     }
   }
 
