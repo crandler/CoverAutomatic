@@ -819,9 +819,9 @@ class TestWsRuleReorder:
 
         await ws_rule_reorder(hass, conn, msg, storage, coordinator)
 
-        assert storage._data["rules"]["r3"]["priority"] == 10
+        assert storage._data["rules"]["r3"]["priority"] == 30
         assert storage._data["rules"]["r1"]["priority"] == 20
-        assert storage._data["rules"]["r2"]["priority"] == 30
+        assert storage._data["rules"]["r2"]["priority"] == 10
         storage._invalidate_cache.assert_called()
         storage.async_save.assert_awaited_once()
         conn.send_result.assert_called_once()

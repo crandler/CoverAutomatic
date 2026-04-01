@@ -422,14 +422,16 @@ async def ws_rule_reorder(
 ) -> None:
     """Handle cover_automatic/rule/reorder.
 
-    Array position determines priority: first = highest (10), then 20, 30, ...
+    Array position determines priority: first = highest priority.
+    Top of the list wins over bottom.
     """
     rule_ids: list[str] = msg["rule_ids"]
     rules_data = storage._data.get("rules", {})
+    total = len(rule_ids)
 
     for idx, rid in enumerate(rule_ids):
         if rid in rules_data:
-            rules_data[rid]["priority"] = (idx + 1) * 10
+            rules_data[rid]["priority"] = (total - idx) * 10
 
     storage._invalidate_cache()
     await storage.async_save()

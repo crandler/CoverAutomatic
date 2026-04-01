@@ -113,7 +113,7 @@ const I18N = {
     rule_add: "Add rule",
     rule_add_condition: "Add condition",
     rule_no_conditions: "No conditions",
-    rule_reorder_hint: "Drag to reorder (top = highest priority)",
+    rule_reorder_hint: "Drag to reorder. Top rule wins when multiple rules match.",
     // Condition types
     cond_sun_on_facade: "Sun on facade",
     cond_sun_elevation_above: "Sun elevation above",
@@ -299,7 +299,7 @@ const I18N = {
     rule_add: "Regel hinzufügen",
     rule_add_condition: "Bedingung hinzufügen",
     rule_no_conditions: "Keine Bedingungen",
-    rule_reorder_hint: "Ziehen zum Sortieren (oben = höchste Priorität)",
+    rule_reorder_hint: "Ziehen zum Sortieren. Obere Regel gewinnt bei Überschneidung.",
     cond_sun_on_facade: "Sonne auf Fassade",
     cond_sun_elevation_above: "Sonnenhöhe über",
     cond_sun_elevation_below: "Sonnenhöhe unter",
@@ -1913,7 +1913,7 @@ class CoverAutomaticPanel extends HTMLElement {
    * ============================================================ */
   _renderRules() {
     const rules = this._config.rules || {};
-    const sorted = Object.values(rules).sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    const sorted = Object.values(rules).sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
     let html = `<div style="margin-bottom:12px;font-size:12px;color:var(--ca-secondary-text)">${this._t("rule_reorder_hint")}</div>`;
 
@@ -1923,7 +1923,8 @@ class CoverAutomaticPanel extends HTMLElement {
 
     const activeRules = this._config.active_rules || {};
 
-    for (const r of sorted) {
+    for (let idx = 0; idx < sorted.length; idx++) {
+      const r = sorted[idx];
       const isExpanded = this._expandedRule === r.id;
       const dragging = this._dragRuleId === r.id ? " dragging" : "";
       const dragOver = this._dragOverId === r.id ? " drag-over" : "";
@@ -1937,7 +1938,7 @@ class CoverAutomaticPanel extends HTMLElement {
       html += `<span class="rule-active-dot ${isActive ? "active" : ""}" title="${isActive ? this._t("rule_active_for") + " " + matchedCovers.length + " " + this._t("rule_covers_count") : this._t("rule_inactive")}"></span>`;
       html += `${this._esc(r.name)}</div>`;
       html += '<div class="rule-meta">';
-      html += `<span class="priority-badge">P${r.priority}</span>`;
+      html += `<span class="priority-badge">#${idx + 1}</span>`;
       html += `<span>${r.condition_operator === "or" ? "OR" : "AND"}</span>`;
       html += `<span>${this._t("rule_target_pos")}: ${r.target_position}%</span>`;
       if (r.target_tilt_position != null) {
@@ -1993,12 +1994,8 @@ class CoverAutomaticPanel extends HTMLElement {
       <input type="text" value="${this._esc(rule.name)}" data-action="rule-field" data-id="${this._esc(rule.id)}" data-field="name">
     </div>`;
 
-    // Priority + target position + tilt
+    // Target position + tilt
     html += '<div class="form-row">';
-    html += `<div class="form-group" style="flex:0 0 80px">
-      <label>${this._t("rule_priority")}</label>
-      <input type="number" min="1" max="100" value="${rule.priority || 10}" data-action="rule-field" data-id="${this._esc(rule.id)}" data-field="priority">
-    </div>`;
     html += `<div class="form-group">
       <label>${this._t("rule_target_pos")}</label>
       <input type="number" min="0" max="100" value="${rule.target_position}" data-action="rule-field" data-id="${this._esc(rule.id)}" data-field="target_position">
@@ -2925,7 +2922,7 @@ class CoverAutomaticPanel extends HTMLElement {
     const targetId = row.dataset.ruleId;
     if (draggedId && targetId && draggedId !== targetId) {
       const rules = this._config.rules || {};
-      const sorted = Object.values(rules).sort((a, b) => (a.priority || 0) - (b.priority || 0));
+      const sorted = Object.values(rules).sort((a, b) => (b.priority || 0) - (a.priority || 0));
       const ids = sorted.map(r => r.id);
       const fromIdx = ids.indexOf(draggedId);
       const toIdx = ids.indexOf(targetId);
@@ -3232,13 +3229,11 @@ class CoverAutomaticPanel extends HTMLElement {
 
     // Collect from DOM
     const nameEl = root.querySelector(`[data-action="rule-field"][data-id="${ruleId}"][data-field="name"]`);
-    const prioEl = root.querySelector(`[data-action="rule-field"][data-id="${ruleId}"][data-field="priority"]`);
     const tpEl = root.querySelector(`[data-action="rule-field"][data-id="${ruleId}"][data-field="target_position"]`);
     const ttpEl = root.querySelector(`[data-action="rule-field"][data-id="${ruleId}"][data-field="target_tilt_position"]`);
     const opEl = root.querySelector(`[data-action="rule-field"][data-id="${ruleId}"][data-field="condition_operator"]`);
 
     const name = nameEl ? nameEl.value.trim() : rule.name;
-    const prio = prioEl && prioEl.value !== "" ? parseInt(prioEl.value, 10) : rule.priority;
     const tp = tpEl && tpEl.value !== "" ? parseInt(tpEl.value, 10) : rule.target_position;
     const ttpVal = ttpEl ? ttpEl.value : null;
     const ttp = (ttpVal !== "" && ttpVal != null) ? parseInt(ttpVal, 10) : null;
@@ -3262,7 +3257,6 @@ class CoverAutomaticPanel extends HTMLElement {
     return {
       rule_id: ruleId,
       name: name,
-      priority: prio,
       target_position: tp,
       target_tilt_position: ttp,
       condition_operator: op,

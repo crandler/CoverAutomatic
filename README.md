@@ -155,6 +155,14 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.20.0 (2026-04-01)
+
+- Rule priority now determined entirely by drag order (top = wins)
+- Removed manual priority number field from rule editor
+- Priority auto-assigned on reorder: top rule gets highest priority
+- Rules sorted highest priority first in the list
+- Position badge shows #1, #2, #3 instead of P10, P20, P30
+
 ### 1.19.1 (2026-04-01)
 
 - Fix: priority field was missing from rule editor (only shown as badge, not editable)
