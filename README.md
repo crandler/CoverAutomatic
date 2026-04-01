@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.19.1 (2026-04-01)
+
+- Fix: priority field was missing from rule editor (only shown as badge, not editable)
+- Priority now editable in expanded rule editor, saved with rule data
+
 ### 1.19.0 (2026-04-01)
 
 - Weather condition now supports multiple values (e.g. sunny + partlycloudy) via toggle buttons

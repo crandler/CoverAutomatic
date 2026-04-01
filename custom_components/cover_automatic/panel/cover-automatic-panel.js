@@ -1993,8 +1993,12 @@ class CoverAutomaticPanel extends HTMLElement {
       <input type="text" value="${this._esc(rule.name)}" data-action="rule-field" data-id="${this._esc(rule.id)}" data-field="name">
     </div>`;
 
-    // Target position + tilt + operator
+    // Priority + target position + tilt
     html += '<div class="form-row">';
+    html += `<div class="form-group" style="flex:0 0 80px">
+      <label>${this._t("rule_priority")}</label>
+      <input type="number" min="1" max="100" value="${rule.priority || 10}" data-action="rule-field" data-id="${this._esc(rule.id)}" data-field="priority">
+    </div>`;
     html += `<div class="form-group">
       <label>${this._t("rule_target_pos")}</label>
       <input type="number" min="0" max="100" value="${rule.target_position}" data-action="rule-field" data-id="${this._esc(rule.id)}" data-field="target_position">
@@ -3228,11 +3232,13 @@ class CoverAutomaticPanel extends HTMLElement {
 
     // Collect from DOM
     const nameEl = root.querySelector(`[data-action="rule-field"][data-id="${ruleId}"][data-field="name"]`);
+    const prioEl = root.querySelector(`[data-action="rule-field"][data-id="${ruleId}"][data-field="priority"]`);
     const tpEl = root.querySelector(`[data-action="rule-field"][data-id="${ruleId}"][data-field="target_position"]`);
     const ttpEl = root.querySelector(`[data-action="rule-field"][data-id="${ruleId}"][data-field="target_tilt_position"]`);
     const opEl = root.querySelector(`[data-action="rule-field"][data-id="${ruleId}"][data-field="condition_operator"]`);
 
     const name = nameEl ? nameEl.value.trim() : rule.name;
+    const prio = prioEl && prioEl.value !== "" ? parseInt(prioEl.value, 10) : rule.priority;
     const tp = tpEl && tpEl.value !== "" ? parseInt(tpEl.value, 10) : rule.target_position;
     const ttpVal = ttpEl ? ttpEl.value : null;
     const ttp = (ttpVal !== "" && ttpVal != null) ? parseInt(ttpVal, 10) : null;
@@ -3256,6 +3262,7 @@ class CoverAutomaticPanel extends HTMLElement {
     return {
       rule_id: ruleId,
       name: name,
+      priority: prio,
       target_position: tp,
       target_tilt_position: ttp,
       condition_operator: op,
