@@ -356,9 +356,14 @@ class RuleEngine:
         Checks if current weather matches expected conditions.
         Supports: sunny, cloudy, rainy, snowy, windy, clear
         """
-        # Panel sends single "weather" key, legacy uses "states" list
+        # Panel sends "weather" as string or list, legacy uses "states" list
         weather_val = condition.params.get("weather")
-        expected_states = [weather_val] if weather_val else condition.params.get("states", [])
+        if isinstance(weather_val, list):
+            expected_states = weather_val
+        elif weather_val:
+            expected_states = [weather_val]
+        else:
+            expected_states = condition.params.get("states", [])
         if isinstance(expected_states, str):
             expected_states = [expected_states]
 

@@ -155,6 +155,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.19.0 (2026-04-01)
+
+- Weather condition now supports multiple values (e.g. sunny + partlycloudy) via toggle buttons
+- Fix: day_of_week condition type was missing from condition selector dropdown
+- Engine: weather param accepts both string and array format (backwards compatible)
+
 ### 1.18.1 (2026-04-01)
 
 - Fix: resume from pause now triggers immediate rule re-evaluation, no page refresh needed

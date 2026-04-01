@@ -388,7 +388,7 @@ const CONDITION_TYPES = [
   "sun_on_facade", "sun_elevation_above", "sun_elevation_below",
   "temperature_above", "temperature_below", "temperature_comfort",
   "time_between", "time_after_sunrise", "time_after_sunset",
-  "state_is", "weather_is"
+  "state_is", "weather_is", "day_of_week"
 ];
 
 const CONDITION_PARAMS = {
@@ -408,7 +408,7 @@ const CONDITION_PARAMS = {
     { key: "entity_id", type: "text", default: "" },
     { key: "state", type: "text", default: "on" }
   ],
-  weather_is: [{ key: "weather", type: "select", options: ["sunny", "cloudy", "partlycloudy", "rainy", "snowy", "windy", "fog", "clear-night"], default: "sunny" }],
+  weather_is: [{ key: "weather", type: "multiselect", options: ["sunny", "cloudy", "partlycloudy", "rainy", "snowy", "windy", "fog", "clear-night"], default: ["sunny"] }],
   day_of_week: [{ key: "days", type: "dayselect", default: ["mon","tue","wed","thu","fri"] }]
 };
 
@@ -2085,6 +2085,14 @@ class CoverAutomaticPanel extends HTMLElement {
             html += `<option value="${opt}"${val === opt ? " selected" : ""}>${opt}</option>`;
           }
           html += '</select>';
+        } else if (p.type === "multiselect") {
+          const selected = Array.isArray(val) ? val : (val ? [val] : p.default);
+          html += `<div class="day-select" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
+          for (const opt of p.options) {
+            const active = selected.includes(opt);
+            html += `<button type="button" class="day-btn${active ? " selected" : ""}" data-action="multiselect-toggle" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}" data-val="${opt}">${opt}</button>`;
+          }
+          html += '</div>';
         } else if (p.type === "time") {
           html += `<input type="time" value="${this._esc(String(val))}" data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
         } else if (p.type === "dayselect") {
@@ -2725,6 +2733,7 @@ class CoverAutomaticPanel extends HTMLElement {
       case "facade-edit": this._editingFacade = actionEl.dataset.id; this._render(); break;
       case "facade-edit-cancel": this._editingFacade = null; this._render(); break;
       case "day-toggle": this._onDayToggle(actionEl); break;
+      case "multiselect-toggle": this._onMultiselectToggle(actionEl); break;
       case "facade-cover-toggle": actionEl.classList.toggle("selected"); break;
       case "facade-add-save": this._onFacadeAddSave(actionEl); break;
       case "facade-edit-save": this._onFacadeEditSave(actionEl); break;
@@ -3101,6 +3110,26 @@ class CoverAutomaticPanel extends HTMLElement {
         days.push(day);
       }
       rule.conditions[idx].params[key] = days;
+      el.classList.toggle("selected");
+    }
+  }
+
+  _onMultiselectToggle(el) {
+    const ruleId = el.dataset.rule;
+    const idx = parseInt(el.dataset.idx, 10);
+    const key = el.dataset.key;
+    const val = el.dataset.val;
+    const rule = (this._config.rules || {})[ruleId];
+    if (rule && rule.conditions && rule.conditions[idx]) {
+      if (!rule.conditions[idx].params) rule.conditions[idx].params = {};
+      let arr = rule.conditions[idx].params[key];
+      if (!Array.isArray(arr)) arr = arr ? [arr] : [];
+      if (arr.includes(val)) {
+        arr = arr.filter(v => v !== val);
+      } else {
+        arr.push(val);
+      }
+      rule.conditions[idx].params[key] = arr;
       el.classList.toggle("selected");
     }
   }
