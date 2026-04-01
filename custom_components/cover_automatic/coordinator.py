@@ -803,16 +803,26 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return {}
 
     def get_live_cover_data(self) -> dict[str, dict[str, Any]]:
-        """Get live runtime data for all covers (target position, hysteresis)."""
+        """Get live runtime data for all covers."""
         result: dict[str, dict[str, Any]] = {}
         if self.data:
             for entity_id, cover_data in self.data.get("covers", {}).items():
                 cover_raw = self.storage.get_cover_raw(entity_id)
                 pause_until = cover_raw.get("pause_until") if cover_raw else None
+                rule_id = cover_data.get("matching_rule_id")
+                rule_name = None
+                if rule_id:
+                    rule = self.storage.rules.get(rule_id)
+                    rule_name = rule.name if rule else rule_id
+                # Comfort mode from engine cache
+                comfort = self.engine._last_comfort_mode.get(entity_id)
                 result[entity_id] = {
                     "target_position": cover_data.get("target_position"),
                     "hysteresis": self._hysteresis_info.get(entity_id),
                     "pause_until": pause_until,
+                    "rule_id": rule_id,
+                    "rule_name": rule_name,
+                    "comfort_mode": comfort.value if comfort else None,
                 }
         return result
 

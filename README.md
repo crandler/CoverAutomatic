@@ -155,6 +155,14 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.16.0 (2026-04-01)
+
+- Covers table: active rule name column shows which rule is currently winning
+- Covers table: comfort mode icon per cover (snowflake=cooling, sun=heating, dot=neutral)
+- Covers table: resume button to cancel pause immediately
+- New WebSocket command: cover_automatic/cover/resume
+- Replaced "Auto Enabled" column with more useful "Rule" column
+
 ### 1.15.8 (2026-04-01)
 
 - Fix: settings save failed because pause_duration was missing from WebSocket schema validation

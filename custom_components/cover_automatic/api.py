@@ -515,6 +515,25 @@ async def ws_settings_update(
     connection.send_result(msg["id"], _build_config_response(storage, hass))
 
 
+async def ws_cover_resume(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    storage: CoverAutomaticStorage,
+    coordinator: CoverAutomaticCoordinator,
+) -> None:
+    """Handle cover_automatic/cover/resume."""
+    entity_id = msg["entity_id"]
+    if entity_id not in storage.covers:
+        connection.send_error(msg["id"], "not_found", f"Cover '{entity_id}' not found")
+        return
+    coordinator.resume_cover(entity_id)
+    result = _build_config_response(storage, hass)
+    result["active_rules"] = coordinator.get_active_rules()
+    result["live_covers"] = coordinator.get_live_cover_data()
+    connection.send_result(msg["id"], result)
+
+
 async def ws_get_log(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
@@ -710,6 +729,13 @@ def async_setup_api(
                 vol.Optional("wind_sensor"): vol.Any(str, None),
                 vol.Optional("wind_speed_threshold"): vol.All(vol.Coerce(float), vol.Range(min=0)),
                 vol.Optional("wind_speed_hysteresis"): vol.All(vol.Coerce(float), vol.Range(min=0)),
+            },
+        ),
+        (
+            f"{DOMAIN}/cover/resume",
+            ws_cover_resume,
+            {
+                vol.Required("entity_id"): str,
             },
         ),
         (

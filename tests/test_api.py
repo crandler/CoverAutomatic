@@ -281,7 +281,7 @@ class TestApiSetup:
         ) as mock_ws:
             mock_ws.BASE_COMMAND_MESSAGE_SCHEMA = real_ws.BASE_COMMAND_MESSAGE_SCHEMA
             async_setup_api(hass, storage, coordinator)
-            assert mock_ws.async_register_command.call_count == 16
+            assert mock_ws.async_register_command.call_count == 17
 
     def test_command_names_registered(self) -> None:
         hass = _make_hass()
@@ -303,7 +303,7 @@ class TestApiSetup:
             mock_ws.async_register_command.side_effect = capture_register
             async_setup_api(hass, storage, coordinator)
 
-        assert len(registered_schemas) == 16
+        assert len(registered_schemas) == 17
 
 
 # ---------------------------------------------------------------------------
