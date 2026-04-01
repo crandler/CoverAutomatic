@@ -30,8 +30,6 @@ _WEATHER_MAP: dict[str, set[str]] = {
 class RuleEngine:
     """Evaluate rules and determine cover positions."""
 
-    COMFORT_HYSTERESIS = 0.5
-
     def __init__(self, hass: HomeAssistant, storage: CoverAutomaticStorage) -> None:
         """Initialize rule engine."""
         self.hass = hass
@@ -207,7 +205,7 @@ class RuleEngine:
         except (ValueError, TypeError):
             return None
 
-        h = self.COMFORT_HYSTERESIS
+        h = self.storage.comfort_hysteresis
         prev = self._last_comfort_mode.get(cover.entity_id)
         comfort_min = cover.comfort_temp_min if cover.comfort_temp_min is not None else self.storage.comfort_temp_min
         comfort_max = cover.comfort_temp_max if cover.comfort_temp_max is not None else self.storage.comfort_temp_max

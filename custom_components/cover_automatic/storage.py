@@ -189,6 +189,16 @@ class CoverAutomaticStorage:
         self._data["comfort_temp_max"] = value
 
     @property
+    def comfort_hysteresis(self) -> float:
+        """Get comfort temperature hysteresis."""
+        return self._data.get("comfort_hysteresis", 1.0)
+
+    @comfort_hysteresis.setter
+    def comfort_hysteresis(self, value: float) -> None:
+        """Set comfort temperature hysteresis."""
+        self._data["comfort_hysteresis"] = float(value)
+
+    @property
     def enabled(self) -> bool:
         """Get global automation enabled state."""
         return self._data.get("enabled", True)

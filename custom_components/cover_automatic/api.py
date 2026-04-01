@@ -36,7 +36,7 @@ _UPDATABLE_COVER_FIELDS = (
 _SETTINGS_FIELDS = (
     "enabled",
     "outdoor_temp_sensor", "indoor_temp_sensor", "weather_entity",
-    "comfort_temp_min", "comfort_temp_max", "pause_duration",
+    "comfort_temp_min", "comfort_temp_max", "comfort_hysteresis", "pause_duration",
     "house_rotation", "active_scenario",
     "wind_sensor", "wind_speed_threshold", "wind_speed_hysteresis",
 )
@@ -87,6 +87,7 @@ def _build_config_response(
             "weather_entity": storage.weather_entity,
             "comfort_temp_min": storage.comfort_temp_min,
             "comfort_temp_max": storage.comfort_temp_max,
+            "comfort_hysteresis": storage.comfort_hysteresis,
             "pause_duration": storage.pause_duration,
             "house_rotation": storage.house_rotation,
             "wind_sensor": storage.wind_sensor,
@@ -682,6 +683,7 @@ def async_setup_api(
                 vol.Optional("weather_entity"): vol.Any(str, None),
                 vol.Optional("comfort_temp_min"): vol.Coerce(float),
                 vol.Optional("comfort_temp_max"): vol.Coerce(float),
+                vol.Optional("comfort_hysteresis"): vol.All(vol.Coerce(float), vol.Range(min=0.1, max=5.0)),
                 vol.Optional("house_rotation"): vol.All(vol.Coerce(float), vol.Range(min=-180, max=180)),
                 vol.Optional("active_scenario"): str,
                 vol.Optional("wind_sensor"): vol.Any(str, None),

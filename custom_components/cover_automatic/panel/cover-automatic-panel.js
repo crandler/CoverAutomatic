@@ -138,7 +138,9 @@ const I18N = {
     settings_weather_hint: "Used for weather-based rule conditions (e.g. only shade when sunny).",
     settings_comfort_min: "Comfort temp min",
     settings_comfort_max: "Comfort temp max",
-    settings_comfort_hint: "Defines the comfort range. Below min = heating mode (shading off, use solar heat). Above max = cooling mode (shading active). Between = neutral (keep current position). 0.5 degree hysteresis prevents oscillation.",
+    settings_comfort_hint: "Defines the comfort range. Below min = heating mode (shading off, use solar heat). Above max = cooling mode (shading active). Between = neutral (keep current position).",
+    settings_comfort_hysteresis: "Hysteresis",
+    settings_comfort_hysteresis_hint: "Temperature buffer at comfort boundaries to prevent oscillation between modes (e.g. 1.0 = mode only changes 1 degree past threshold).",
     settings_house_rotation: "House rotation (degrees)",
     settings_house_rotation_hint: "Offset from true north (-180 to 180, positive = clockwise). Applied automatically when selecting a facade direction.",
     settings_section_house: "House",
@@ -288,7 +290,9 @@ const I18N = {
     settings_weather_hint: "Wird für wetterbasierte Regelbedingungen verwendet (z. B. nur beschatten bei Sonne).",
     settings_comfort_min: "Komfort-Temp. min",
     settings_comfort_max: "Komfort-Temp. max",
-    settings_comfort_hint: "Definiert den Komfortbereich. Unter min = Heizmodus (keine Beschattung, Sonnenwärme nutzen). Über max = Kühlmodus (Beschattung aktiv). Dazwischen = Neutral (Position beibehalten). 0,5° Hysterese verhindert Pendeln.",
+    settings_comfort_hint: "Definiert den Komfortbereich. Unter min = Heizmodus (keine Beschattung, Sonnenwärme nutzen). Über max = Kühlmodus (Beschattung aktiv). Dazwischen = Neutral (Position beibehalten).",
+    settings_comfort_hysteresis: "Hysterese",
+    settings_comfort_hysteresis_hint: "Temperaturpuffer an Komfortgrenzen, um Pendeln zwischen Modi zu verhindern (z. B. 1,0 = Moduswechsel erst 1 Grad jenseits des Schwellwerts).",
     settings_house_rotation: "Hausrotation (Grad)",
     settings_house_rotation_hint: "Abweichung von exakt Nord (-180 bis 180, positiv = im Uhrzeigersinn). Wird automatisch bei der Fassaden-Richtungswahl angewendet.",
     settings_section_house: "Haus",
@@ -2243,6 +2247,11 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<div class="form-group">
       <label>${this._t("settings_comfort_max")}</label>
       <input type="number" step="0.5" value="${s.comfort_temp_max != null ? s.comfort_temp_max : 25}" data-settings-field="comfort_temp_max">
+    </div>`;
+    html += `<div class="form-group">
+      <label>${this._t("settings_comfort_hysteresis")}</label>
+      <input type="number" step="0.1" min="0.1" max="5" value="${s.comfort_hysteresis != null ? s.comfort_hysteresis : 1}" data-settings-field="comfort_hysteresis">
+      <div style="${hintStyle}">${this._t("settings_comfort_hysteresis_hint")}</div>
     </div>`;
     html += '</div>';
 

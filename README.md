@@ -155,10 +155,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
-### 1.13.1 (2026-04-01)
+### 1.14.0 (2026-04-01)
 
-- Master toggle labeled with text and tooltip explaining lock/vent protection stays active
-- Panel i18n: replaced "Rollo/Rollos" with generic "Behang/Behaenge" (covers all types: blinds, shutters, raffstores)
+- Configurable comfort temperature hysteresis (default changed from 0.5 to 1.0 degree)
+- New setting in panel: comfort hysteresis with range 0.1-5.0
+- Panel i18n: replaced "Rollo/Rollos" with generic "Behang/Behänge" (covers all types: blinds, shutters, raffstores)
+- Fix: umlauts in changelog release notes
 
 ### 1.13.0 (2026-04-01)
 

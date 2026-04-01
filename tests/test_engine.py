@@ -48,6 +48,7 @@ def mock_storage():
     storage.weather_entity = "weather.home"
     storage.comfort_temp_min = 21.0
     storage.comfort_temp_max = 25.0
+    storage.comfort_hysteresis = 1.0
     return storage
 
 
