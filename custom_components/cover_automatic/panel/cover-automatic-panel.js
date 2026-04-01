@@ -1448,7 +1448,7 @@ class CoverAutomaticPanel extends HTMLElement {
       html += '<a class="update-badge" href="https://github.com/crandler/CoverAutomatic/releases/tag/v' + this._esc(this._latestVersion) + '" target="_blank" rel="noopener">Update: v' + this._esc(this._latestVersion) + '</a>';
     }
     if (activeScenario) {
-      html += '<span class="scenario-badge">' + this._esc(activeScenario.name) + '</span>';
+      html += '<span class="scenario-badge">' + (activeScenario.icon ? '<ha-icon icon="' + this._esc(activeScenario.icon) + '" style="--mdc-icon-size:16px;margin-right:4px"></ha-icon>' : '') + this._esc(activeScenario.name) + '</span>';
     }
     html += '<div class="master-switch" title="' + this._t("master_enabled_hint") + '">';
     html += '<span class="master-label">' + this._t("master_enabled") + '</span>';
@@ -2197,7 +2197,7 @@ class CoverAutomaticPanel extends HTMLElement {
     let html = `<div class="scenario-card${isActive ? " active-scenario" : ""}">
       <div class="sc-header">
         <div class="sc-name">
-          ${this._esc(sc.name)}
+          ${sc.icon ? `<ha-icon icon="${this._esc(sc.icon)}" style="--mdc-icon-size:20px;margin-right:6px"></ha-icon>` : ""}${this._esc(sc.name)}
           ${isActive ? `<span class="chip">${this._t("active")}</span>` : ""}
         </div>
         <div style="display:flex;gap:6px">
@@ -2206,10 +2206,6 @@ class CoverAutomaticPanel extends HTMLElement {
           <button class="btn btn-danger btn-sm" data-action="scenario-delete" data-id="${this._esc(sc.id)}">${this._t("delete")}</button>
         </div>
       </div>`;
-
-    if (sc.icon) {
-      html += `<div style="font-size:12px;color:var(--ca-secondary-text);margin-bottom:8px">${this._esc(sc.icon)}</div>`;
-    }
 
     // Rules list with enabled/disabled toggles
     html += '<div class="sc-rules">';

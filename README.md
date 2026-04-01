@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.21.1 (2026-04-01)
+
+- Fix: scenario icons now rendered as actual icons via ha-icon instead of plain text
+- Icons shown in scenario card header and active scenario badge in panel header
+
 ### 1.21.0 (2026-04-01)
 
 - Global defaults for lock_position, vent_position, min_position_change, min_time_between_changes
