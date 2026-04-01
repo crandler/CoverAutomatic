@@ -90,6 +90,9 @@ const I18N = {
     facade_covers: "Assigned covers",
     facade_add: "Add facade",
     facade_no_covers: "No covers assigned",
+    facade_sun_active: "Sun on facade",
+    facade_sun_inactive: "No sun",
+    facade_sun_position: "Sun position",
     facade_dir_north: "North",
     facade_dir_east: "East",
     facade_dir_south: "South",
@@ -164,6 +167,8 @@ const I18N = {
     settings_pause_duration: "Default pause duration (min)",
     settings_pause_duration_hint: "How long automation pauses after manual cover operation. Can be overridden per cover.",
     settings_entity_placeholder: "e.g. sensor.outdoor_temperature",
+    settings_current_value: "Current",
+    settings_validation_min_max: "Min must be less than max",
     settings_section_wind: "Wind protection",
     settings_wind_hint: "Safety feature: raises all covers when wind speed exceeds the threshold. Deactivates when speed drops below threshold minus hysteresis.",
     settings_wind_sensor: "Wind speed sensor",
@@ -272,6 +277,9 @@ const I18N = {
     facade_covers: "Zugewiesene Behänge",
     facade_add: "Fassade hinzufügen",
     facade_no_covers: "Keine Behänge zugewiesen",
+    facade_sun_active: "Sonne auf Fassade",
+    facade_sun_inactive: "Keine Sonne",
+    facade_sun_position: "Sonnenposition",
     facade_dir_north: "Norden",
     facade_dir_east: "Osten",
     facade_dir_south: "Süden",
@@ -341,6 +349,8 @@ const I18N = {
     settings_pause_duration: "Standard-Pausendauer (Min.)",
     settings_pause_duration_hint: "Wie lange die Automatik nach manueller Bedienung pausiert. Kann pro Behang überschrieben werden.",
     settings_entity_placeholder: "z. B. sensor.außentemperatur",
+    settings_current_value: "Aktuell",
+    settings_validation_min_max: "Min muss kleiner als Max sein",
     settings_section_wind: "Windschutz",
     settings_wind_hint: "Sicherheitsfeature: Fährt alle Behänge hoch, wenn die Windgeschwindigkeit den Schwellwert überschreitet. Deaktiviert sich, wenn die Geschwindigkeit unter Schwellwert minus Hysterese fällt.",
     settings_wind_sensor: "Windgeschwindigkeits-Sensor",
@@ -1722,7 +1732,23 @@ class CoverAutomaticPanel extends HTMLElement {
   _renderFacades() {
     const facades = this._config.facades || {};
     const entries = Object.values(facades);
-    let html = '<div class="card-grid">';
+
+    // Sun position info bar
+    let html = '';
+    const sunState = this._hass && this._hass.states ? this._hass.states["sun.sun"] : null;
+    if (sunState && sunState.attributes) {
+      const az = sunState.attributes.azimuth;
+      const el = sunState.attributes.elevation;
+      if (az != null && el != null) {
+        const belowHorizon = el < 0;
+        html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 12px;border-radius:8px;background:var(--ha-card-background,var(--card-background-color));font-size:13px;color:var(--ca-secondary-text)">';
+        html += '<span style="font-size:16px">' + (belowHorizon ? '\u263E' : '\u2600') + '</span>';
+        html += '<span>' + this._t("facade_sun_position") + ': ' + Number(az).toFixed(1) + '\u00B0 / ' + Number(el).toFixed(1) + '\u00B0</span>';
+        html += '</div>';
+      }
+    }
+
+    html += '<div class="card-grid">';
 
     for (const f of entries) {
       if (this._editingFacade === f.id) {
@@ -1747,9 +1773,14 @@ class CoverAutomaticPanel extends HTMLElement {
     const covers = this._getFacadeCovers(f.id);
     const arrow = DIRECTION_ARROWS[f.direction] || "";
     const dirLabel = this._t("facade_dir_" + f.direction) || f.direction;
+    const liveFacade = (this._config.live_facades || {})[f.id] || {};
+    const sunOn = liveFacade.sun_on_facade;
+    const sunBadge = sunOn
+      ? '<span style="font-size:14px;margin-left:6px" title="' + this._esc(this._t("facade_sun_active")) + '">\u2600</span>'
+      : '';
     let html = `<div class="card">
       <div class="card-header">
-        <span>${this._esc(f.name)}</span>
+        <span>${this._esc(f.name)}${sunBadge}</span>
         <span style="font-size:12px;color:var(--ca-secondary-text)">${arrow} ${this._esc(dirLabel)}</span>
       </div>
       <div class="card-body">
@@ -2254,6 +2285,15 @@ class CoverAutomaticPanel extends HTMLElement {
     return html;
   }
 
+  _renderSensorValue(entityId, unit) {
+    if (!entityId || !this._hass || !this._hass.states) return "";
+    const state = this._hass.states[entityId];
+    if (!state || state.state === "unavailable" || state.state === "unknown") return "";
+    const val = state.state;
+    const u = unit || state.attributes.unit_of_measurement || "";
+    return '<div style="font-size:12px;color:var(--ca-primary);margin-top:2px">' + this._t("settings_current_value") + ': ' + this._esc(val) + this._esc(u) + '</div>';
+  }
+
   _renderCompassSVG(rotation) {
     const cx = 110, cy = 110, r = 95, hr = 30;
     const sunState = this._hass ? this._hass.states["sun.sun"] : null;
@@ -2327,16 +2367,19 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<div class="form-group">
       <label>${this._t("settings_outdoor_temp")}</label>
       ${this._renderEntitySelect("outdoor_temp_sensor", s.outdoor_temp_sensor, "sensor", "temperature")}
+      ${this._renderSensorValue(s.outdoor_temp_sensor, "\u00B0")}
       <div style="${hintStyle}">${this._t("settings_outdoor_temp_hint")}</div>
     </div>`;
     html += `<div class="form-group">
       <label>${this._t("settings_indoor_temp")}</label>
       ${this._renderEntitySelect("indoor_temp_sensor", s.indoor_temp_sensor, "sensor", "temperature")}
+      ${this._renderSensorValue(s.indoor_temp_sensor, "\u00B0")}
       <div style="${hintStyle}">${this._t("settings_indoor_temp_hint")}</div>
     </div>`;
     html += `<div class="form-group">
       <label>${this._t("settings_weather")}</label>
       ${this._renderEntitySelect("weather_entity", s.weather_entity, "weather", null)}
+      ${this._renderSensorValue(s.weather_entity)}
       <div style="${hintStyle}">${this._t("settings_weather_hint")}</div>
     </div>`;
 
@@ -2373,6 +2416,7 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<div class="form-group">
       <label>${this._t("settings_wind_sensor")}</label>
       ${this._renderEntitySelect("wind_sensor", s.wind_sensor, "sensor", "wind_speed")}
+      ${this._renderSensorValue(s.wind_sensor, " km/h")}
     </div>`;
     html += '<div class="form-row">';
     html += `<div class="form-group">
@@ -3138,6 +3182,11 @@ class CoverAutomaticPanel extends HTMLElement {
       }
       data[field] = val;
     });
+    // Validate comfort range
+    if (data.comfort_temp_min != null && data.comfort_temp_max != null && data.comfort_temp_min >= data.comfort_temp_max) {
+      alert(this._t("settings_validation_min_max"));
+      return;
+    }
     try {
       const result = await this._ws("cover_automatic/settings/update", data);
       this._updateConfigFromResult(result);

@@ -155,6 +155,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.18.0 (2026-04-01)
+
+- Facades tab: sun position info bar (azimuth/elevation) at top
+- Facades tab: sun icon on facade cards when sun is shining on them
+- Settings tab: live sensor values shown next to sensor dropdowns
+- Settings tab: validation prevents saving when comfort min >= max
+
 ### 1.17.0 (2026-04-01)
 
 - Covers table: sun-on-facade indicator (sun icon next to facade name when sun is shining on it)
