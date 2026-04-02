@@ -510,6 +510,22 @@ const PANEL_STYLES = `
   }
 
   /* Header */
+  .menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--primary-text-color);
+    cursor: pointer;
+    padding: 8px;
+    margin: -8px 4px -8px -8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .menu-btn:hover { background: rgba(128,128,128,0.2); }
+  .menu-btn svg { display: block; }
+  @media (max-width: 870px) {
+    .menu-btn { display: flex; align-items: center; justify-content: center; }
+  }
   .panel-header {
     display: flex;
     align-items: center;
@@ -1558,7 +1574,9 @@ class CoverAutomaticPanel extends HTMLElement {
     const activeScenario = this._getActiveScenario();
     const version = this._config ? this._config.version : "";
     const enabled = this._config ? this._config.enabled !== false : true;
-    let html = '<div><h1 style="display:inline">' + this._t("title") + '</h1>';
+    let html = '<div style="display:flex;align-items:center">';
+    html += '<button class="menu-btn" data-action="toggle-menu"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor"/></svg></button>';
+    html += '<h1 style="display:inline">' + this._t("title") + '</h1>';
     if (version) html += ' <span class="version-info">v' + this._esc(version) + '</span>';
     html += '</div><div style="display:flex;align-items:center;gap:8px">';
     if (this._latestVersion) {
@@ -3065,6 +3083,10 @@ class CoverAutomaticPanel extends HTMLElement {
     // Master toggle
     if (el.matches('[data-action="master-toggle"]')) {
       this._onMasterToggle(el.checked);
+      return;
+    }
+    if (el.closest('[data-action="toggle-menu"]')) {
+      this.dispatchEvent(new Event("hass-toggle-menu", { bubbles: true, composed: true }));
       return;
     }
 

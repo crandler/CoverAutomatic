@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.26.6 (2026-04-03)
+
+- Add hamburger menu button on mobile to toggle HA sidebar navigation
+- Fixes inability to navigate away from panel on mobile devices
+
 ### 1.26.5 (2026-04-02)
 
 - Compass: sun symbol moved further out (r+28) to avoid overlapping cardinal direction letters
