@@ -64,6 +64,7 @@ const I18N = {
     cover_section_advanced: "Advanced",
     cover_section_tilt: "Tilt",
     cover_auto_enabled: "Automation enabled",
+    cover_temp: "Temp",
     cover_current_pos: "Current",
     cover_target_pos: "Target",
     cover_hysteresis_position: "Position change too small",
@@ -278,6 +279,7 @@ const I18N = {
     cover_section_advanced: "Erweitert",
     cover_section_tilt: "Tilt",
     cover_auto_enabled: "Automatik aktiviert",
+    cover_temp: "Temp",
     cover_current_pos: "Ist",
     cover_target_pos: "Soll",
     cover_hysteresis_position: "Positionsänderung zu gering",
@@ -1570,6 +1572,7 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<th>${this._t("name")}</th>`;
     html += `<th>${this._t("cover_facade")}</th>`;
     html += `<th>${this._t("cover_status")}</th>`;
+    html += `<th>${this._t("cover_temp")}</th>`;
     html += `<th>${this._t("cover_current_pos")}</th>`;
     html += `<th>${this._t("cover_target_pos")}</th>`;
     html += `<th>${this._t("cover_rule")}</th>`;
@@ -1612,6 +1615,10 @@ class CoverAutomaticPanel extends HTMLElement {
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" data-live-name="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(c.name)}${comfortIcon}</td>`;
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" data-live-facade="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(facadeName)}${sunIcon}</td>`;
       html += `<td data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining" style="font-size:11px;color:var(--ca-secondary-text);margin-left:4px">' + pauseLeft + '</span>' : ''}${resumeBtn}</td>`;
+      const tempSensor = c.indoor_temp_sensor || (this._config.settings || {}).indoor_temp_sensor;
+      const tempState = tempSensor && this._hass && this._hass.states ? this._hass.states[tempSensor] : null;
+      const tempVal = tempState && tempState.state !== "unavailable" && tempState.state !== "unknown" ? parseFloat(tempState.state) : null;
+      html += `<td data-live-temp="${this._esc(c.entity_id)}" style="white-space:nowrap">${tempVal != null ? tempVal.toFixed(1) + " °C" : "–"}</td>`;
       html += `<td data-live-current="${this._esc(c.entity_id)}">${currentPos != null ? currentPos + "%" : "–"}</td>`;
       html += `<td data-live-target="${this._esc(c.entity_id)}">${targetPos != null ? targetPos + "%" : "–"}${infoIcon}</td>`;
       html += `<td data-live-rule="${this._esc(c.entity_id)}">${this._esc(ruleName)}</td>`;
@@ -2713,6 +2720,15 @@ class CoverAutomaticPanel extends HTMLElement {
       // Rule name
       const rCell = root.querySelector('[data-live-rule="' + eid + '"]');
       if (rCell) rCell.textContent = live.rule_name || this._t("cover_no_rule");
+      // Temperature
+      const tempCell = root.querySelector('[data-live-temp="' + eid + '"]');
+      if (tempCell) {
+        const c2 = covers[eid];
+        const ts = (c2 && c2.indoor_temp_sensor) || ((this._config.settings || {}).indoor_temp_sensor);
+        const tst = ts && this._hass && this._hass.states ? this._hass.states[ts] : null;
+        const tv = tst && tst.state !== "unavailable" && tst.state !== "unknown" ? parseFloat(tst.state) : null;
+        tempCell.textContent = tv != null ? tv.toFixed(1) + " \u00B0C" : "\u2013";
+      }
       // Last change
       const lcCell = root.querySelector('[data-live-lastchange="' + eid + '"]');
       if (lcCell) lcCell.textContent = live.last_change ? this._formatTimeAgo(live.last_change) : "";

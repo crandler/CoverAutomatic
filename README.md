@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.25.1 (2026-04-02)
+
+- Show indoor temperature from assigned sensor in covers table (with live updates)
+
 ### 1.25.0 (2026-04-02)
 
 - Export/import configuration via panel settings (JSON download/upload)
