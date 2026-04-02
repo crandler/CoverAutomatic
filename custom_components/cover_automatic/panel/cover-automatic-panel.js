@@ -442,7 +442,7 @@ const CONDITION_PARAMS = {
   ],
   weather_is: [{ key: "weather", type: "multiselect", options: ["sunny", "cloudy", "partlycloudy", "rainy", "snowy", "windy", "fog", "clear-night"], default: ["sunny"] }],
   day_of_week: [{ key: "days", type: "dayselect", default: ["mon","tue","wed","thu","fri"] }],
-  workday: [{ key: "entity_id", type: "text", default: "" }]
+  workday: []
 };
 
 const FACADE_PRESETS = {

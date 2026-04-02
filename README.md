@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.23.2 (2026-04-02)
+
+- Workday condition uses global sensor automatically (no manual entity_id input)
+
 ### 1.23.1 (2026-04-02)
 
 - Global workday sensor setting with live status display
