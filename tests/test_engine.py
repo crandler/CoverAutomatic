@@ -1348,6 +1348,33 @@ class TestWorkdayCondition:
         )
         assert engine._eval_workday(condition) is False
 
+    def test_workday_state_off_matches_non_workday(self, engine) -> None:
+        """Test workday condition with state=off matches non-workday."""
+        engine.hass.states.get.return_value = MockState("off")
+        condition = Condition(
+            type=ConditionType.WORKDAY,
+            params={"entity_id": "binary_sensor.workday", "state": "off"},
+        )
+        assert engine._eval_workday(condition) is True
+
+    def test_workday_state_off_rejects_workday(self, engine) -> None:
+        """Test workday condition with state=off rejects workday."""
+        engine.hass.states.get.return_value = MockState("on")
+        condition = Condition(
+            type=ConditionType.WORKDAY,
+            params={"entity_id": "binary_sensor.workday", "state": "off"},
+        )
+        assert engine._eval_workday(condition) is False
+
+    def test_workday_state_on_explicit(self, engine) -> None:
+        """Test workday condition with explicit state=on."""
+        engine.hass.states.get.return_value = MockState("on")
+        condition = Condition(
+            type=ConditionType.WORKDAY,
+            params={"entity_id": "binary_sensor.workday", "state": "on"},
+        )
+        assert engine._eval_workday(condition) is True
+
     def test_workday_sensor_unavailable(self, engine) -> None:
         """Test unavailable sensor returns False."""
         engine.hass.states.get.return_value = MockState("unavailable")

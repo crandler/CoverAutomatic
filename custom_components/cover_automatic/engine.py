@@ -404,4 +404,5 @@ class RuleEngine:
         state = self.hass.states.get(entity_id)
         if state is None or state.state in ("unavailable", "unknown"):
             return False
-        return state.state == "on"
+        expected = condition.params.get("state") or "on"
+        return state.state == expected

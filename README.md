@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.24.0 (2026-04-02)
+
+- Workday condition: selectable state (on/off) to match workdays or non-workdays
+- Translated select option labels in condition parameters
+
 ### 1.23.2 (2026-04-02)
 
 - Workday condition uses global sensor automatically (no manual entity_id input)

@@ -141,6 +141,8 @@ const I18N = {
     param_days: "Days",
     param_select_type: "Select condition type",
     day_mon: "Mon", day_tue: "Tue", day_wed: "Wed", day_thu: "Thu", day_fri: "Fri", day_sat: "Sat", day_sun: "Sun",
+    opt_on: "On (workday)", opt_off: "Off (non-workday)",
+    opt_cooling: "Cooling", opt_heating: "Heating",
     // Scenarios
     scenario_add: "Add scenario",
     scenario_icon: "Icon (mdi:...)",
@@ -341,6 +343,8 @@ const I18N = {
     param_days: "Tage",
     param_select_type: "Bedingungstyp wählen",
     day_mon: "Mo", day_tue: "Di", day_wed: "Mi", day_thu: "Do", day_fri: "Fr", day_sat: "Sa", day_sun: "So",
+    opt_on: "An (Arbeitstag)", opt_off: "Aus (kein Arbeitstag)",
+    opt_cooling: "Kühlung", opt_heating: "Heizung",
     scenario_add: "Szenario hinzufügen",
     scenario_icon: "Icon (mdi:...)",
     scenario_rules_disabled: "Deaktivierte Regeln",
@@ -442,7 +446,7 @@ const CONDITION_PARAMS = {
   ],
   weather_is: [{ key: "weather", type: "multiselect", options: ["sunny", "cloudy", "partlycloudy", "rainy", "snowy", "windy", "fog", "clear-night"], default: ["sunny"] }],
   day_of_week: [{ key: "days", type: "dayselect", default: ["mon","tue","wed","thu","fri"] }],
-  workday: []
+  workday: [{ key: "state", type: "select", options: ["on", "off"], default: "on" }]
 };
 
 const FACADE_PRESETS = {
@@ -2116,7 +2120,8 @@ class CoverAutomaticPanel extends HTMLElement {
         if (p.type === "select") {
           html += `<select data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
           for (const opt of p.options) {
-            html += `<option value="${opt}"${val === opt ? " selected" : ""}>${opt}</option>`;
+            const optLabel = this._t("opt_" + opt);
+            html += `<option value="${opt}"${val === opt ? " selected" : ""}>${optLabel}</option>`;
           }
           html += '</select>';
         } else if (p.type === "multiselect") {
