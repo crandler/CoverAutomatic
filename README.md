@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.23.1 (2026-04-02)
+
+- Global workday sensor setting with live status display
+- Workday condition falls back to global sensor when no entity_id specified
+
 ### 1.23.0 (2026-04-02)
 
 - New condition type: `workday` -- use a HA workday binary sensor to match workdays/holidays

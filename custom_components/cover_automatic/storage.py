@@ -65,6 +65,7 @@ class CoverAutomaticStorage:
                 "weather_entity": None,
                 "comfort_temp_min": 21.0,
                 "comfort_temp_max": 25.0,
+                "workday_sensor": None,
                 "wind_sensor": None,
                 "wind_speed_threshold": 0.0,
                 "wind_speed_hysteresis": 0.0,
@@ -279,6 +280,16 @@ class CoverAutomaticStorage:
     def min_time_between_changes(self, value: int) -> None:
         """Set global default minimum time between changes."""
         self._data["min_time_between_changes"] = int(value)
+
+    @property
+    def workday_sensor(self) -> str | None:
+        """Get workday binary sensor entity ID."""
+        return self._data.get("workday_sensor")
+
+    @workday_sensor.setter
+    def workday_sensor(self, value: str | None) -> None:
+        """Set workday binary sensor entity ID."""
+        self._data["workday_sensor"] = value
 
     @property
     def wind_sensor(self) -> str | None:

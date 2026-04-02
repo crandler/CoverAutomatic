@@ -398,7 +398,7 @@ class RuleEngine:
 
     def _eval_workday(self, condition: Condition) -> bool:
         """Evaluate workday condition."""
-        entity_id = condition.params.get("entity_id")
+        entity_id = condition.params.get("entity_id") or self.storage.workday_sensor
         if not entity_id:
             return False
         state = self.hass.states.get(entity_id)

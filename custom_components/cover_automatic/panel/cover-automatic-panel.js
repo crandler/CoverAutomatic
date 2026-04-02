@@ -182,6 +182,9 @@ const I18N = {
     settings_entity_placeholder: "e.g. sensor.outdoor_temperature",
     settings_current_value: "Current",
     settings_validation_min_max: "Min must be less than max",
+    settings_section_workday: "Workday sensor",
+    settings_workday_sensor: "Workday sensor",
+    settings_workday_hint: "Binary sensor for workday detection (e.g. HA Workday integration). Used by the 'workday' condition type in rules.",
     settings_section_wind: "Wind protection",
     settings_wind_hint: "Safety feature: raises all covers when wind speed exceeds the threshold. Deactivates when speed drops below threshold minus hysteresis.",
     settings_wind_sensor: "Wind speed sensor",
@@ -377,6 +380,9 @@ const I18N = {
     settings_entity_placeholder: "z. B. sensor.außentemperatur",
     settings_current_value: "Aktuell",
     settings_validation_min_max: "Min muss kleiner als Max sein",
+    settings_section_workday: "Arbeitstag-Sensor",
+    settings_workday_sensor: "Arbeitstag-Sensor",
+    settings_workday_hint: "Binärsensor zur Arbeitstag-Erkennung (z. B. HA Workday-Integration). Wird vom Bedingungstyp 'Arbeitstag-Sensor' in Regeln verwendet.",
     settings_section_wind: "Windschutz",
     settings_wind_hint: "Sicherheitsfeature: Fährt alle Behänge hoch, wenn die Windgeschwindigkeit den Schwellwert überschreitet. Deaktiviert sich, wenn die Geschwindigkeit unter Schwellwert minus Hysterese fällt.",
     settings_wind_sensor: "Windgeschwindigkeits-Sensor",
@@ -2477,6 +2483,15 @@ class CoverAutomaticPanel extends HTMLElement {
       <div style="${hintStyle}">${this._t("settings_min_time_hint")}</div>
     </div>`;
     html += '</div>';
+
+    // Workday sensor section
+    html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_workday")}</div>`;
+    html += `<div style="${hintStyle};margin-bottom:12px">${this._t("settings_workday_hint")}</div>`;
+    html += `<div class="form-group">
+      <label>${this._t("settings_workday_sensor")}</label>
+      ${this._renderEntitySelect("workday_sensor", s.workday_sensor, "binary_sensor", null)}
+      ${this._renderSensorValue(s.workday_sensor)}
+    </div>`;
 
     // Wind protection section
     html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_wind")}</div>`;

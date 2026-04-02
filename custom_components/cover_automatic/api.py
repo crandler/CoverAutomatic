@@ -41,6 +41,7 @@ _SETTINGS_FIELDS = (
     "lock_position", "vent_position", "lock_tilt_position", "vent_tilt_position",
     "min_position_change", "min_time_between_changes",
     "house_rotation", "active_scenario",
+    "workday_sensor",
     "wind_sensor", "wind_speed_threshold", "wind_speed_hysteresis",
 )
 
@@ -110,6 +111,7 @@ def _build_config_response(
             "min_position_change": storage.min_position_change,
             "min_time_between_changes": storage.min_time_between_changes,
             "house_rotation": storage.house_rotation,
+            "workday_sensor": storage.workday_sensor,
             "wind_sensor": storage.wind_sensor,
             "wind_speed_threshold": storage.wind_speed_threshold,
             "wind_speed_hysteresis": storage.wind_speed_hysteresis,
@@ -755,6 +757,7 @@ def async_setup_api(
                 vol.Optional("min_time_between_changes"): vol.All(vol.Coerce(int), vol.Range(min=60, max=3600)),
                 vol.Optional("house_rotation"): vol.All(vol.Coerce(float), vol.Range(min=-180, max=180)),
                 vol.Optional("active_scenario"): str,
+                vol.Optional("workday_sensor"): vol.Any(str, None),
                 vol.Optional("wind_sensor"): vol.Any(str, None),
                 vol.Optional("wind_speed_threshold"): vol.All(vol.Coerce(float), vol.Range(min=0)),
                 vol.Optional("wind_speed_hysteresis"): vol.All(vol.Coerce(float), vol.Range(min=0)),
