@@ -753,6 +753,26 @@ const PANEL_STYLES = `
     gap: 12px;
   }
 
+  /* Settings card stack */
+  .settings-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .settings-stack .card-header {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ca-secondary-text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 16px 20px 0;
+  }
+  .settings-stack .settings-hint {
+    font-size: 12px;
+    color: var(--ca-secondary-text);
+    margin-bottom: 4px;
+  }
+
   /* Toggle switch */
   .toggle-row {
     display: flex;
@@ -2426,149 +2446,170 @@ class CoverAutomaticPanel extends HTMLElement {
 
   _renderSettings() {
     const s = this._config.settings || {};
+    const h = (text) => `<div class="settings-hint">${text}</div>`;
 
-    let html = '<div class="card"><div class="card-body" style="padding-top:20px">';
+    let html = '<div class="settings-stack">';
 
-    // Sensors section
-    const hintStyle = 'font-size:12px;color:var(--ca-secondary-text);margin-top:4px';
-    html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">${this._t("settings_section_sensors")}</div>`;
-    html += `<div class="form-group">
-      <label>${this._t("settings_outdoor_temp")}</label>
-      ${this._renderEntitySelect("outdoor_temp_sensor", s.outdoor_temp_sensor, "sensor", "temperature")}
-      ${this._renderSensorValue(s.outdoor_temp_sensor, "\u00B0")}
-      <div style="${hintStyle}">${this._t("settings_outdoor_temp_hint")}</div>
-    </div>`;
-    html += `<div class="form-group">
-      <label>${this._t("settings_indoor_temp")}</label>
-      ${this._renderEntitySelect("indoor_temp_sensor", s.indoor_temp_sensor, "sensor", "temperature")}
-      ${this._renderSensorValue(s.indoor_temp_sensor, "\u00B0")}
-      <div style="${hintStyle}">${this._t("settings_indoor_temp_hint")}</div>
-    </div>`;
-    html += `<div class="form-group">
-      <label>${this._t("settings_weather")}</label>
-      ${this._renderEntitySelect("weather_entity", s.weather_entity, "weather", null)}
-      ${this._renderSensorValue(s.weather_entity)}
-      <div style="${hintStyle}">${this._t("settings_weather_hint")}</div>
-    </div>`;
-
-    // Comfort section
-    html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_comfort")}</div>`;
-    html += `<div style="${hintStyle};margin-bottom:12px">${this._t("settings_comfort_hint")}</div>`;
-    html += '<div class="form-row">';
-    html += `<div class="form-group">
-      <label>${this._t("settings_comfort_min")}</label>
-      <input type="number" step="0.5" value="${s.comfort_temp_min != null ? s.comfort_temp_min : 21}" data-settings-field="comfort_temp_min">
-    </div>`;
-    html += `<div class="form-group">
-      <label>${this._t("settings_comfort_max")}</label>
-      <input type="number" step="0.5" value="${s.comfort_temp_max != null ? s.comfort_temp_max : 25}" data-settings-field="comfort_temp_max">
-    </div>`;
-    html += `<div class="form-group">
-      <label>${this._t("settings_comfort_hysteresis")}</label>
-      <input type="number" step="0.1" min="0.1" max="5" value="${s.comfort_hysteresis != null ? s.comfort_hysteresis : 1}" data-settings-field="comfort_hysteresis">
-      <div style="${hintStyle}">${this._t("settings_comfort_hysteresis_hint")}</div>
-    </div>`;
-    html += '</div>';
-
-    // Automation section
-    html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_automation")}</div>`;
-    html += `<div class="form-group">
-      <label>${this._t("settings_pause_duration")}</label>
-      <input type="number" min="1" max="480" value="${s.pause_duration != null ? s.pause_duration : 10}" data-settings-field="pause_duration">
-      <div style="${hintStyle}">${this._t("settings_pause_duration_hint")}</div>
-    </div>`;
-    html += '<div class="form-row">';
-    html += `<div class="form-group">
-      <label>${this._t("settings_lock_position")}</label>
-      <input type="number" min="0" max="100" value="${s.lock_position != null ? s.lock_position : 100}" data-settings-field="lock_position">
-      <div style="${hintStyle}">${this._t("settings_lock_position_hint")}</div>
-    </div>`;
-    html += `<div class="form-group">
-      <label>${this._t("settings_vent_position")}</label>
-      <input type="number" min="0" max="100" value="${s.vent_position != null ? s.vent_position : 30}" data-settings-field="vent_position">
-      <div style="${hintStyle}">${this._t("settings_vent_position_hint")}</div>
-    </div>`;
-    html += '</div>';
-    html += '<div class="form-row">';
-    html += `<div class="form-group">
-      <label>${this._t("settings_lock_tilt_position")}</label>
-      <input type="number" min="0" max="100" value="${s.lock_tilt_position != null ? s.lock_tilt_position : ""}" data-settings-field="lock_tilt_position">
-      <div style="${hintStyle}">${this._t("settings_lock_tilt_position_hint")}</div>
-    </div>`;
-    html += `<div class="form-group">
-      <label>${this._t("settings_vent_tilt_position")}</label>
-      <input type="number" min="0" max="100" value="${s.vent_tilt_position != null ? s.vent_tilt_position : ""}" data-settings-field="vent_tilt_position">
-      <div style="${hintStyle}">${this._t("settings_vent_tilt_position_hint")}</div>
-    </div>`;
-    html += '</div>';
-    html += '<div class="form-row">';
-    html += `<div class="form-group">
-      <label>${this._t("settings_min_position_change")}</label>
-      <input type="number" min="1" max="50" value="${s.min_position_change != null ? s.min_position_change : 5}" data-settings-field="min_position_change">
-      <div style="${hintStyle}">${this._t("settings_min_position_change_hint")}</div>
-    </div>`;
-    html += `<div class="form-group">
-      <label>${this._t("settings_min_time")}</label>
-      <input type="number" min="60" max="3600" value="${s.min_time_between_changes != null ? s.min_time_between_changes : 300}" data-settings-field="min_time_between_changes">
-      <div style="${hintStyle}">${this._t("settings_min_time_hint")}</div>
-    </div>`;
-    html += '</div>';
-
-    // Workday sensor section
-    html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_workday")}</div>`;
-    html += `<div style="${hintStyle};margin-bottom:12px">${this._t("settings_workday_hint")}</div>`;
-    html += `<div class="form-group">
-      <label>${this._t("settings_workday_sensor")}</label>
-      ${this._renderEntitySelect("workday_sensor", s.workday_sensor, "binary_sensor", null)}
-      ${this._renderSensorValue(s.workday_sensor)}
-    </div>`;
-
-    // Wind protection section
-    html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_wind")}</div>`;
-    html += `<div style="${hintStyle};margin-bottom:12px">${this._t("settings_wind_hint")}</div>`;
-    html += `<div class="form-group">
-      <label>${this._t("settings_wind_sensor")}</label>
-      ${this._renderEntitySelect("wind_sensor", s.wind_sensor, "sensor", "wind_speed")}
-      ${this._renderSensorValue(s.wind_sensor, " km/h")}
-    </div>`;
-    html += '<div class="form-row">';
-    html += `<div class="form-group">
-      <label>${this._t("settings_wind_threshold")}</label>
-      <input type="number" step="1" min="0" value="${s.wind_speed_threshold != null ? s.wind_speed_threshold : 0}" data-settings-field="wind_speed_threshold">
-    </div>`;
-    html += `<div class="form-group">
-      <label>${this._t("settings_wind_hysteresis")}</label>
-      <input type="number" step="1" min="0" value="${s.wind_speed_hysteresis != null ? s.wind_speed_hysteresis : 0}" data-settings-field="wind_speed_hysteresis">
-    </div>`;
-    html += '</div>';
-
-    // House section
-    html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_house")}</div>`;
+    // Card 1: House
     const rot = s.house_rotation != null ? s.house_rotation : 0;
-    html += `<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
-      <div class="form-group" style="flex:1;min-width:160px">
-        <label>${this._t("settings_house_rotation")}</label>
-        <input type="number" step="0.5" min="-180" max="180" value="${rot}" data-settings-field="house_rotation" id="house-rotation-input">
-        <div style="font-size:12px;color:var(--ca-secondary-text);margin-top:4px">${this._t("settings_house_rotation_hint")}</div>
+    html += `<div class="card">
+      <div class="card-header">${this._t("settings_section_house")}</div>
+      <div class="card-body">
+        <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+          <div class="form-group" style="flex:1;min-width:160px">
+            <label>${this._t("settings_house_rotation")}</label>
+            <input type="number" step="0.5" min="-180" max="180" value="${rot}" data-settings-field="house_rotation" id="house-rotation-input">
+            ${h(this._t("settings_house_rotation_hint"))}
+          </div>
+          <div style="flex:0 0 auto">${this._renderCompassSVG(rot)}</div>
+        </div>
       </div>
-      <div style="flex:0 0 auto">${this._renderCompassSVG(rot)}</div>
     </div>`;
 
-    // Save
-    html += `<div style="display:flex;justify-content:flex-end;margin-top:20px">
+    // Card 2: Sensors (incl. workday)
+    html += `<div class="card">
+      <div class="card-header">${this._t("settings_section_sensors")}</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>${this._t("settings_outdoor_temp")}</label>
+          ${this._renderEntitySelect("outdoor_temp_sensor", s.outdoor_temp_sensor, "sensor", "temperature")}
+          ${this._renderSensorValue(s.outdoor_temp_sensor, "\u00B0")}
+          ${h(this._t("settings_outdoor_temp_hint"))}
+        </div>
+        <div class="form-group">
+          <label>${this._t("settings_indoor_temp")}</label>
+          ${this._renderEntitySelect("indoor_temp_sensor", s.indoor_temp_sensor, "sensor", "temperature")}
+          ${this._renderSensorValue(s.indoor_temp_sensor, "\u00B0")}
+          ${h(this._t("settings_indoor_temp_hint"))}
+        </div>
+        <div class="form-group">
+          <label>${this._t("settings_weather")}</label>
+          ${this._renderEntitySelect("weather_entity", s.weather_entity, "weather", null)}
+          ${this._renderSensorValue(s.weather_entity)}
+          ${h(this._t("settings_weather_hint"))}
+        </div>
+        <div class="form-group">
+          <label>${this._t("settings_workday_sensor")}</label>
+          ${this._renderEntitySelect("workday_sensor", s.workday_sensor, "binary_sensor", null)}
+          ${this._renderSensorValue(s.workday_sensor)}
+          ${h(this._t("settings_workday_hint"))}
+        </div>
+      </div>
+    </div>`;
+
+    // Card 3: Comfort
+    html += `<div class="card">
+      <div class="card-header">${this._t("settings_section_comfort")}</div>
+      <div class="card-body">
+        ${h(this._t("settings_comfort_hint"))}
+        <div class="form-row">
+          <div class="form-group">
+            <label>${this._t("settings_comfort_min")}</label>
+            <input type="number" step="0.5" value="${s.comfort_temp_min != null ? s.comfort_temp_min : 21}" data-settings-field="comfort_temp_min">
+          </div>
+          <div class="form-group">
+            <label>${this._t("settings_comfort_max")}</label>
+            <input type="number" step="0.5" value="${s.comfort_temp_max != null ? s.comfort_temp_max : 25}" data-settings-field="comfort_temp_max">
+          </div>
+          <div class="form-group">
+            <label>${this._t("settings_comfort_hysteresis")}</label>
+            <input type="number" step="0.1" min="0.1" max="5" value="${s.comfort_hysteresis != null ? s.comfort_hysteresis : 1}" data-settings-field="comfort_hysteresis">
+            ${h(this._t("settings_comfort_hysteresis_hint"))}
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+    // Card 4: Wind protection
+    html += `<div class="card">
+      <div class="card-header">${this._t("settings_section_wind")}</div>
+      <div class="card-body">
+        ${h(this._t("settings_wind_hint"))}
+        <div class="form-group">
+          <label>${this._t("settings_wind_sensor")}</label>
+          ${this._renderEntitySelect("wind_sensor", s.wind_sensor, "sensor", "wind_speed")}
+          ${this._renderSensorValue(s.wind_sensor, " km/h")}
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>${this._t("settings_wind_threshold")}</label>
+            <input type="number" step="1" min="0" value="${s.wind_speed_threshold != null ? s.wind_speed_threshold : 0}" data-settings-field="wind_speed_threshold">
+          </div>
+          <div class="form-group">
+            <label>${this._t("settings_wind_hysteresis")}</label>
+            <input type="number" step="1" min="0" value="${s.wind_speed_hysteresis != null ? s.wind_speed_hysteresis : 0}" data-settings-field="wind_speed_hysteresis">
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+    // Card 5: Automation behavior
+    html += `<div class="card">
+      <div class="card-header">${this._t("settings_section_automation")}</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>${this._t("settings_pause_duration")}</label>
+          <input type="number" min="1" max="480" value="${s.pause_duration != null ? s.pause_duration : 10}" data-settings-field="pause_duration">
+          ${h(this._t("settings_pause_duration_hint"))}
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>${this._t("settings_lock_position")}</label>
+            <input type="number" min="0" max="100" value="${s.lock_position != null ? s.lock_position : 100}" data-settings-field="lock_position">
+            ${h(this._t("settings_lock_position_hint"))}
+          </div>
+          <div class="form-group">
+            <label>${this._t("settings_vent_position")}</label>
+            <input type="number" min="0" max="100" value="${s.vent_position != null ? s.vent_position : 30}" data-settings-field="vent_position">
+            ${h(this._t("settings_vent_position_hint"))}
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>${this._t("settings_lock_tilt_position")}</label>
+            <input type="number" min="0" max="100" value="${s.lock_tilt_position != null ? s.lock_tilt_position : ""}" data-settings-field="lock_tilt_position">
+            ${h(this._t("settings_lock_tilt_position_hint"))}
+          </div>
+          <div class="form-group">
+            <label>${this._t("settings_vent_tilt_position")}</label>
+            <input type="number" min="0" max="100" value="${s.vent_tilt_position != null ? s.vent_tilt_position : ""}" data-settings-field="vent_tilt_position">
+            ${h(this._t("settings_vent_tilt_position_hint"))}
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>${this._t("settings_min_position_change")}</label>
+            <input type="number" min="1" max="50" value="${s.min_position_change != null ? s.min_position_change : 5}" data-settings-field="min_position_change">
+            ${h(this._t("settings_min_position_change_hint"))}
+          </div>
+          <div class="form-group">
+            <label>${this._t("settings_min_time")}</label>
+            <input type="number" min="60" max="3600" value="${s.min_time_between_changes != null ? s.min_time_between_changes : 300}" data-settings-field="min_time_between_changes">
+            ${h(this._t("settings_min_time_hint"))}
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+    // Save button
+    html += `<div style="display:flex;justify-content:flex-end">
       <button class="btn btn-primary" data-action="settings-save">${this._t("save")}</button>
     </div>`;
 
-    // Backup section
-    html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_backup")}</div>`;
-    html += `<div style="${hintStyle};margin-bottom:12px">${this._t("settings_backup_hint")}</div>`;
-    html += `<div style="display:flex;gap:12px;flex-wrap:wrap">
-      <button class="btn" data-action="backup-export">${this._t("settings_export")}</button>
-      <button class="btn" data-action="backup-import">${this._t("settings_import")}</button>
-      <input type="file" accept=".json" data-action="backup-file" style="display:none">
+    // Card 6: Backup
+    html += `<div class="card">
+      <div class="card-header">${this._t("settings_section_backup")}</div>
+      <div class="card-body">
+        ${h(this._t("settings_backup_hint"))}
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button class="btn" data-action="backup-export">${this._t("settings_export")}</button>
+          <button class="btn" data-action="backup-import">${this._t("settings_import")}</button>
+          <input type="file" accept=".json" data-action="backup-file" style="display:none">
+        </div>
+      </div>
     </div>`;
 
-    html += '</div></div>';
+    html += '</div>';
     return html;
   }
 

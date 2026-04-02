@@ -155,6 +155,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.26.0 (2026-04-02)
+
+- Settings tab redesign: 6 separate cards with logical grouping (House, Sensors, Comfort, Wind, Automation, Backup)
+- Workday sensor moved into Sensors card for better discoverability
+- Replaced inline section headers with proper card layout
+
 ### 1.25.2 (2026-04-02)
 
 - Temperature column colored by comfort mode (blue=cooling, orange=heating) with tooltip
