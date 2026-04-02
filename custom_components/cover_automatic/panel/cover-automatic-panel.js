@@ -178,8 +178,8 @@ const I18N = {
     settings_vent_position_hint: "Target position when window is tilted (e.g. 30 for ventilation gap). Can be overridden per cover.",
     settings_vent_tilt_position: "Default vent tilt",
     settings_vent_tilt_position_hint: "Tilt position when window is tilted. Leave empty to skip tilt control.",
-    settings_min_position_change: "Default min. position change",
-    settings_min_position_change_hint: "Minimum position difference to trigger a move. Can be overridden per cover.",
+    settings_min_position_change: "Default min. position change (%)",
+    settings_min_position_change_hint: "Minimum position difference in percent to trigger a move. Can be overridden per cover.",
     settings_min_time: "Default min. time between changes (s)",
     settings_min_time_hint: "Minimum seconds between position changes (motor protection). Can be overridden per cover.",
     settings_entity_placeholder: "e.g. sensor.outdoor_temperature",
@@ -387,8 +387,8 @@ const I18N = {
     settings_vent_position_hint: "Zielposition bei gekipptem Fenster (z. B. 30). Kann pro Behang überschrieben werden.",
     settings_vent_tilt_position: "Standard-Lüftungs-Lamelle",
     settings_vent_tilt_position_hint: "Lamellenposition bei gekipptem Fenster. Leer lassen = keine Lamellensteuerung.",
-    settings_min_position_change: "Standard min. Positionsänderung",
-    settings_min_position_change_hint: "Mindestabweichung für eine Fahrt. Kann pro Behang überschrieben werden.",
+    settings_min_position_change: "Standard min. Positionsänderung (%)",
+    settings_min_position_change_hint: "Mindestabweichung in Prozent für eine Fahrt. Kann pro Behang überschrieben werden.",
     settings_min_time: "Standard min. Zeit zwischen Änderungen (s)",
     settings_min_time_hint: "Mindestabstand in Sekunden zwischen Positionsänderungen (Motorschutz). Kann pro Behang überschrieben werden.",
     settings_entity_placeholder: "z. B. sensor.außentemperatur",
@@ -2469,21 +2469,40 @@ class CoverAutomaticPanel extends HTMLElement {
 
     // Sun position
     let sunMarker = "";
+    let sunBeams = "";
     if (sunAz != null && !isNaN(sunAz) && !belowHorizon) {
       const sunRad = (sunAz - 90) * Math.PI / 180;
       const sr = r + 2;
       const sx = cx + sr * Math.cos(sunRad), sy = cy + sr * Math.sin(sunRad);
-      sunMarker = `<circle cx="${sx}" cy="${sy}" r="8" fill="#FFC107" stroke="#F57F17" stroke-width="1.5"/>
-        <text x="${sx}" y="${sy}" text-anchor="middle" dominant-baseline="central" font-size="8" fill="#F57F17" font-weight="700">${Math.round(sunEl)}°</text>`;
+      // Sun symbol rays (radiating outward)
+      const symbolRays = [0,45,90,135,180,225,270,315].map(d => {
+        const rr = d * Math.PI / 180;
+        const x1 = sx + 10 * Math.cos(rr), y1 = sy + 10 * Math.sin(rr);
+        const x2 = sx + 15 * Math.cos(rr), y2 = sy + 15 * Math.sin(rr);
+        return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#FFC107" stroke-width="2" stroke-linecap="round"/>`;
+      }).join("");
+      // Light beams toward house (3 parallel rays)
+      const perpRad = sunRad + Math.PI / 2;
+      const spread = 18;
+      const offsets = [-spread, 0, spread];
+      sunBeams = offsets.map(off => {
+        const ox = off * Math.cos(perpRad), oy = off * Math.sin(perpRad);
+        const bx1 = sx + ox, by1 = sy + oy;
+        const bx2 = cx + off * 0.4 * Math.cos(perpRad), by2 = cy + off * 0.4 * Math.sin(perpRad);
+        return `<line x1="${bx1}" y1="${by1}" x2="${bx2}" y2="${by2}" stroke="#FFC107" stroke-width="1" opacity="0.3" stroke-dasharray="4,4"/>`;
+      }).join("");
+      sunMarker = `${symbolRays}<circle cx="${sx}" cy="${sy}" r="8" fill="#FFC107" stroke="#F57F17" stroke-width="1.5"/>
+        <text x="${sx}" y="${sy + 22}" text-anchor="middle" font-size="10" fill="#FFC107" font-weight="700">${Math.round(sunEl)}\u00B0</text>`;
     }
 
-    return `<svg id="compass-svg" width="220" height="220" viewBox="0 0 220 220" style="display:block">
+    const svgH = 240;
+    return `<svg id="compass-svg" width="220" height="${svgH}" viewBox="0 0 220 ${svgH}" style="display:block">
       <!-- Compass circle -->
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--divider-color)" stroke-width="1.5"/>
       <circle cx="${cx}" cy="${cy}" r="${r - 20}" fill="none" stroke="var(--divider-color)" stroke-width="0.5" stroke-dasharray="3,3"/>
       <!-- Cardinal directions (fixed) -->
       <text x="${cx}" y="${cy - r - 6}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--primary-text-color)">N</text>
-      <text x="${cx}" y="${cy + r + 16}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--primary-text-color)">S</text>
+      <text x="${cx}" y="${cy + r + 18}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--primary-text-color)">S</text>
       <text x="${cx + r + 10}" y="${cy + 5}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--primary-text-color)">E</text>
       <text x="${cx - r - 10}" y="${cy + 5}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--primary-text-color)">W</text>
       <!-- Tick marks -->
@@ -2495,6 +2514,8 @@ class CoverAutomaticPanel extends HTMLElement {
         <line x1="${cx - hr + 6}" y1="${cy + hr}" x2="${cx + hr - 6}" y2="${cy + hr}" stroke="var(--primary-color)" stroke-width="4" stroke-linecap="round"/>
         <text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="var(--primary-text-color)" opacity="0.6">${rotation}°</text>
       </g>
+      <!-- Sun beams -->
+      ${sunBeams}
       <!-- Facade arcs -->
       ${facadeArcs}
       <!-- Sun -->

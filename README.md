@@ -155,6 +155,14 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.26.2 (2026-04-02)
+
+- Compass: fix S label clipped by expanding SVG viewBox height
+- Compass: sun symbol with radiating rays instead of plain circle
+- Compass: light beams from sun toward house showing illumination direction
+- Compass: sun elevation label moved below symbol for better readability
+- Settings: add unit (%) to min. position change label and hint
+
 ### 1.26.1 (2026-04-02)
 
 - Remove all inline CSS from settings tab, live cells, and cover table; replace with CSS classes
