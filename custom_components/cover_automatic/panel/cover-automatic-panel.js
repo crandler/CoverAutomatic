@@ -2481,16 +2481,16 @@ class CoverAutomaticPanel extends HTMLElement {
         const x2 = sx + 15 * Math.cos(rr), y2 = sy + 15 * Math.sin(rr);
         return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#FFC107" stroke-width="2" stroke-linecap="round"/>`;
       }).join("");
-      // Light beams toward house (3 parallel rays)
-      const perpRad = sunRad + Math.PI / 2;
-      const spread = 18;
-      const offsets = [-spread, 0, spread];
-      sunBeams = offsets.map(off => {
-        const ox = off * Math.cos(perpRad), oy = off * Math.sin(perpRad);
-        const bx1 = sx + ox, by1 = sy + oy;
-        const bx2 = cx + off * 0.4 * Math.cos(perpRad), by2 = cy + off * 0.4 * Math.sin(perpRad);
-        return `<line x1="${bx1}" y1="${by1}" x2="${bx2}" y2="${by2}" stroke="#FFC107" stroke-width="1" opacity="0.3" stroke-dasharray="4,4"/>`;
-      }).join("");
+      // Light cone toward house facade (trapezoid: narrow at sun, wide at house)
+      const dx = cx - sx, dy = cy - sy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const ndx = dx / dist, ndy = dy / dist;
+      const perpX = -ndy, perpY = ndx;
+      const sunW = 4;
+      const facadeW = hr + 8;
+      const facadeDist = dist - hr - 2;
+      const fx = sx + ndx * facadeDist, fy = sy + ndy * facadeDist;
+      sunBeams = `<polygon points="${sx + perpX * sunW},${sy + perpY * sunW} ${sx - perpX * sunW},${sy - perpY * sunW} ${fx - perpX * facadeW},${fy - perpY * facadeW} ${fx + perpX * facadeW},${fy + perpY * facadeW}" fill="#FFC107" opacity="0.08"/>`;
       sunMarker = `${symbolRays}<circle cx="${sx}" cy="${sy}" r="8" fill="#FFC107" stroke="#F57F17" stroke-width="1.5"/>
         <text x="${sx}" y="${sy + 22}" text-anchor="middle" font-size="10" fill="#FFC107" font-weight="700">${Math.round(sunEl)}\u00B0</text>`;
     }

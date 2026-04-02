@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.26.3 (2026-04-02)
+
+- Compass: sun light cone (trapezoid) instead of parallel lines, illuminates full facade width
+
 ### 1.26.2 (2026-04-02)
 
 - Compass: fix S label clipped by expanding SVG viewBox height
