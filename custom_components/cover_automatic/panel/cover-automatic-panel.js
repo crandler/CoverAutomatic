@@ -2441,7 +2441,7 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   _renderCompassSVG(rotation) {
-    const cx = 120, cy = 120, r = 88, hr = 28;
+    const cx = 140, cy = 140, r = 88, hr = 28;
     const sunState = this._hass ? this._hass.states["sun.sun"] : null;
     const sunAz = sunState ? parseFloat(sunState.attributes.azimuth) : null;
     const sunEl = sunState ? parseFloat(sunState.attributes.elevation) : null;
@@ -2472,7 +2472,7 @@ class CoverAutomaticPanel extends HTMLElement {
     let sunBeams = "";
     if (sunAz != null && !isNaN(sunAz) && !belowHorizon) {
       const sunRad = (sunAz - 90) * Math.PI / 180;
-      const sr = r + 14;
+      const sr = r + 28;
       const sx = cx + sr * Math.cos(sunRad), sy = cy + sr * Math.sin(sunRad);
       // Sun symbol rays (radiating outward)
       const symbolRays = [0,45,90,135,180,225,270,315].map(d => {
@@ -2495,7 +2495,7 @@ class CoverAutomaticPanel extends HTMLElement {
         <text x="${sx}" y="${sy + 22}" text-anchor="middle" font-size="10" fill="#FFC107" font-weight="700">${Math.round(sunEl)}\u00B0</text>`;
     }
 
-    const svgW = 250, svgH = 258;
+    const svgW = 280, svgH = 288;
     return `<svg id="compass-svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" style="display:block">
       <!-- Compass circle -->
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--divider-color)" stroke-width="1.5"/>

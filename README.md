@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.26.5 (2026-04-02)
+
+- Compass: sun symbol moved further out (r+28) to avoid overlapping cardinal direction letters
+- Compass: SVG enlarged to 280x288 with centered compass at 140,140
+
 ### 1.26.4 (2026-04-02)
 
 - Compass: sun symbol moved further out from compass ring (r+14 instead of r+2)
