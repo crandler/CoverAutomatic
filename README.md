@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.23.0 (2026-04-02)
+
+- New condition type: `workday` -- use a HA workday binary sensor to match workdays/holidays
+
 ### 1.22.2 (2026-04-02)
 
 - Fix: sun/comfort icon tooltips not updated by live refresh (stayed in initial render language)

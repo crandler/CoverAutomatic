@@ -127,6 +127,7 @@ const I18N = {
     cond_state_is: "State is",
     cond_weather_is: "Weather is",
     cond_day_of_week: "Day of week",
+    cond_workday: "Workday sensor",
     // Condition params
     param_elevation: "Elevation",
     param_temperature: "Temperature",
@@ -324,6 +325,7 @@ const I18N = {
     cond_state_is: "Status ist",
     cond_weather_is: "Wetter ist",
     cond_day_of_week: "Wochentag",
+    cond_workday: "Arbeitstag-Sensor",
     param_elevation: "Elevation",
     param_temperature: "Temperatur",
     param_start_time: "Startzeit",
@@ -412,7 +414,7 @@ const CONDITION_TYPES = [
   "sun_on_facade", "sun_elevation_above", "sun_elevation_below",
   "temperature_above", "temperature_below", "temperature_comfort",
   "time_between", "time_after_sunrise", "time_after_sunset",
-  "state_is", "weather_is", "day_of_week"
+  "state_is", "weather_is", "day_of_week", "workday"
 ];
 
 const CONDITION_PARAMS = {
@@ -433,7 +435,8 @@ const CONDITION_PARAMS = {
     { key: "state", type: "text", default: "on" }
   ],
   weather_is: [{ key: "weather", type: "multiselect", options: ["sunny", "cloudy", "partlycloudy", "rainy", "snowy", "windy", "fog", "clear-night"], default: ["sunny"] }],
-  day_of_week: [{ key: "days", type: "dayselect", default: ["mon","tue","wed","thu","fri"] }]
+  day_of_week: [{ key: "days", type: "dayselect", default: ["mon","tue","wed","thu","fri"] }],
+  workday: [{ key: "entity_id", type: "text", default: "" }]
 };
 
 const FACADE_PRESETS = {

@@ -35,6 +35,7 @@ class ConditionType(StrEnum):
     STATE_IS = "state_is"
     WEATHER_IS = "weather_is"
     DAY_OF_WEEK = "day_of_week"
+    WORKDAY = "workday"
 
 
 class ComfortMode(StrEnum):

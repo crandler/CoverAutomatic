@@ -1325,3 +1325,60 @@ class TestDayOfWeekCondition:
             assert engine._eval_day_of_week(condition) is True
             mock_dt.now.return_value.weekday.return_value = 3  # Thursday
             assert engine._eval_day_of_week(condition) is False
+
+
+class TestWorkdayCondition:
+    """Tests for workday condition evaluation."""
+
+    def test_workday_sensor_on(self, engine) -> None:
+        """Test workday sensor in 'on' state."""
+        engine.hass.states.get.return_value = MockState("on")
+        condition = Condition(
+            type=ConditionType.WORKDAY,
+            params={"entity_id": "binary_sensor.workday"},
+        )
+        assert engine._eval_workday(condition) is True
+
+    def test_workday_sensor_off(self, engine) -> None:
+        """Test workday sensor in 'off' state (weekend/holiday)."""
+        engine.hass.states.get.return_value = MockState("off")
+        condition = Condition(
+            type=ConditionType.WORKDAY,
+            params={"entity_id": "binary_sensor.workday"},
+        )
+        assert engine._eval_workday(condition) is False
+
+    def test_workday_sensor_unavailable(self, engine) -> None:
+        """Test unavailable sensor returns False."""
+        engine.hass.states.get.return_value = MockState("unavailable")
+        condition = Condition(
+            type=ConditionType.WORKDAY,
+            params={"entity_id": "binary_sensor.workday"},
+        )
+        assert engine._eval_workday(condition) is False
+
+    def test_workday_sensor_unknown(self, engine) -> None:
+        """Test unknown sensor returns False."""
+        engine.hass.states.get.return_value = MockState("unknown")
+        condition = Condition(
+            type=ConditionType.WORKDAY,
+            params={"entity_id": "binary_sensor.workday"},
+        )
+        assert engine._eval_workday(condition) is False
+
+    def test_workday_sensor_not_found(self, engine) -> None:
+        """Test missing sensor returns False."""
+        engine.hass.states.get.return_value = None
+        condition = Condition(
+            type=ConditionType.WORKDAY,
+            params={"entity_id": "binary_sensor.workday"},
+        )
+        assert engine._eval_workday(condition) is False
+
+    def test_workday_missing_entity_id(self, engine) -> None:
+        """Test missing entity_id returns False."""
+        condition = Condition(
+            type=ConditionType.WORKDAY,
+            params={},
+        )
+        assert engine._eval_workday(condition) is False

@@ -147,6 +147,8 @@ class RuleEngine:
                     return self._eval_weather_is(condition)
                 case ConditionType.DAY_OF_WEEK:
                     return self._eval_day_of_week(condition)
+                case ConditionType.WORKDAY:
+                    return self._eval_workday(condition)
                 case _:
                     _LOGGER.warning("Unknown condition type: %s", condition.type)
                     return False
@@ -393,3 +395,13 @@ class RuleEngine:
         day_map = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
         today = dt_util.now().weekday()
         return any(day_map.get(d.lower(), -1) == today for d in days)
+
+    def _eval_workday(self, condition: Condition) -> bool:
+        """Evaluate workday condition."""
+        entity_id = condition.params.get("entity_id")
+        if not entity_id:
+            return False
+        state = self.hass.states.get(entity_id)
+        if state is None or state.state in ("unavailable", "unknown"):
+            return False
+        return state.state == "on"
