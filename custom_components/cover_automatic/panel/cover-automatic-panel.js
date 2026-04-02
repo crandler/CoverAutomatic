@@ -214,6 +214,14 @@ const I18N = {
     log_loading: "Loading log...",
     log_empty: "No log entries in the last 3 days.",
     log_filter_all: "All",
+    settings_section_backup: "Backup",
+    settings_backup_hint: "Export the complete configuration as a JSON file. Import replaces all settings, covers, facades, rules, and scenarios.",
+    settings_export: "Export configuration",
+    settings_import: "Import configuration",
+    settings_import_confirm: "This will replace the entire configuration. Continue?",
+    settings_import_success: "Configuration imported successfully.",
+    settings_import_error: "Import failed",
+    settings_export_error: "Export failed",
   },
   de: {
     title: "CoverAutomatic",
@@ -414,6 +422,14 @@ const I18N = {
     log_loading: "Protokoll wird geladen...",
     log_empty: "Keine Einträge in den letzten 3 Tagen.",
     log_filter_all: "Alle",
+    settings_section_backup: "Backup",
+    settings_backup_hint: "Exportiere die gesamte Konfiguration als JSON-Datei. Der Import ersetzt alle Einstellungen, Behänge, Fassaden, Regeln und Szenarien.",
+    settings_export: "Konfiguration exportieren",
+    settings_import: "Konfiguration importieren",
+    settings_import_confirm: "Die gesamte Konfiguration wird ersetzt. Fortfahren?",
+    settings_import_success: "Konfiguration erfolgreich importiert.",
+    settings_import_error: "Import fehlgeschlagen",
+    settings_export_error: "Export fehlgeschlagen",
   }
 };
 
@@ -2534,6 +2550,15 @@ class CoverAutomaticPanel extends HTMLElement {
       <button class="btn btn-primary" data-action="settings-save">${this._t("save")}</button>
     </div>`;
 
+    // Backup section
+    html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px">${this._t("settings_section_backup")}</div>`;
+    html += `<div style="${hintStyle};margin-bottom:12px">${this._t("settings_backup_hint")}</div>`;
+    html += `<div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn" data-action="backup-export">${this._t("settings_export")}</button>
+      <button class="btn" data-action="backup-import">${this._t("settings_import")}</button>
+      <input type="file" accept=".json" data-action="backup-file" style="display:none">
+    </div>`;
+
     html += '</div></div>';
     return html;
   }
@@ -2875,6 +2900,9 @@ class CoverAutomaticPanel extends HTMLElement {
       case "scenario-edit-save": this._onScenarioEditSave(actionEl); break;
       case "scenario-delete": this._onScenarioDelete(actionEl.dataset.id); break;
       case "settings-save": this._onSettingsSave(); break;
+      case "backup-export": this._onBackupExport(); break;
+      case "backup-import": this._shadowRoot.querySelector('[data-action="backup-file"]').click(); break;
+      case "backup-file": this._onBackupFileSelected(actionEl); break;
       case "log-filter":
         this._logFilter = actionEl.dataset.filter || null;
         this._render();
@@ -2934,6 +2962,12 @@ class CoverAutomaticPanel extends HTMLElement {
     // Condition param change
     if (el.matches('[data-action="cond-param"]')) {
       this._updateConditionParam(el);
+      return;
+    }
+
+    // Backup file selected
+    if (el.matches('[data-action="backup-file"]')) {
+      this._onBackupFileSelected(el);
       return;
     }
 
@@ -3354,6 +3388,50 @@ class CoverAutomaticPanel extends HTMLElement {
       const result = await this._ws("cover_automatic/settings/update", data);
       this._updateConfigFromResult(result);
     } catch (e) { console.error(e); }
+  }
+
+  async _onBackupExport() {
+    try {
+      const result = await this._ws("cover_automatic/export", {});
+      const json = JSON.stringify(result.data, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "cover_automatic_backup.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert(this._t("settings_export_error") + ": " + e.message);
+    }
+  }
+
+  _onBackupFileSelected(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      input.value = "";
+      let data;
+      try {
+        data = JSON.parse(reader.result);
+      } catch (e) {
+        alert(this._t("settings_import_error") + ": Invalid JSON");
+        return;
+      }
+      if (!confirm(this._t("settings_import_confirm"))) return;
+      try {
+        const result = await this._ws("cover_automatic/import", { data });
+        this._updateConfigFromResult(result);
+        this._showSaved();
+        alert(this._t("settings_import_success"));
+      } catch (e) {
+        console.error(e);
+        alert(this._t("settings_import_error") + ": " + e.message);
+      }
+    };
+    reader.readAsText(file);
   }
 
   _collectRuleEditorData(root, ruleId) {

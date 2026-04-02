@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.25.0 (2026-04-02)
+
+- Export/import configuration via panel settings (JSON download/upload)
+- WebSocket API: `cover_automatic/export` and `cover_automatic/import` endpoints
+
 ### 1.24.0 (2026-04-02)
 
 - Workday condition: selectable state (on/off) to match workdays or non-workdays

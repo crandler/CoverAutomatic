@@ -576,6 +576,36 @@ async def ws_get_log(
     connection.send_result(msg["id"], {"entries": entries})
 
 
+async def ws_export_config(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    storage: CoverAutomaticStorage,
+    coordinator: CoverAutomaticCoordinator,
+) -> None:
+    """Handle cover_automatic/export -- return raw config as JSON."""
+    connection.send_result(msg["id"], {"data": storage.get_raw_data()})
+
+
+async def ws_import_config(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    storage: CoverAutomaticStorage,
+    coordinator: CoverAutomaticCoordinator,
+) -> None:
+    """Handle cover_automatic/import -- replace config from JSON."""
+    data = msg["data"]
+    try:
+        await storage.async_import_data(data)
+    except (ValueError, TypeError) as err:
+        connection.send_error(msg["id"], "invalid_data", str(err))
+        return
+    coordinator.refresh_state_tracking()
+    await coordinator.async_request_refresh()
+    connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
+
+
 # ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
@@ -777,6 +807,18 @@ def async_setup_api(
                 vol.Optional("event_type"): str,
                 vol.Optional("entity_id"): str,
                 vol.Optional("limit"): vol.All(int, vol.Range(min=1, max=2000)),
+            },
+        ),
+        (
+            f"{DOMAIN}/export",
+            ws_export_config,
+            {},
+        ),
+        (
+            f"{DOMAIN}/import",
+            ws_import_config,
+            {
+                vol.Required("data"): dict,
             },
         ),
     ]

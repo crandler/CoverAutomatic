@@ -285,7 +285,7 @@ class TestApiSetup:
         ) as mock_ws:
             mock_ws.BASE_COMMAND_MESSAGE_SCHEMA = real_ws.BASE_COMMAND_MESSAGE_SCHEMA
             async_setup_api(hass, storage, coordinator)
-            assert mock_ws.async_register_command.call_count == 17
+            assert mock_ws.async_register_command.call_count == 19
 
     def test_command_names_registered(self) -> None:
         hass = _make_hass()
@@ -307,7 +307,7 @@ class TestApiSetup:
             mock_ws.async_register_command.side_effect = capture_register
             async_setup_api(hass, storage, coordinator)
 
-        assert len(registered_schemas) == 17
+        assert len(registered_schemas) == 19
 
 
 # ---------------------------------------------------------------------------
@@ -1098,3 +1098,63 @@ class TestConfigResponseTiltDefaults:
         result = _build_config_response(storage)
         assert result["settings"]["lock_tilt_position"] is None
         assert result["settings"]["vent_tilt_position"] is None
+
+
+class TestWsExportConfig:
+    """Tests for cover_automatic/export handler."""
+
+    @pytest.mark.asyncio
+    async def test_export_returns_raw_data(self) -> None:
+        from custom_components.cover_automatic.api import ws_export_config
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+        raw = {"facades": {}, "covers": {}, "rules": {}}
+        storage.get_raw_data.return_value = raw
+        msg = {"id": 1, "type": "cover_automatic/export"}
+
+        await ws_export_config(hass, conn, msg, storage, coordinator)
+
+        conn.send_result.assert_called_once_with(1, {"data": raw})
+
+
+class TestWsImportConfig:
+    """Tests for cover_automatic/import handler."""
+
+    @pytest.mark.asyncio
+    async def test_import_success(self) -> None:
+        from custom_components.cover_automatic.api import ws_import_config
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+        coordinator.async_request_refresh = AsyncMock()
+        storage.async_import_data = AsyncMock()
+        data = {"facades": {}, "covers": {}, "rules": {}, "scenarios": {}}
+        msg = {"id": 1, "type": "cover_automatic/import", "data": data}
+
+        await ws_import_config(hass, conn, msg, storage, coordinator)
+
+        storage.async_import_data.assert_called_once_with(data)
+        coordinator.refresh_state_tracking.assert_called_once()
+        coordinator.async_request_refresh.assert_called_once()
+        conn.send_result.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_import_invalid_data(self) -> None:
+        from custom_components.cover_automatic.api import ws_import_config
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+        storage.async_import_data = AsyncMock(side_effect=ValueError("bad data"))
+        msg = {"id": 1, "type": "cover_automatic/import", "data": {"bad": True}}
+
+        await ws_import_config(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_called_once_with(1, "invalid_data", "bad data")
+        coordinator.refresh_state_tracking.assert_not_called()

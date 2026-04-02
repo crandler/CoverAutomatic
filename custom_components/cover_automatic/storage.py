@@ -490,6 +490,7 @@ class CoverAutomaticStorage:
             "min_position_change",
             "min_time_between_changes",
             "house_rotation",
+            "workday_sensor",
             "wind_sensor",
             "wind_speed_threshold",
             "wind_speed_hysteresis",
