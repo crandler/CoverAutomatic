@@ -2441,7 +2441,7 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   _renderCompassSVG(rotation) {
-    const cx = 110, cy = 110, r = 95, hr = 30;
+    const cx = 120, cy = 120, r = 88, hr = 28;
     const sunState = this._hass ? this._hass.states["sun.sun"] : null;
     const sunAz = sunState ? parseFloat(sunState.attributes.azimuth) : null;
     const sunEl = sunState ? parseFloat(sunState.attributes.elevation) : null;
@@ -2464,7 +2464,7 @@ class CoverAutomaticPanel extends HTMLElement {
       // Label
       const midDeg = (f.azimuth_start + sweep / 2 - 90) * Math.PI / 180;
       const lx = cx + (arcR - 14) * Math.cos(midDeg), ly = cy + (arcR - 14) * Math.sin(midDeg);
-      facadeArcs += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="9" fill="${facadeColors[i % facadeColors.length]}" font-weight="600">${this._esc(f.name.substring(0, 6))}</text>`;
+      facadeArcs += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="9" fill="${facadeColors[i % facadeColors.length]}" font-weight="600">${this._esc(f.name.substring(0, 8))}</text>`;
     });
 
     // Sun position
@@ -2472,7 +2472,7 @@ class CoverAutomaticPanel extends HTMLElement {
     let sunBeams = "";
     if (sunAz != null && !isNaN(sunAz) && !belowHorizon) {
       const sunRad = (sunAz - 90) * Math.PI / 180;
-      const sr = r + 2;
+      const sr = r + 14;
       const sx = cx + sr * Math.cos(sunRad), sy = cy + sr * Math.sin(sunRad);
       // Sun symbol rays (radiating outward)
       const symbolRays = [0,45,90,135,180,225,270,315].map(d => {
@@ -2495,8 +2495,8 @@ class CoverAutomaticPanel extends HTMLElement {
         <text x="${sx}" y="${sy + 22}" text-anchor="middle" font-size="10" fill="#FFC107" font-weight="700">${Math.round(sunEl)}\u00B0</text>`;
     }
 
-    const svgH = 240;
-    return `<svg id="compass-svg" width="220" height="${svgH}" viewBox="0 0 220 ${svgH}" style="display:block">
+    const svgW = 250, svgH = 258;
+    return `<svg id="compass-svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" style="display:block">
       <!-- Compass circle -->
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--divider-color)" stroke-width="1.5"/>
       <circle cx="${cx}" cy="${cy}" r="${r - 20}" fill="none" stroke="var(--divider-color)" stroke-width="0.5" stroke-dasharray="3,3"/>

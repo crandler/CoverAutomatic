@@ -155,6 +155,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.26.4 (2026-04-02)
+
+- Compass: sun symbol moved further out from compass ring (r+14 instead of r+2)
+- Compass: facade labels allow 8 chars (fixes "Süd-Os" truncation to "Süd-Ost")
+- Compass: SVG enlarged to 250x258 for more room around edges
+
 ### 1.26.3 (2026-04-02)
 
 - Compass: sun light cone (trapezoid) instead of parallel lines, illuminates full facade width
