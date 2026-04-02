@@ -188,6 +188,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 entities_to_track.add(lock_sensor)
             if vent_sensor := cover_data.get("vent_sensor"):
                 entities_to_track.add(vent_sensor)
+            if indoor_sensor := cover_data.get("indoor_temp_sensor"):
+                entities_to_track.add(indoor_sensor)
 
         if self.storage.outdoor_temp_sensor:
             entities_to_track.add(self.storage.outdoor_temp_sensor)
@@ -408,7 +410,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 current = self._get_current_position(cover_id)
                 if current is None or current < lock_pos:
                     _LOGGER.info("[%s] Lock sensor open -> LOCKED at %d%%", cover_id, lock_pos)
-                    self._lock_cover(cover_id, lock_pos, lock_tilt=cover_raw.get("lock_tilt_position"))
+                    self._lock_cover(cover_id, lock_pos, lock_tilt=self._cover_val(cover_raw, "lock_tilt_position"))
                 else:
                     _LOGGER.info("[%s] Lock sensor open -> LOCKED (already at %d%%)", cover_id, current)
                     if cover_id not in self._pre_lock_states:
@@ -693,7 +695,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._cover_states[cover.entity_id] = CoverStatus.PAUSED
         if prev != CoverStatus.PAUSED:
             self._log(LOG_EVENT_STATUS, cover.entity_id, f"{prev.value} -> paused")
-        duration = cover.pause_duration or self.storage.pause_duration
+        duration = cover.pause_duration if cover.pause_duration is not None else self.storage.pause_duration
         pause_until = dt_util.now().timestamp() + (duration * 60)
         self.storage.update_cover_status(
             cover.entity_id, CoverStatus.PAUSED.value, pause_until
@@ -744,7 +746,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     lock_pos = self._cover_val(cover_raw, "lock_position")
                     current = self._get_current_position(entity_id)
                     if current is None or current < lock_pos:
-                        self._lock_cover(entity_id, lock_pos, lock_tilt=cover_raw.get("lock_tilt_position"))
+                        lock_tilt = self._cover_val(cover_raw, "lock_tilt_position")
+                        self._lock_cover(entity_id, lock_pos, lock_tilt=lock_tilt)
                     else:
                         prev = self._cover_states.get(entity_id, CoverStatus.AUTO)
                         self._pre_lock_states[entity_id] = CoverStatus.AUTO if prev == CoverStatus.PAUSED else prev
@@ -761,6 +764,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     if current is not None and current < vent_pos:
                         inverted = cover_raw.get("inverted", False)
                         actual = (100 - vent_pos) if inverted else vent_pos
+                        self._last_positions[entity_id] = actual
+                        self._last_command_time[entity_id] = time_mod.monotonic()
                         self.hass.async_create_task(
                             self.hass.services.async_call(
                                 "cover", "set_cover_position",

@@ -241,6 +241,26 @@ class CoverAutomaticStorage:
         self._data["vent_position"] = int(value)
 
     @property
+    def lock_tilt_position(self) -> int | None:
+        """Get global default lock tilt position."""
+        return self._data.get("lock_tilt_position")
+
+    @lock_tilt_position.setter
+    def lock_tilt_position(self, value: int | None) -> None:
+        """Set global default lock tilt position."""
+        self._data["lock_tilt_position"] = value
+
+    @property
+    def vent_tilt_position(self) -> int | None:
+        """Get global default vent tilt position."""
+        return self._data.get("vent_tilt_position")
+
+    @vent_tilt_position.setter
+    def vent_tilt_position(self, value: int | None) -> None:
+        """Set global default vent tilt position."""
+        self._data["vent_tilt_position"] = value
+
+    @property
     def min_position_change(self) -> int:
         """Get global default minimum position change."""
         return self._data.get("min_position_change", 5)
@@ -444,11 +464,21 @@ class CoverAutomaticStorage:
 
         # Preserve global settings not present in import data
         _global_keys = (
+            "enabled",
             "outdoor_temp_sensor",
             "indoor_temp_sensor",
             "weather_entity",
             "comfort_temp_min",
             "comfort_temp_max",
+            "comfort_hysteresis",
+            "pause_duration",
+            "lock_position",
+            "vent_position",
+            "lock_tilt_position",
+            "vent_tilt_position",
+            "min_position_change",
+            "min_time_between_changes",
+            "house_rotation",
             "wind_sensor",
             "wind_speed_threshold",
             "wind_speed_hysteresis",

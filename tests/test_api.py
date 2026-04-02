@@ -9,6 +9,7 @@ from custom_components.cover_automatic.api import (
     _build_config_response,
     _parse_conditions,
     _sanitize_id,
+    _unique_id,
     async_setup_api,
 )
 from custom_components.cover_automatic.models import (
@@ -60,6 +61,8 @@ def _make_storage(
     storage.wind_sensor = wind_sensor
     storage.wind_speed_threshold = wind_speed_threshold
     storage.wind_speed_hysteresis = wind_speed_hysteresis
+    storage.lock_tilt_position = None
+    storage.vent_tilt_position = None
     storage.async_add_facade = AsyncMock()
     storage.async_remove_facade = AsyncMock()
     storage.async_add_cover = AsyncMock()
@@ -1054,3 +1057,44 @@ class TestWsSettingsUpdate:
         assert storage.enabled is False
         storage.async_save.assert_awaited_once()
         conn.send_result.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _unique_id
+# ---------------------------------------------------------------------------
+
+class TestUniqueId:
+    """Tests for _unique_id."""
+
+    def test_returns_base_when_no_collision(self):
+        assert _unique_id("test", {}) == "test"
+
+    def test_appends_suffix_on_collision(self):
+        existing = {"test": {}}
+        assert _unique_id("test", existing) == "test_2"
+
+    def test_increments_suffix_on_multiple_collisions(self):
+        existing = {"test": {}, "test_2": {}, "test_3": {}}
+        assert _unique_id("test", existing) == "test_4"
+
+
+# ---------------------------------------------------------------------------
+# Global tilt defaults in config response
+# ---------------------------------------------------------------------------
+
+class TestConfigResponseTiltDefaults:
+    """Tests for tilt defaults in config response."""
+
+    def test_tilt_defaults_in_settings(self):
+        storage = _make_storage()
+        storage.lock_tilt_position = 50
+        storage.vent_tilt_position = 80
+        result = _build_config_response(storage)
+        assert result["settings"]["lock_tilt_position"] == 50
+        assert result["settings"]["vent_tilt_position"] == 80
+
+    def test_tilt_defaults_none(self):
+        storage = _make_storage()
+        result = _build_config_response(storage)
+        assert result["settings"]["lock_tilt_position"] is None
+        assert result["settings"]["vent_tilt_position"] is None

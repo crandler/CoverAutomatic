@@ -67,7 +67,10 @@ class PauseDurationNumber(CoordinatorEntity[CoverAutomaticCoordinator], NumberEn
     def native_value(self) -> float:
         """Return the current pause duration."""
         cover = self.coordinator.storage.covers.get(self._cover_entity_id)
-        return float(cover.pause_duration) if cover else 120.0
+        if cover is None:
+            return float(self.coordinator.storage.pause_duration)
+        duration = cover.pause_duration if cover.pause_duration is not None else self.coordinator.storage.pause_duration
+        return float(duration)
 
     async def async_set_native_value(self, value: float) -> None:
         """Set the pause duration."""

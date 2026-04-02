@@ -29,7 +29,8 @@ _UPDATABLE_COVER_FIELDS = (
     "name", "facade_id", "auto_enabled", "pause_duration",
     "lock_sensor", "lock_position", "vent_sensor", "vent_position",
     "inverted", "supports_tilt", "lock_tilt_position", "vent_tilt_position",
-    "inverted_tilt", "indoor_temp_sensor", "min_position_change", "min_time_between_changes",
+    "inverted_tilt", "indoor_temp_sensor", "comfort_temp_min", "comfort_temp_max",
+    "min_position_change", "min_time_between_changes",
 )
 
 # Settings fields that can be updated via WS API
@@ -37,7 +38,8 @@ _SETTINGS_FIELDS = (
     "enabled",
     "outdoor_temp_sensor", "indoor_temp_sensor", "weather_entity",
     "comfort_temp_min", "comfort_temp_max", "comfort_hysteresis", "pause_duration",
-    "lock_position", "vent_position", "min_position_change", "min_time_between_changes",
+    "lock_position", "vent_position", "lock_tilt_position", "vent_tilt_position",
+    "min_position_change", "min_time_between_changes",
     "house_rotation", "active_scenario",
     "wind_sensor", "wind_speed_threshold", "wind_speed_hysteresis",
 )
@@ -70,6 +72,16 @@ def _sanitize_id(name: str) -> str:
     return result or "unnamed"
 
 
+def _unique_id(base_id: str, existing: dict[str, Any]) -> str:
+    """Ensure ID is unique by appending a numeric suffix if needed."""
+    if base_id not in existing:
+        return base_id
+    counter = 2
+    while f"{base_id}_{counter}" in existing:
+        counter += 1
+    return f"{base_id}_{counter}"
+
+
 def _build_config_response(
     storage: CoverAutomaticStorage, hass: HomeAssistant | None = None,
     coordinator: CoverAutomaticCoordinator | None = None,
@@ -93,6 +105,8 @@ def _build_config_response(
             "pause_duration": storage.pause_duration,
             "lock_position": storage.lock_position,
             "vent_position": storage.vent_position,
+            "lock_tilt_position": storage.lock_tilt_position,
+            "vent_tilt_position": storage.vent_tilt_position,
             "min_position_change": storage.min_position_change,
             "min_time_between_changes": storage.min_time_between_changes,
             "house_rotation": storage.house_rotation,
@@ -270,7 +284,7 @@ async def ws_facade_add(
     presets = FACADE_PRESETS.get(direction, FACADE_PRESETS["south"])
 
     new_cover_ids = msg.get("cover_ids", [])
-    facade_id = _sanitize_id(name)
+    facade_id = _unique_id(_sanitize_id(name), storage.facades)
     facade = Facade(
         id=facade_id,
         name=name,
@@ -349,7 +363,7 @@ async def ws_rule_add(
         return
 
     rule = Rule(
-        id=_sanitize_id(name),
+        id=_unique_id(_sanitize_id(name), storage.rules),
         name=name,
         enabled=msg.get("enabled", True),
         priority=msg.get("priority", 10),
@@ -454,7 +468,7 @@ async def ws_scenario_add(
     """Handle cover_automatic/scenario/add."""
     name = msg["name"]
     scenario = Scenario(
-        id=_sanitize_id(name),
+        id=_unique_id(_sanitize_id(name), storage.scenarios),
         name=name,
         icon=msg.get("icon", "mdi:home"),
         rules_disabled=msg.get("rules_disabled", []),
@@ -597,6 +611,8 @@ def async_setup_api(
                 vol.Optional("vent_tilt_position"): vol.Any(int, None),
                 vol.Optional("inverted_tilt"): bool,
                 vol.Optional("indoor_temp_sensor"): vol.Any(str, None),
+                vol.Optional("comfort_temp_min"): vol.Any(vol.Coerce(float), None),
+                vol.Optional("comfort_temp_max"): vol.Any(vol.Coerce(float), None),
                 vol.Optional("min_position_change"): vol.All(int, vol.Range(min=1, max=50)),
                 vol.Optional("min_time_between_changes"): vol.All(int, vol.Range(min=60, max=3600)),
             },
@@ -733,6 +749,8 @@ def async_setup_api(
                 vol.Optional("pause_duration"): vol.All(vol.Coerce(int), vol.Range(min=1, max=480)),
                 vol.Optional("lock_position"): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
                 vol.Optional("vent_position"): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+                vol.Optional("lock_tilt_position"): vol.Any(vol.All(vol.Coerce(int), vol.Range(min=0, max=100)), None),
+                vol.Optional("vent_tilt_position"): vol.Any(vol.All(vol.Coerce(int), vol.Range(min=0, max=100)), None),
                 vol.Optional("min_position_change"): vol.All(vol.Coerce(int), vol.Range(min=1, max=50)),
                 vol.Optional("min_time_between_changes"): vol.All(vol.Coerce(int), vol.Range(min=60, max=3600)),
                 vol.Optional("house_rotation"): vol.All(vol.Coerce(float), vol.Range(min=-180, max=180)),

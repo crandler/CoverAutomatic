@@ -155,6 +155,18 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.22.0 (2026-04-02)
+
+- Global defaults for lock/vent tilt positions in settings
+- Per-cover comfort_temp_min/max now settable via WS API
+- Fix: pause_cover falsy-0 when cover.pause_duration is explicitly 0
+- Fix: per-cover indoor_temp_sensor now tracked for state changes (was only global)
+- Fix: import preserves all global settings (enabled, pause_duration, tilt positions, etc.)
+- Fix: unique ID generation prevents silent overwrites on name collisions
+- Fix: number entity crash when cover.pause_duration is None (global fallback)
+- Fix: _sync_cover_statuses vent path now updates position tracking (prevents redundant service calls)
+- Fix: _sync_cover_statuses lock path now uses global tilt fallback
+
 ### 1.21.1 (2026-04-01)
 
 - Fix: scenario icons now rendered as actual icons via ha-icon instead of plain text

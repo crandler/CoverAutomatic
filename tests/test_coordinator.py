@@ -546,6 +546,29 @@ class TestStateTracking:
             assert "sensor.indoor_temp" in tracked_entities
             assert "weather.home" in tracked_entities
 
+    def test_setup_state_tracking_tracks_per_cover_indoor_sensor(
+        self, coordinator, mock_storage
+    ) -> None:
+        """Test state tracking includes per-cover indoor temperature sensors."""
+        mock_storage._data = {
+            "covers": {
+                "cover.bedroom": {
+                    "indoor_temp_sensor": "sensor.bedroom_temp",
+                }
+            },
+            "rules": {},
+        }
+        mock_storage.indoor_temp_sensor = None
+
+        with patch(
+            "custom_components.cover_automatic.coordinator.async_track_state_change_event"
+        ) as mock_track:
+            coordinator._setup_state_tracking()
+
+            call_args = mock_track.call_args
+            tracked_entities = call_args[0][1]
+            assert "sensor.bedroom_temp" in tracked_entities
+
     def test_refresh_state_tracking_calls_full_refresh(self, coordinator) -> None:
         """Test refresh_state_tracking calls setup with full_refresh=True."""
         with patch.object(coordinator, "_setup_state_tracking") as mock_setup:
@@ -1833,3 +1856,40 @@ class TestWindProtection:
         coordinator._sync_cover_statuses()
         # Wind should override, even with lock sensor
         assert coordinator._cover_states["cover.test"] == CoverStatus.WIND_PROTECTED
+
+
+class TestPauseCoverDuration:
+    """Tests for pause_cover duration handling."""
+
+    def test_pause_duration_zero_uses_zero_not_global(self, coordinator, mock_storage) -> None:
+        """Test that pause_duration=0 on cover uses 0, not global default."""
+        from custom_components.cover_automatic.models import CoverConfig
+        mock_storage.pause_duration = 10
+        cover = CoverConfig(entity_id="cover.test", name="Test", pause_duration=0)
+        coordinator.data = {"covers": {}}
+
+        coordinator.pause_cover(cover)
+
+        # pause_until should be roughly now (0 minutes added)
+        call_args = mock_storage.update_cover_status.call_args
+        pause_until = call_args[0][2]
+        from homeassistant.util import dt as dt_util
+        now = dt_util.now().timestamp()
+        # 0 minutes = pause_until should be within 2 seconds of now
+        assert abs(pause_until - now) < 2
+
+    def test_pause_duration_none_uses_global(self, coordinator, mock_storage) -> None:
+        """Test that pause_duration=None on cover falls back to global."""
+        from custom_components.cover_automatic.models import CoverConfig
+        mock_storage.pause_duration = 10
+        cover = CoverConfig(entity_id="cover.test", name="Test", pause_duration=None)
+        coordinator.data = {"covers": {}}
+
+        coordinator.pause_cover(cover)
+
+        call_args = mock_storage.update_cover_status.call_args
+        pause_until = call_args[0][2]
+        from homeassistant.util import dt as dt_util
+        now = dt_util.now().timestamp()
+        # 10 minutes = 600 seconds
+        assert abs(pause_until - now - 600) < 2

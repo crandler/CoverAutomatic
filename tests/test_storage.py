@@ -630,6 +630,46 @@ class TestImportGlobalSettings:
         assert storage._data["comfort_temp_max"] == 26.0
 
     @pytest.mark.asyncio
+    async def test_import_preserves_extended_global_settings(
+        self, storage, mock_store
+    ) -> None:
+        """Extended global settings (enabled, tilt, hysteresis, etc.) are preserved."""
+        storage._data = {
+            "facades": {},
+            "covers": {},
+            "rules": {},
+            "scenarios": {},
+            "active_scenario": "everyday",
+            "enabled": False,
+            "pause_duration": 15,
+            "lock_position": 80,
+            "vent_position": 40,
+            "lock_tilt_position": 50,
+            "vent_tilt_position": 70,
+            "min_position_change": 10,
+            "min_time_between_changes": 600,
+            "house_rotation": 12.5,
+            "comfort_hysteresis": 2.0,
+        }
+        import_data = {
+            "scenarios": {"everyday": {"id": "everyday", "name": "Everyday"}},
+            "active_scenario": "everyday",
+        }
+
+        await storage.async_import_data(import_data)
+
+        assert storage._data["enabled"] is False
+        assert storage._data["pause_duration"] == 15
+        assert storage._data["lock_position"] == 80
+        assert storage._data["vent_position"] == 40
+        assert storage._data["lock_tilt_position"] == 50
+        assert storage._data["vent_tilt_position"] == 70
+        assert storage._data["min_position_change"] == 10
+        assert storage._data["min_time_between_changes"] == 600
+        assert storage._data["house_rotation"] == 12.5
+        assert storage._data["comfort_hysteresis"] == 2.0
+
+    @pytest.mark.asyncio
     async def test_import_overwrites_global_settings_when_present(
         self, storage, mock_store
     ) -> None:

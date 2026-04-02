@@ -168,8 +168,12 @@ const I18N = {
     settings_pause_duration_hint: "How long automation pauses after manual cover operation. Can be overridden per cover.",
     settings_lock_position: "Default lock position",
     settings_lock_position_hint: "Target position when window is open (100 = fully open). Can be overridden per cover.",
+    settings_lock_tilt_position: "Default lock tilt",
+    settings_lock_tilt_position_hint: "Tilt position when window is open. Leave empty to skip tilt control.",
     settings_vent_position: "Default vent position",
     settings_vent_position_hint: "Target position when window is tilted (e.g. 30 for ventilation gap). Can be overridden per cover.",
+    settings_vent_tilt_position: "Default vent tilt",
+    settings_vent_tilt_position_hint: "Tilt position when window is tilted. Leave empty to skip tilt control.",
     settings_min_position_change: "Default min. position change",
     settings_min_position_change_hint: "Minimum position difference to trigger a move. Can be overridden per cover.",
     settings_min_time: "Default min. time between changes (s)",
@@ -358,8 +362,12 @@ const I18N = {
     settings_pause_duration_hint: "Wie lange die Automatik nach manueller Bedienung pausiert. Kann pro Behang überschrieben werden.",
     settings_lock_position: "Standard-Sperrposition",
     settings_lock_position_hint: "Zielposition bei geöffnetem Fenster (100 = offen). Kann pro Behang überschrieben werden.",
+    settings_lock_tilt_position: "Standard-Sperr-Lamelle",
+    settings_lock_tilt_position_hint: "Lamellenposition bei geöffnetem Fenster. Leer lassen = keine Lamellensteuerung.",
     settings_vent_position: "Standard-Lüftungsposition",
     settings_vent_position_hint: "Zielposition bei gekipptem Fenster (z. B. 30). Kann pro Behang überschrieben werden.",
+    settings_vent_tilt_position: "Standard-Lüftungs-Lamelle",
+    settings_vent_tilt_position_hint: "Lamellenposition bei gekipptem Fenster. Leer lassen = keine Lamellensteuerung.",
     settings_min_position_change: "Standard min. Positionsänderung",
     settings_min_position_change_hint: "Mindestabweichung für eine Fahrt. Kann pro Behang überschrieben werden.",
     settings_min_time: "Standard min. Zeit zwischen Änderungen (s)",
@@ -1629,8 +1637,8 @@ class CoverAutomaticPanel extends HTMLElement {
           ${this._renderCoverEntitySelect("indoor_temp_sensor", cover.indoor_temp_sensor, cover.entity_id, "sensor", "temperature")}
           ${this._hint("cover_indoor_temp_hint")}
         </div>`;
-        const globalMin = (this._config.settings || {}).comfort_temp_min || 22;
-        const globalMax = (this._config.settings || {}).comfort_temp_max || 24;
+        const globalMin = (this._config.settings || {}).comfort_temp_min != null ? this._config.settings.comfort_temp_min : 22;
+        const globalMax = (this._config.settings || {}).comfort_temp_max != null ? this._config.settings.comfort_temp_max : 24;
         s += '<div class="form-row">';
         s += `<div class="form-group">
           <label>${this._t("cover_comfort_min")}</label>
@@ -2440,6 +2448,18 @@ class CoverAutomaticPanel extends HTMLElement {
       <label>${this._t("settings_vent_position")}</label>
       <input type="number" min="0" max="100" value="${s.vent_position != null ? s.vent_position : 30}" data-settings-field="vent_position">
       <div style="${hintStyle}">${this._t("settings_vent_position_hint")}</div>
+    </div>`;
+    html += '</div>';
+    html += '<div class="form-row">';
+    html += `<div class="form-group">
+      <label>${this._t("settings_lock_tilt_position")}</label>
+      <input type="number" min="0" max="100" value="${s.lock_tilt_position != null ? s.lock_tilt_position : ""}" data-settings-field="lock_tilt_position">
+      <div style="${hintStyle}">${this._t("settings_lock_tilt_position_hint")}</div>
+    </div>`;
+    html += `<div class="form-group">
+      <label>${this._t("settings_vent_tilt_position")}</label>
+      <input type="number" min="0" max="100" value="${s.vent_tilt_position != null ? s.vent_tilt_position : ""}" data-settings-field="vent_tilt_position">
+      <div style="${hintStyle}">${this._t("settings_vent_tilt_position_hint")}</div>
     </div>`;
     html += '</div>';
     html += '<div class="form-row">';

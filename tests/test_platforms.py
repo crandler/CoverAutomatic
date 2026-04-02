@@ -25,6 +25,7 @@ def mock_coordinator():
     mock_storage.async_add_cover = AsyncMock()
     mock_storage.async_add_scenario = AsyncMock()
     mock_storage.async_save = AsyncMock()
+    mock_storage.pause_duration = 10
 
     coordinator.storage = mock_storage
     return coordinator
@@ -373,7 +374,24 @@ class TestNumberPlatform:
         number = PauseDurationNumber(mock_coordinator, "cover.unknown", "Unknown")
         number.hass = MagicMock()
 
-        assert number.native_value == 120.0
+        assert number.native_value == 10.0
+
+    def test_pause_duration_none_uses_global(self, mock_coordinator) -> None:
+        """Test pause duration returns global when cover has None."""
+        from custom_components.cover_automatic.number import PauseDurationNumber
+
+        mock_cover = CoverConfig(
+            entity_id="cover.test",
+            name="Test",
+            pause_duration=None,
+        )
+        mock_coordinator.storage.covers = {"cover.test": mock_cover}
+        mock_coordinator.storage.pause_duration = 15
+
+        number = PauseDurationNumber(mock_coordinator, "cover.test", "Test")
+        number.hass = MagicMock()
+
+        assert number.native_value == 15.0
 
     @pytest.mark.asyncio
     async def test_set_pause_duration(self, mock_coordinator) -> None:
