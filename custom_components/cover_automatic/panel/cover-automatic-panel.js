@@ -1580,8 +1580,8 @@ class CoverAutomaticPanel extends HTMLElement {
       const pauseLeft = (c.status === "paused" && live.pause_until) ? this._formatPauseRemaining(live.pause_until) : "";
       const resumeBtn = c.status === "paused" ? ' <button class="btn-sm" data-action="cover-resume" data-id="' + this._esc(c.entity_id) + '" style="font-size:10px;padding:1px 6px">' + this._t("cover_resume") + '</button>' : '';
       html += `<tr class="${selected}">`;
-      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(c.name)}${comfortIcon}</td>`;
-      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(facadeName)}${sunIcon}</td>`;
+      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" data-live-name="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(c.name)}${comfortIcon}</td>`;
+      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" data-live-facade="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(facadeName)}${sunIcon}</td>`;
       html += `<td data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining" style="font-size:11px;color:var(--ca-secondary-text);margin-left:4px">' + pauseLeft + '</span>' : ''}${resumeBtn}</td>`;
       html += `<td data-live-current="${this._esc(c.entity_id)}">${currentPos != null ? currentPos + "%" : "–"}</td>`;
       html += `<td data-live-target="${this._esc(c.entity_id)}">${targetPos != null ? targetPos + "%" : "–"}${infoIcon}</td>`;
@@ -2630,6 +2630,36 @@ class CoverAutomaticPanel extends HTMLElement {
           }
         } else if (pauseSpan) {
           pauseSpan.remove();
+        }
+      }
+      // Cover name + comfort icon
+      const nCell = root.querySelector('[data-live-name="' + eid + '"]');
+      if (nCell && c) {
+        nCell.textContent = "";
+        nCell.appendChild(document.createTextNode(c.name));
+        const cm = live.comfort_mode;
+        if (cm === "cooling" || cm === "heating" || cm === "neutral") {
+          const ci = document.createElement("span");
+          ci.title = this._t("comfort_" + cm);
+          ci.style.cssText = "font-size:12px;margin-left:2px";
+          ci.textContent = cm === "cooling" ? "\u2744" : cm === "heating" ? "\u2600" : "\u25CF";
+          nCell.appendChild(ci);
+        }
+      }
+      // Facade name + sun icon
+      const fCell = root.querySelector('[data-live-facade="' + eid + '"]');
+      if (fCell && c) {
+        const facadeName = this._getFacadeName(c.facade_id);
+        const liveFacade = c.facade_id ? ((this._config.live_facades || {})[c.facade_id] || {}) : {};
+        fCell.textContent = "";
+        fCell.appendChild(document.createTextNode(facadeName));
+        if (liveFacade.sun_on_facade) {
+          const sun = document.createElement("span");
+          sun.title = this._t("facade_sun_active");
+          sun.style.cssText = "font-size:12px";
+          sun.textContent = "\u2600";
+          fCell.appendChild(document.createTextNode(" "));
+          fCell.appendChild(sun);
         }
       }
       // Rule name

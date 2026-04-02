@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.22.2 (2026-04-02)
+
+- Fix: sun/comfort icon tooltips not updated by live refresh (stayed in initial render language)
+
 ### 1.22.1 (2026-04-02)
 
 - Fix: hysteresis icons in target column lose tooltips after live update (DOM rebuild)
