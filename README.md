@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.25.2 (2026-04-02)
+
+- Temperature column colored by comfort mode (blue=cooling, orange=heating) with tooltip
+
 ### 1.25.1 (2026-04-02)
 
 - Show indoor temperature from assigned sensor in covers table (with live updates)

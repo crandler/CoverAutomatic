@@ -1618,7 +1618,9 @@ class CoverAutomaticPanel extends HTMLElement {
       const tempSensor = c.indoor_temp_sensor || (this._config.settings || {}).indoor_temp_sensor;
       const tempState = tempSensor && this._hass && this._hass.states ? this._hass.states[tempSensor] : null;
       const tempVal = tempState && tempState.state !== "unavailable" && tempState.state !== "unknown" ? parseFloat(tempState.state) : null;
-      html += `<td data-live-temp="${this._esc(c.entity_id)}" style="white-space:nowrap">${tempVal != null ? tempVal.toFixed(1) + " °C" : "–"}</td>`;
+      const tempColor = cm === "cooling" ? "var(--info-color, #2196f3)" : cm === "heating" ? "var(--warning-color, #ff9800)" : "";
+      const tempTitle = cm ? this._t("comfort_" + cm) : "";
+      html += `<td data-live-temp="${this._esc(c.entity_id)}" style="white-space:nowrap;${tempColor ? 'color:' + tempColor + ';font-weight:600' : ''}"${tempTitle ? ' title="' + this._esc(tempTitle) + '"' : ''}>${tempVal != null ? tempVal.toFixed(1) + " °C" : "–"}</td>`;
       html += `<td data-live-current="${this._esc(c.entity_id)}">${currentPos != null ? currentPos + "%" : "–"}</td>`;
       html += `<td data-live-target="${this._esc(c.entity_id)}">${targetPos != null ? targetPos + "%" : "–"}${infoIcon}</td>`;
       html += `<td data-live-rule="${this._esc(c.entity_id)}">${this._esc(ruleName)}</td>`;
@@ -2720,7 +2722,7 @@ class CoverAutomaticPanel extends HTMLElement {
       // Rule name
       const rCell = root.querySelector('[data-live-rule="' + eid + '"]');
       if (rCell) rCell.textContent = live.rule_name || this._t("cover_no_rule");
-      // Temperature
+      // Temperature with comfort color
       const tempCell = root.querySelector('[data-live-temp="' + eid + '"]');
       if (tempCell) {
         const c2 = covers[eid];
@@ -2728,6 +2730,10 @@ class CoverAutomaticPanel extends HTMLElement {
         const tst = ts && this._hass && this._hass.states ? this._hass.states[ts] : null;
         const tv = tst && tst.state !== "unavailable" && tst.state !== "unknown" ? parseFloat(tst.state) : null;
         tempCell.textContent = tv != null ? tv.toFixed(1) + " \u00B0C" : "\u2013";
+        const cm2 = live.comfort_mode;
+        tempCell.style.color = cm2 === "cooling" ? "var(--info-color, #2196f3)" : cm2 === "heating" ? "var(--warning-color, #ff9800)" : "";
+        tempCell.style.fontWeight = (cm2 === "cooling" || cm2 === "heating") ? "600" : "";
+        tempCell.title = cm2 ? this._t("comfort_" + cm2) : "";
       }
       // Last change
       const lcCell = root.querySelector('[data-live-lastchange="' + eid + '"]');
