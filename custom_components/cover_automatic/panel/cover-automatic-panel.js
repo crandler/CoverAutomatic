@@ -751,6 +751,7 @@ const PANEL_STYLES = `
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
+    align-items: start;
   }
 
   /* Settings card stack */
@@ -765,12 +766,69 @@ const PANEL_STYLES = `
     color: var(--ca-secondary-text);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    padding: 16px 20px 0;
+    padding: 12px 20px 8px;
+    border-bottom: 1px solid var(--ca-border);
+    margin-bottom: 4px;
   }
-  .settings-stack .settings-hint {
+  /* Hint text below a field */
+  .settings-hint {
     font-size: 12px;
     color: var(--ca-secondary-text);
-    margin-bottom: 4px;
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+  /* Intro hint at top of a card section */
+  .settings-hint-intro {
+    font-size: 12px;
+    color: var(--ca-secondary-text);
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+  /* Sensor live value */
+  .sensor-current-value {
+    font-size: 12px;
+    color: var(--ca-primary);
+    margin-top: 3px;
+  }
+  /* House card: rotation input + compass side by side */
+  .settings-house-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .settings-house-input {
+    flex: 1;
+    min-width: 160px;
+  }
+  .settings-house-compass {
+    flex: 0 0 auto;
+  }
+  /* Save action bar below all config cards */
+  .settings-save-bar {
+    display: flex;
+    justify-content: flex-end;
+  }
+  /* Backup button row */
+  .settings-backup-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* Inline live-update elements in covers table */
+  .pause-remaining {
+    font-size: 11px;
+    color: var(--ca-secondary-text);
+    margin-left: 4px;
+  }
+  .hysteresis-badge {
+    font-size: 11px;
+    margin-left: 4px;
+  }
+  .live-icon {
+    font-size: 12px;
+    margin-left: 2px;
   }
 
   /* Toggle switch */
@@ -1338,7 +1396,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
   _hint(key) {
     const text = this._t(key);
-    return text !== key ? `<div style="font-size:12px;color:var(--ca-secondary-text);margin-top:4px">${text}</div>` : "";
+    return text !== key ? `<div class="settings-hint">${text}</div>` : "";
   }
 
   /* ---------- Lifecycle ---------- */
@@ -1618,23 +1676,23 @@ class CoverAutomaticPanel extends HTMLElement {
       // Comfort mode icon
       const cm = live.comfort_mode;
       let comfortIcon = '';
-      if (cm === "cooling") comfortIcon = '<span title="' + this._esc(this._t("comfort_cooling")) + '" style="font-size:12px;margin-left:2px">\u2744</span>';
-      else if (cm === "heating") comfortIcon = '<span title="' + this._esc(this._t("comfort_heating")) + '" style="font-size:12px;margin-left:2px">\u2600</span>';
-      else if (cm === "neutral") comfortIcon = '<span title="' + this._esc(this._t("comfort_neutral")) + '" style="font-size:12px;margin-left:2px">\u25CF</span>';
+      if (cm === "cooling") comfortIcon = '<span class="live-icon" title="' + this._esc(this._t("comfort_cooling")) + '">\u2744</span>';
+      else if (cm === "heating") comfortIcon = '<span class="live-icon" title="' + this._esc(this._t("comfort_heating")) + '">\u2600</span>';
+      else if (cm === "neutral") comfortIcon = '<span class="live-icon" title="' + this._esc(this._t("comfort_neutral")) + '">\u25CF</span>';
       // Rule name
       const ruleName = live.rule_name || this._t("cover_no_rule");
       // Sun on facade
       const liveFacade = c.facade_id ? ((this._config.live_facades || {})[c.facade_id] || {}) : {};
-      const sunIcon = liveFacade.sun_on_facade ? ' <span title="' + this._esc(this._t("facade_sun_active")) + '" style="font-size:12px">\u2600</span>' : '';
+      const sunIcon = liveFacade.sun_on_facade ? ' <span class="live-icon" title="' + this._esc(this._t("facade_sun_active")) + '">\u2600</span>' : '';
       // Last change
       const lastChange = live.last_change ? this._formatTimeAgo(live.last_change) : "";
       // Pause info
       const pauseLeft = (c.status === "paused" && live.pause_until) ? this._formatPauseRemaining(live.pause_until) : "";
-      const resumeBtn = c.status === "paused" ? ' <button class="btn-sm" data-action="cover-resume" data-id="' + this._esc(c.entity_id) + '" style="font-size:10px;padding:1px 6px">' + this._t("cover_resume") + '</button>' : '';
+      const resumeBtn = c.status === "paused" ? ' <button class="btn btn-sm" data-action="cover-resume" data-id="' + this._esc(c.entity_id) + '">' + this._t("cover_resume") + '</button>' : '';
       html += `<tr class="${selected}">`;
-      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" data-live-name="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(c.name)}${comfortIcon}</td>`;
-      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" data-live-facade="${this._esc(c.entity_id)}" style="cursor:pointer">${this._esc(facadeName)}${sunIcon}</td>`;
-      html += `<td data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining" style="font-size:11px;color:var(--ca-secondary-text);margin-left:4px">' + pauseLeft + '</span>' : ''}${resumeBtn}</td>`;
+      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" data-live-name="${this._esc(c.entity_id)}">${this._esc(c.name)}${comfortIcon}</td>`;
+      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" data-live-facade="${this._esc(c.entity_id)}">${this._esc(facadeName)}${sunIcon}</td>`;
+      html += `<td data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining">' + pauseLeft + '</span>' : ''}${resumeBtn}</td>`;
       const tempSensor = c.indoor_temp_sensor || (this._config.settings || {}).indoor_temp_sensor;
       const tempState = tempSensor && this._hass && this._hass.states ? this._hass.states[tempSensor] : null;
       const tempVal = tempState && tempState.state !== "unavailable" && tempState.state !== "unknown" ? parseFloat(tempState.state) : null;
@@ -2379,7 +2437,7 @@ class CoverAutomaticPanel extends HTMLElement {
     if (!state || state.state === "unavailable" || state.state === "unknown") return "";
     const val = state.state;
     const u = unit || state.attributes.unit_of_measurement || "";
-    return '<div style="font-size:12px;color:var(--ca-primary);margin-top:2px">' + this._t("settings_current_value") + ': ' + this._esc(val) + this._esc(u) + '</div>';
+    return '<div class="sensor-current-value">' + this._t("settings_current_value") + ': ' + this._esc(val) + this._esc(u) + '</div>';
   }
 
   _renderCompassSVG(rotation) {
@@ -2446,7 +2504,8 @@ class CoverAutomaticPanel extends HTMLElement {
 
   _renderSettings() {
     const s = this._config.settings || {};
-    const h = (text) => `<div class="settings-hint">${text}</div>`;
+    const hint = (text) => `<div class="settings-hint">${text}</div>`;
+    const hintIntro = (text) => `<div class="settings-hint-intro">${text}</div>`;
 
     let html = '<div class="settings-stack">';
 
@@ -2455,13 +2514,13 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<div class="card">
       <div class="card-header">${this._t("settings_section_house")}</div>
       <div class="card-body">
-        <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
-          <div class="form-group" style="flex:1;min-width:160px">
+        <div class="settings-house-layout">
+          <div class="form-group settings-house-input">
             <label>${this._t("settings_house_rotation")}</label>
             <input type="number" step="0.5" min="-180" max="180" value="${rot}" data-settings-field="house_rotation" id="house-rotation-input">
-            ${h(this._t("settings_house_rotation_hint"))}
+            ${hint(this._t("settings_house_rotation_hint"))}
           </div>
-          <div style="flex:0 0 auto">${this._renderCompassSVG(rot)}</div>
+          <div class="settings-house-compass">${this._renderCompassSVG(rot)}</div>
         </div>
       </div>
     </div>`;
@@ -2474,25 +2533,25 @@ class CoverAutomaticPanel extends HTMLElement {
           <label>${this._t("settings_outdoor_temp")}</label>
           ${this._renderEntitySelect("outdoor_temp_sensor", s.outdoor_temp_sensor, "sensor", "temperature")}
           ${this._renderSensorValue(s.outdoor_temp_sensor, "\u00B0")}
-          ${h(this._t("settings_outdoor_temp_hint"))}
+          ${hint(this._t("settings_outdoor_temp_hint"))}
         </div>
         <div class="form-group">
           <label>${this._t("settings_indoor_temp")}</label>
           ${this._renderEntitySelect("indoor_temp_sensor", s.indoor_temp_sensor, "sensor", "temperature")}
           ${this._renderSensorValue(s.indoor_temp_sensor, "\u00B0")}
-          ${h(this._t("settings_indoor_temp_hint"))}
+          ${hint(this._t("settings_indoor_temp_hint"))}
         </div>
         <div class="form-group">
           <label>${this._t("settings_weather")}</label>
           ${this._renderEntitySelect("weather_entity", s.weather_entity, "weather", null)}
           ${this._renderSensorValue(s.weather_entity)}
-          ${h(this._t("settings_weather_hint"))}
+          ${hint(this._t("settings_weather_hint"))}
         </div>
         <div class="form-group">
           <label>${this._t("settings_workday_sensor")}</label>
           ${this._renderEntitySelect("workday_sensor", s.workday_sensor, "binary_sensor", null)}
           ${this._renderSensorValue(s.workday_sensor)}
-          ${h(this._t("settings_workday_hint"))}
+          ${hint(this._t("settings_workday_hint"))}
         </div>
       </div>
     </div>`;
@@ -2501,7 +2560,7 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<div class="card">
       <div class="card-header">${this._t("settings_section_comfort")}</div>
       <div class="card-body">
-        ${h(this._t("settings_comfort_hint"))}
+        ${hintIntro(this._t("settings_comfort_hint"))}
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_comfort_min")}</label>
@@ -2511,11 +2570,11 @@ class CoverAutomaticPanel extends HTMLElement {
             <label>${this._t("settings_comfort_max")}</label>
             <input type="number" step="0.5" value="${s.comfort_temp_max != null ? s.comfort_temp_max : 25}" data-settings-field="comfort_temp_max">
           </div>
-          <div class="form-group">
-            <label>${this._t("settings_comfort_hysteresis")}</label>
-            <input type="number" step="0.1" min="0.1" max="5" value="${s.comfort_hysteresis != null ? s.comfort_hysteresis : 1}" data-settings-field="comfort_hysteresis">
-            ${h(this._t("settings_comfort_hysteresis_hint"))}
-          </div>
+        </div>
+        <div class="form-group">
+          <label>${this._t("settings_comfort_hysteresis")}</label>
+          <input type="number" step="0.1" min="0.1" max="5" value="${s.comfort_hysteresis != null ? s.comfort_hysteresis : 1}" data-settings-field="comfort_hysteresis">
+          ${hint(this._t("settings_comfort_hysteresis_hint"))}
         </div>
       </div>
     </div>`;
@@ -2524,7 +2583,7 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<div class="card">
       <div class="card-header">${this._t("settings_section_wind")}</div>
       <div class="card-body">
-        ${h(this._t("settings_wind_hint"))}
+        ${hintIntro(this._t("settings_wind_hint"))}
         <div class="form-group">
           <label>${this._t("settings_wind_sensor")}</label>
           ${this._renderEntitySelect("wind_sensor", s.wind_sensor, "sensor", "wind_speed")}
@@ -2550,58 +2609,58 @@ class CoverAutomaticPanel extends HTMLElement {
         <div class="form-group">
           <label>${this._t("settings_pause_duration")}</label>
           <input type="number" min="1" max="480" value="${s.pause_duration != null ? s.pause_duration : 10}" data-settings-field="pause_duration">
-          ${h(this._t("settings_pause_duration_hint"))}
+          ${hint(this._t("settings_pause_duration_hint"))}
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_lock_position")}</label>
             <input type="number" min="0" max="100" value="${s.lock_position != null ? s.lock_position : 100}" data-settings-field="lock_position">
-            ${h(this._t("settings_lock_position_hint"))}
+            ${hint(this._t("settings_lock_position_hint"))}
           </div>
           <div class="form-group">
             <label>${this._t("settings_vent_position")}</label>
             <input type="number" min="0" max="100" value="${s.vent_position != null ? s.vent_position : 30}" data-settings-field="vent_position">
-            ${h(this._t("settings_vent_position_hint"))}
+            ${hint(this._t("settings_vent_position_hint"))}
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_lock_tilt_position")}</label>
             <input type="number" min="0" max="100" value="${s.lock_tilt_position != null ? s.lock_tilt_position : ""}" data-settings-field="lock_tilt_position">
-            ${h(this._t("settings_lock_tilt_position_hint"))}
+            ${hint(this._t("settings_lock_tilt_position_hint"))}
           </div>
           <div class="form-group">
             <label>${this._t("settings_vent_tilt_position")}</label>
             <input type="number" min="0" max="100" value="${s.vent_tilt_position != null ? s.vent_tilt_position : ""}" data-settings-field="vent_tilt_position">
-            ${h(this._t("settings_vent_tilt_position_hint"))}
+            ${hint(this._t("settings_vent_tilt_position_hint"))}
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_min_position_change")}</label>
             <input type="number" min="1" max="50" value="${s.min_position_change != null ? s.min_position_change : 5}" data-settings-field="min_position_change">
-            ${h(this._t("settings_min_position_change_hint"))}
+            ${hint(this._t("settings_min_position_change_hint"))}
           </div>
           <div class="form-group">
             <label>${this._t("settings_min_time")}</label>
             <input type="number" min="60" max="3600" value="${s.min_time_between_changes != null ? s.min_time_between_changes : 300}" data-settings-field="min_time_between_changes">
-            ${h(this._t("settings_min_time_hint"))}
+            ${hint(this._t("settings_min_time_hint"))}
           </div>
         </div>
       </div>
     </div>`;
 
-    // Save button
-    html += `<div style="display:flex;justify-content:flex-end">
+    // Save bar: scoped to all config cards above (Cards 1-5), before Backup
+    html += `<div class="settings-save-bar">
       <button class="btn btn-primary" data-action="settings-save">${this._t("save")}</button>
     </div>`;
 
-    // Card 6: Backup
+    // Card 6: Backup (not part of settings-save scope)
     html += `<div class="card">
       <div class="card-header">${this._t("settings_section_backup")}</div>
       <div class="card-body">
-        ${h(this._t("settings_backup_hint"))}
-        <div style="display:flex;gap:12px;flex-wrap:wrap">
+        ${hintIntro(this._t("settings_backup_hint"))}
+        <div class="settings-backup-actions">
           <button class="btn" data-action="backup-export">${this._t("settings_export")}</button>
           <button class="btn" data-action="backup-import">${this._t("settings_import")}</button>
           <input type="file" accept=".json" data-action="backup-file" style="display:none">
@@ -2695,8 +2754,7 @@ class CoverAutomaticPanel extends HTMLElement {
         tCell.appendChild(document.createTextNode(tgtPos != null ? tgtPos + "%" : "\u2013"));
         if (hyst === "position" || hyst === "time") {
           const badge = document.createElement("span");
-          badge.className = "status-badge status-paused";
-          badge.style.cssText = "font-size:11px;margin-left:4px";
+          badge.className = "status-badge status-paused hysteresis-badge";
           badge.textContent = hyst === "position" ? "\u2195" : "\u23F2";
           badge.title = this._t(hyst === "position" ? "cover_hysteresis_position" : "cover_hysteresis_time");
           tCell.appendChild(badge);
@@ -2719,7 +2777,6 @@ class CoverAutomaticPanel extends HTMLElement {
             if (!pauseSpan) {
               pauseSpan = document.createElement("span");
               pauseSpan.className = "pause-remaining";
-              pauseSpan.style.cssText = "font-size:11px;color:var(--ca-secondary-text);margin-left:4px";
               sCell.appendChild(pauseSpan);
             }
             pauseSpan.textContent = txt;
@@ -2738,8 +2795,8 @@ class CoverAutomaticPanel extends HTMLElement {
         const cm = live.comfort_mode;
         if (cm === "cooling" || cm === "heating" || cm === "neutral") {
           const ci = document.createElement("span");
+          ci.className = "live-icon";
           ci.title = this._t("comfort_" + cm);
-          ci.style.cssText = "font-size:12px;margin-left:2px";
           ci.textContent = cm === "cooling" ? "\u2744" : cm === "heating" ? "\u2600" : "\u25CF";
           nCell.appendChild(ci);
         }
@@ -2753,8 +2810,8 @@ class CoverAutomaticPanel extends HTMLElement {
         fCell.appendChild(document.createTextNode(facadeName));
         if (liveFacade.sun_on_facade) {
           const sun = document.createElement("span");
+          sun.className = "live-icon";
           sun.title = this._t("facade_sun_active");
-          sun.style.cssText = "font-size:12px";
           sun.textContent = "\u2600";
           fCell.appendChild(document.createTextNode(" "));
           fCell.appendChild(sun);

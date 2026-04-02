@@ -155,6 +155,17 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.26.1 (2026-04-02)
+
+- Remove all inline CSS from settings tab, live cells, and cover table; replace with CSS classes
+- Add `settings-hint-intro`, `settings-hint`, `sensor-current-value`, `pause-remaining`, `hysteresis-badge`, `live-icon` CSS classes
+- Add `align-items: start` to `.form-row` to prevent height coupling between columns
+- Add `border-bottom` separator and corrected padding to `.settings-stack .card-header`
+- Extract house card layout into `.settings-house-layout/input/compass` utility classes
+- Move hysteresis field out of 3-column `form-row` into standalone `form-group`
+- Use `hintIntro` for section-level hints (Comfort, Wind, Backup) vs `hint` for field-level hints
+- Remove redundant `cursor:pointer` inline style from cover table cells
+
 ### 1.26.0 (2026-04-02)
 
 - Settings tab redesign: 6 separate cards with logical grouping (House, Sensors, Comfort, Wind, Automation, Backup)
