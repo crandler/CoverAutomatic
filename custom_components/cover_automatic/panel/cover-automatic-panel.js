@@ -1573,7 +1573,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const ruleName = live.rule_name || this._t("cover_no_rule");
       // Sun on facade
       const liveFacade = c.facade_id ? ((this._config.live_facades || {})[c.facade_id] || {}) : {};
-      const sunIcon = liveFacade.sun_on_facade ? ' <span title="Sun on facade" style="font-size:12px">\u2600</span>' : '';
+      const sunIcon = liveFacade.sun_on_facade ? ' <span title="' + this._esc(this._t("facade_sun_active")) + '" style="font-size:12px">\u2600</span>' : '';
       // Last change
       const lastChange = live.last_change ? this._formatTimeAgo(live.last_change) : "";
       // Pause info
@@ -2593,10 +2593,16 @@ class CoverAutomaticPanel extends HTMLElement {
       const hyst = live.hysteresis;
       const tCell = root.querySelector('[data-live-target="' + eid + '"]');
       if (tCell) {
-        let txt = tgtPos != null ? tgtPos + "%" : "\u2013";
-        if (hyst === "position") txt += " \u2195";
-        else if (hyst === "time") txt += " \u23F2";
-        tCell.textContent = txt;
+        tCell.textContent = "";
+        tCell.appendChild(document.createTextNode(tgtPos != null ? tgtPos + "%" : "\u2013"));
+        if (hyst === "position" || hyst === "time") {
+          const badge = document.createElement("span");
+          badge.className = "status-badge status-paused";
+          badge.style.cssText = "font-size:11px;margin-left:4px";
+          badge.textContent = hyst === "position" ? "\u2195" : "\u23F2";
+          badge.title = this._t(hyst === "position" ? "cover_hysteresis_position" : "cover_hysteresis_time");
+          tCell.appendChild(badge);
+        }
       }
       // Status + pause remaining
       const c = covers[eid];

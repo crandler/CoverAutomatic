@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.22.1 (2026-04-02)
+
+- Fix: hysteresis icons in target column lose tooltips after live update (DOM rebuild)
+- Fix: sun-on-facade icon tooltip was hardcoded English instead of translated
+
 ### 1.22.0 (2026-04-02)
 
 - Global defaults for lock/vent tilt positions in settings
