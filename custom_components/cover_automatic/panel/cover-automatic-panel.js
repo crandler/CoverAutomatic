@@ -2522,7 +2522,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const fx = sx + ndx * facadeDist, fy = sy + ndy * facadeDist;
       sunBeams = `<polygon points="${sx + perpX * sunW},${sy + perpY * sunW} ${sx - perpX * sunW},${sy - perpY * sunW} ${fx - perpX * facadeW},${fy - perpY * facadeW} ${fx + perpX * facadeW},${fy + perpY * facadeW}" fill="#FFC107" opacity="0.08"/>`;
       sunMarker = `${symbolRays}<circle cx="${sx}" cy="${sy}" r="8" fill="#FFC107" stroke="#F57F17" stroke-width="1.5"/>
-        <text x="${sx}" y="${sy + 22}" text-anchor="middle" font-size="9" fill="#FFC107" font-weight="700">\u2220${Math.round(sunEl)}\u00B0</text>`;
+        <text x="${sx}" y="${sy + 26}" text-anchor="middle" font-size="9" fill="#FFC107" font-weight="700">\u2220${Math.round(sunEl)}\u00B0</text>`;
     }
 
     // Outdoor temperature info text at bottom of SVG
@@ -2552,9 +2552,9 @@ class CoverAutomaticPanel extends HTMLElement {
       ${[0,45,90,135,180,225,270,315].map(d => { const rad=(d-90)*Math.PI/180; const i=d%90===0?10:6; return `<line x1="${cx+(r-i)*Math.cos(rad)}" y1="${cy+(r-i)*Math.sin(rad)}" x2="${cx+r*Math.cos(rad)}" y2="${cy+r*Math.sin(rad)}" stroke="var(--primary-text-color)" stroke-width="${d%90===0?2:1}" opacity="${d%90===0?0.8:0.4}"/>`; }).join("")}
       <!-- House (rotated) -->
       <g transform="rotate(${rotation}, ${cx}, ${cy})">
-        <rect x="${cx - hr}" y="${cy - hr}" width="${hr * 2}" height="${hr * 2}" rx="4" fill="var(--ha-card-background, var(--card-background-color, #fff))" stroke="var(--primary-color)" stroke-width="2"/>
+        <rect x="${cx - hr}" y="${cy - hr}" width="${hr * 2}" height="${hr * 2}" fill="var(--ha-card-background, var(--card-background-color, #fff))" stroke="var(--primary-color)" stroke-width="2"/>
         <!-- Roof indicator (front = south of house before rotation) -->
-        <line x1="${cx - hr + 6}" y1="${cy + hr}" x2="${cx + hr - 6}" y2="${cy + hr}" stroke="var(--primary-color)" stroke-width="4" stroke-linecap="round"/>
+        <line x1="${cx - hr + 6}" y1="${cy + hr}" x2="${cx + hr - 6}" y2="${cy + hr}" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round"/>
         <text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="var(--primary-text-color)" opacity="0.6">${rotation}°</text>
       </g>
       <!-- Sun beams -->

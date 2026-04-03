@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.27.5 (2026-04-03)
+
+- Compass: house shape with sharp corners, uniform stroke width for roof indicator
+- Compass: sun elevation label moved further away from sun symbol
+
 ### 1.27.4 (2026-04-03)
 
 - Fix: cover edit slide panel had transparent background on themes with semi-transparent card colors
