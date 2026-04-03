@@ -3086,7 +3086,12 @@ class CoverAutomaticPanel extends HTMLElement {
       return;
     }
     if (el.closest('[data-action="toggle-menu"]')) {
-      this.dispatchEvent(new Event("hass-toggle-menu", { bubbles: true, composed: true }));
+      const ha = document.querySelector("home-assistant");
+      if (ha) {
+        ha.dispatchEvent(new Event("hass-toggle-menu", { bubbles: true }));
+      } else {
+        window.history.back();
+      }
       return;
     }
 

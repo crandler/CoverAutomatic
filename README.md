@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.26.7 (2026-04-03)
+
+- Fix: hamburger menu dispatches event on home-assistant element to cross shadow DOM boundaries
+
 ### 1.26.6 (2026-04-03)
 
 - Add hamburger menu button on mobile to toggle HA sidebar navigation
