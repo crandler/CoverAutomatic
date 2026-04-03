@@ -3101,7 +3101,7 @@ class CoverAutomaticPanel extends HTMLElement {
         this._render();
         break;
       case "log-clear":
-        this._confirm(this._t("log_clear_confirm"), async () => {
+        this._showConfirm(this._t("log_clear_confirm"), async () => {
           await this._ws("cover_automatic/log/clear");
           this._logEntries = [];
           this._render();
