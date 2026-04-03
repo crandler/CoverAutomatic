@@ -1945,7 +1945,7 @@ class CoverAutomaticPanel extends HTMLElement {
    * ============================================================ */
   _renderFacades() {
     const facades = this._config.facades || {};
-    const entries = Object.values(facades);
+    const entries = Object.values(facades).sort((a, b) => (a.azimuth_start || 0) - (b.azimuth_start || 0));
 
     // Sun position info bar
     let html = '';

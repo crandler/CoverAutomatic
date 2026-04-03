@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.28.3 (2026-04-03)
+
+- Feature: facades sorted by azimuth (clockwise from north)
+
 ### 1.28.2 (2026-04-03)
 
 - Fix: version label spacing from title in header
