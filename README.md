@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.28.2 (2026-04-03)
+
+- Fix: version label spacing from title in header
+
 ### 1.28.1 (2026-04-03)
 
 - Feature: sortable cover table columns (name, facade, status, temperature) with click-to-sort headers

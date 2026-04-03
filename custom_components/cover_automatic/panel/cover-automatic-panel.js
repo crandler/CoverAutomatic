@@ -560,6 +560,7 @@ const PANEL_STYLES = `
     font-size: 12px;
     color: var(--ca-secondary-text);
     opacity: 0.7;
+    margin-left: 6px;
   }
   .update-badge {
     display: inline-flex;
