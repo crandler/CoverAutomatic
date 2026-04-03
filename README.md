@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.28.1 (2026-04-03)
+
+- Feature: sortable cover table columns (name, facade, status, temperature) with click-to-sort headers
+
 ### 1.28.0 (2026-04-03)
 
 - Fix: confirm dialog used transparent background, now solid with darker overlay

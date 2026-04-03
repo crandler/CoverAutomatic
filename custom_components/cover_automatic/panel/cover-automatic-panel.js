@@ -663,6 +663,22 @@ const PANEL_STYLES = `
     top: 0;
     z-index: 1;
   }
+  .data-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+  }
+  .data-table th.sortable:hover {
+    color: var(--primary-text-color);
+  }
+  .data-table th .sort-arrow {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 10px;
+    opacity: 0.4;
+  }
+  .data-table th.sorted .sort-arrow {
+    opacity: 1;
+  }
   .data-table tr {
     cursor: pointer;
     transition: background var(--ca-transition);
@@ -1381,6 +1397,7 @@ class CoverAutomaticPanel extends HTMLElement {
     this._latestVersion = null;
     this._logEntries = null;
     this._logFilter = null;
+    this._coverSort = { key: "name", dir: "asc" };
     this._liveRefreshTimer = null;
     this._expandedSections = { base: true, sensors: true, advanced: false, tilt: false };
 
@@ -1676,10 +1693,16 @@ class CoverAutomaticPanel extends HTMLElement {
 
     html += '<div class="card"><div style="overflow-x:auto"><table class="data-table">';
     html += '<thead><tr>';
-    html += `<th>${this._t("name")}</th>`;
-    html += `<th>${this._t("cover_facade")}</th>`;
-    html += `<th>${this._t("cover_status")}</th>`;
-    html += `<th>${this._t("cover_temp")}</th>`;
+    const sk = this._coverSort.key, sd = this._coverSort.dir;
+    const sth = (key, label) => {
+      const active = sk === key;
+      const arrow = active ? (sd === "asc" ? "\u25B2" : "\u25BC") : "\u25B2";
+      return `<th class="sortable${active ? " sorted" : ""}" data-action="cover-sort" data-sort="${key}">${label}<span class="sort-arrow">${arrow}</span></th>`;
+    };
+    html += sth("name", this._t("name"));
+    html += sth("facade", this._t("cover_facade"));
+    html += sth("status", this._t("cover_status"));
+    html += sth("temp", this._t("cover_temp"));
     html += `<th>${this._t("cover_current_pos")}</th>`;
     html += `<th>${this._t("cover_target_pos")}</th>`;
     html += `<th>${this._t("cover_rule")}</th>`;
@@ -1687,7 +1710,28 @@ class CoverAutomaticPanel extends HTMLElement {
     html += '<th></th>';
     html += '</tr></thead><tbody>';
 
-    for (const c of entries) {
+    // Sort entries
+    const sorted = [...entries].sort((a, b) => {
+      let va, vb;
+      switch (sk) {
+        case "name": va = a.name || ""; vb = b.name || ""; break;
+        case "facade": va = this._getFacadeName(a.facade_id); vb = this._getFacadeName(b.facade_id); break;
+        case "status": va = a.status || "auto"; vb = b.status || "auto"; break;
+        case "temp": {
+          const sa = a.indoor_temp_sensor || (this._config.settings || {}).indoor_temp_sensor;
+          const sb = b.indoor_temp_sensor || (this._config.settings || {}).indoor_temp_sensor;
+          const ta = sa && this._hass && this._hass.states && this._hass.states[sa] ? parseFloat(this._hass.states[sa].state) : -999;
+          const tb = sb && this._hass && this._hass.states && this._hass.states[sb] ? parseFloat(this._hass.states[sb].state) : -999;
+          va = isNaN(ta) ? -999 : ta; vb = isNaN(tb) ? -999 : tb;
+          return sd === "asc" ? va - vb : vb - va;
+        }
+        default: va = a.name || ""; vb = b.name || "";
+      }
+      const cmp = String(va).localeCompare(String(vb), "de", { sensitivity: "base" });
+      return sd === "asc" ? cmp : -cmp;
+    });
+
+    for (const c of sorted) {
       const facadeName = this._getFacadeName(c.facade_id);
       const selected = this._selectedCover === c.entity_id ? " selected" : "";
       const statusClass = "status-" + (c.status || "auto");
@@ -3042,6 +3086,16 @@ class CoverAutomaticPanel extends HTMLElement {
       }
       case "retry": this._loadConfig(); break;
       case "cover-add-start": this._addingCover = true; this._render(); break;
+      case "cover-sort": {
+        const key = actionEl.dataset.sort;
+        if (this._coverSort.key === key) {
+          this._coverSort.dir = this._coverSort.dir === "asc" ? "desc" : "asc";
+        } else {
+          this._coverSort = { key, dir: "asc" };
+        }
+        this._render();
+        break;
+      }
       case "cover-add-cancel": this._addingCover = false; this._render(); break;
       case "cover-add": this._onCoverAdd(); break;
       case "cover-resume": this._onCoverResume(actionEl.dataset.id); break;
