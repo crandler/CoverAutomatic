@@ -72,6 +72,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._wind_protected: bool = False
         self._hysteresis_info: dict[str, str | None] = {}
         self._last_matching_rules: dict[str, str | None] = {}
+        self._startup_skip: bool = True
         self.log_storage: ActivityLogStorage | None = None
 
     def _cover_val(self, cover_raw: dict[str, Any], key: str) -> Any:
@@ -910,6 +911,14 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         # Store result first so async_apply_positions can use it
         self.data = result
+
+        # Skip position application on first refresh after startup to avoid
+        # unnecessary movements caused by incomplete sensor data (e.g. sun.sun
+        # not yet available), which would trigger low-priority fallback rules.
+        if self._startup_skip:
+            self._startup_skip = False
+            _LOGGER.debug("Startup: skipping position application on first refresh")
+            return result
 
         # Apply calculated positions to covers
         await self.async_apply_positions()

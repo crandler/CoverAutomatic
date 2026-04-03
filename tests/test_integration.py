@@ -101,6 +101,7 @@ def coordinator(mock_hass, mock_storage):
         coord._wind_protected = False
         coord._hysteresis_info = {}
         coord._last_matching_rules = {}
+        coord._startup_skip = False
         coord.log_storage = None
         coord.data = {}
         coord.logger = MagicMock()
@@ -114,6 +115,65 @@ def coordinator(mock_hass, mock_storage):
         coord.engine = RuleEngine(mock_hass, mock_storage)
 
         return coord
+
+
+class TestStartupSkipIntegration:
+    """Test that first refresh after startup skips position application."""
+
+    @staticmethod
+    def _setup(coordinator, mock_hass, mock_storage):
+        cover = CoverConfig(
+            entity_id="cover.test",
+            name="Test",
+            auto_enabled=True,
+            facade_id="south",
+            min_position_change=1,
+            min_time_between_changes=0,
+        )
+        facade = Facade(id="south", name="South", azimuth_start=135.0, azimuth_end=225.0, direction="south")
+        rule = Rule(
+            id="r1", name="Sun", enabled=True, priority=10,
+            conditions=[Condition(type=ConditionType.TEMPERATURE_ABOVE, params={"sensor": "sensor.temp", "value": 10})],
+            target_position=50,
+        )
+        mock_storage.facades = {"south": facade}
+        mock_storage.covers = {"cover.test": cover}
+        mock_storage.rules = {"r1": rule}
+        cover_raw = {
+            "entity_id": "cover.test", "auto_enabled": True,
+            "min_position_change": 1, "min_time_between_changes": 0,
+            "last_position_change": None, "inverted": False,
+        }
+        mock_storage._data = {"covers": {"cover.test": cover_raw}, "facades": {}, "rules": {}, "scenarios": {}}
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.side_effect = lambda eid: {
+            "sensor.temp": MockState("25.0"),
+            "cover.test": MockState("open", {"current_position": 100}),
+            "sun.sun": MockState("above_horizon", {"azimuth": 180, "elevation": 45}),
+        }.get(eid)
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+
+    @pytest.mark.asyncio
+    async def test_first_refresh_skips_position_apply(self, coordinator, mock_hass, mock_storage) -> None:
+        """First refresh should evaluate rules but not move covers."""
+        self._setup(coordinator, mock_hass, mock_storage)
+        coordinator._startup_skip = True
+
+        result = await coordinator._async_update_data()
+
+        assert result["covers"]["cover.test"]["target_position"] == 50
+        mock_hass.services.async_call.assert_not_called()
+        assert coordinator._startup_skip is False
+
+    @pytest.mark.asyncio
+    async def test_second_refresh_applies_positions(self, coordinator, mock_hass, mock_storage) -> None:
+        """Second refresh should apply positions normally."""
+        self._setup(coordinator, mock_hass, mock_storage)
+        coordinator._startup_skip = False
+
+        await coordinator._async_update_data()
+
+        mock_hass.services.async_call.assert_called()
 
 
 class TestHappyPathIntegration:

@@ -90,6 +90,7 @@ def coordinator(mock_hass, mock_storage):
         coord._wind_protected = False
         coord._hysteresis_info = {}
         coord._last_matching_rules = {}
+        coord._startup_skip = False
         coord.log_storage = None
         coord.data = {}
         coord.logger = MagicMock()

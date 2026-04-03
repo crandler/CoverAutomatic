@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.27.8 (2026-04-03)
+
+- Fix: skip position application on first refresh after startup to avoid unnecessary cover movements from incomplete sensor data
+
 ### 1.27.7 (2026-04-03)
 
 - Compass: wider light cone, extended 20px further, solid house background
