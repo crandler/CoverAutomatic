@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.27.1 (2026-04-03)
+
+- Compass: sun elevation label prefixed with angle symbol to distinguish from temperature
+- Compass: outdoor temperature shown below compass when sensor configured
+
 ### 1.27.0 (2026-04-03)
 
 - Fix: hamburger menu click handler was in _handleChange instead of _handleClick (never fired for buttons)

@@ -152,6 +152,7 @@ const I18N = {
     scenario_no_rules: "No rules configured",
     // Settings
     settings_outdoor_temp: "Outdoor temperature sensor",
+    settings_outdoor_temp_short: "Outdoor:",
     settings_outdoor_temp_hint: "Used for temperature-based rule conditions (temperature above/below).",
     settings_indoor_temp: "Indoor temperature sensor (global)",
     settings_indoor_temp_hint: "Fallback for covers without their own indoor sensor. Used for comfort mode and shading decisions.",
@@ -361,6 +362,7 @@ const I18N = {
     scenario_active: "Aktives Szenario",
     scenario_no_rules: "Keine Regeln konfiguriert",
     settings_outdoor_temp: "Außentemperatur-Sensor",
+    settings_outdoor_temp_short: "Außen:",
     settings_outdoor_temp_hint: "Wird für temperaturbasierte Regelbedingungen verwendet (Außentemperatur über/unter).",
     settings_indoor_temp: "Innentemperatur-Sensor (global)",
     settings_indoor_temp_hint: "Fallback für Behänge ohne eigenen Innensensor. Wird für Komfortmodus und Beschattungsentscheidungen verwendet.",
@@ -2510,10 +2512,22 @@ class CoverAutomaticPanel extends HTMLElement {
       const fx = sx + ndx * facadeDist, fy = sy + ndy * facadeDist;
       sunBeams = `<polygon points="${sx + perpX * sunW},${sy + perpY * sunW} ${sx - perpX * sunW},${sy - perpY * sunW} ${fx - perpX * facadeW},${fy - perpY * facadeW} ${fx + perpX * facadeW},${fy + perpY * facadeW}" fill="#FFC107" opacity="0.08"/>`;
       sunMarker = `${symbolRays}<circle cx="${sx}" cy="${sy}" r="8" fill="#FFC107" stroke="#F57F17" stroke-width="1.5"/>
-        <text x="${sx}" y="${sy + 22}" text-anchor="middle" font-size="10" fill="#FFC107" font-weight="700">${Math.round(sunEl)}\u00B0</text>`;
+        <text x="${sx}" y="${sy + 22}" text-anchor="middle" font-size="9" fill="#FFC107" font-weight="700">\u2220${Math.round(sunEl)}\u00B0</text>`;
     }
 
-    const svgW = 280, svgH = 288;
+    // Outdoor temperature info text at bottom of SVG
+    let infoText = "";
+    const settings = this._config ? this._config.settings || {} : {};
+    const tempEntity = settings.outdoor_temp_sensor;
+    if (tempEntity && this._hass && this._hass.states[tempEntity]) {
+      const tempState = this._hass.states[tempEntity];
+      const tempVal = parseFloat(tempState.state);
+      if (!isNaN(tempVal)) {
+        infoText = `<text x="${cx}" y="${svgH - 4}" text-anchor="middle" font-size="11" fill="var(--ca-secondary-text)">${this._t("settings_outdoor_temp_short")} ${tempVal.toFixed(1)}\u00B0C</text>`;
+      }
+    }
+
+    const svgW = 280, svgH = infoText ? 302 : 288;
     return `<svg id="compass-svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" style="display:block">
       <!-- Compass circle -->
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--divider-color)" stroke-width="1.5"/>
@@ -2538,6 +2552,8 @@ class CoverAutomaticPanel extends HTMLElement {
       ${facadeArcs}
       <!-- Sun -->
       ${sunMarker}
+      <!-- Info -->
+      ${infoText}
     </svg>`;
   }
 
