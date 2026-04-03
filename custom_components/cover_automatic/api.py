@@ -576,6 +576,19 @@ async def ws_get_log(
     connection.send_result(msg["id"], {"entries": entries})
 
 
+async def ws_clear_log(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    storage: CoverAutomaticStorage,
+    coordinator: CoverAutomaticCoordinator,
+) -> None:
+    """Handle cover_automatic/log/clear."""
+    if coordinator.log_storage:
+        await coordinator.log_storage.async_clear()
+    connection.send_result(msg["id"], {"success": True})
+
+
 async def ws_export_config(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
@@ -808,6 +821,11 @@ def async_setup_api(
                 vol.Optional("entity_id"): str,
                 vol.Optional("limit"): vol.All(int, vol.Range(min=1, max=2000)),
             },
+        ),
+        (
+            f"{DOMAIN}/log/clear",
+            ws_clear_log,
+            {},
         ),
         (
             f"{DOMAIN}/export",

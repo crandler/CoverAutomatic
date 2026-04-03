@@ -285,7 +285,7 @@ class TestApiSetup:
         ) as mock_ws:
             mock_ws.BASE_COMMAND_MESSAGE_SCHEMA = real_ws.BASE_COMMAND_MESSAGE_SCHEMA
             async_setup_api(hass, storage, coordinator)
-            assert mock_ws.async_register_command.call_count == 19
+            assert mock_ws.async_register_command.call_count == 20
 
     def test_command_names_registered(self) -> None:
         hass = _make_hass()
@@ -307,7 +307,7 @@ class TestApiSetup:
             mock_ws.async_register_command.side_effect = capture_register
             async_setup_api(hass, storage, coordinator)
 
-        assert len(registered_schemas) == 19
+        assert len(registered_schemas) == 20
 
 
 # ---------------------------------------------------------------------------
@@ -1158,3 +1158,39 @@ class TestWsImportConfig:
 
         conn.send_error.assert_called_once_with(1, "invalid_data", "bad data")
         coordinator.refresh_state_tracking.assert_not_called()
+
+
+class TestWsClearLog:
+    """Tests for cover_automatic/log/clear WebSocket command."""
+
+    @pytest.mark.asyncio
+    async def test_clear_log_with_storage(self) -> None:
+        from custom_components.cover_automatic.api import ws_clear_log
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+        coordinator.log_storage = MagicMock()
+        coordinator.log_storage.async_clear = AsyncMock()
+        msg = {"id": 1, "type": "cover_automatic/log/clear"}
+
+        await ws_clear_log(hass, conn, msg, storage, coordinator)
+
+        coordinator.log_storage.async_clear.assert_called_once()
+        conn.send_result.assert_called_once_with(1, {"success": True})
+
+    @pytest.mark.asyncio
+    async def test_clear_log_without_storage(self) -> None:
+        from custom_components.cover_automatic.api import ws_clear_log
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+        coordinator.log_storage = None
+        msg = {"id": 1, "type": "cover_automatic/log/clear"}
+
+        await ws_clear_log(hass, conn, msg, storage, coordinator)
+
+        conn.send_result.assert_called_once_with(1, {"success": True})

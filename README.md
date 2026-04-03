@@ -155,6 +155,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.27.4 (2026-04-03)
+
+- Fix: cover edit slide panel had transparent background on themes with semi-transparent card colors
+- Feature: clear log button in protocol tab with confirmation dialog
+
+### 1.27.3 (2026-04-03)
+
+- Panel: active rule indicators more prominent with green left border, tinted background, and glowing dot
+
 ### 1.27.2 (2026-04-03)
 
 - Fix: settings tab crash due to svgH variable used before initialization in compass SVG

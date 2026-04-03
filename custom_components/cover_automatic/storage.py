@@ -611,6 +611,15 @@ class ActivityLogStorage:
         self._entries.append(entry)
         self._schedule_save()
 
+    async def async_clear(self) -> None:
+        """Clear all log entries and save immediately."""
+        self._entries = []
+        if self._save_task is not None:
+            self._save_task.cancel()
+            self._save_task = None
+        async with self._save_lock:
+            await self._store.async_save({"entries": self._entries})
+
     def get_entries(
         self,
         event_type: str | None = None,

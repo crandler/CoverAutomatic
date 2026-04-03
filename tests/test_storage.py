@@ -14,6 +14,7 @@ from custom_components.cover_automatic.models import (
     Scenario,
 )
 from custom_components.cover_automatic.storage import (
+    ActivityLogStorage,
     CoverAutomaticStorage,
     SAVE_DEBOUNCE_DELAY,
 )
@@ -875,3 +876,60 @@ class TestRemoveRuleCleanup:
         assert "r2" in storage._data["scenarios"]["vacation"]["rules_disabled"]
         # Scenario that never had r1 must be unchanged
         assert storage._data["scenarios"]["everyday"]["rules_disabled"] == ["r2"]
+
+
+class TestActivityLogStorage:
+    """Tests for ActivityLogStorage."""
+
+    @staticmethod
+    def _make_log_hass():
+        hass = MagicMock()
+        hass.async_create_task = MagicMock(side_effect=lambda coro, **kw: asyncio.create_task(coro))
+        return hass
+
+    @pytest.mark.asyncio
+    async def test_async_clear(self):
+        """Test clearing all log entries."""
+        hass = self._make_log_hass()
+        mock_store = MagicMock()
+        mock_store.async_load = AsyncMock(return_value=None)
+        mock_store.async_save = AsyncMock()
+
+        with patch(
+            "custom_components.cover_automatic.storage.Store",
+            return_value=mock_store,
+        ):
+            log = ActivityLogStorage(hass)
+            log._store = mock_store
+
+        log.add_entry("position", "cover.test", "moved")
+        log.add_entry("status", "cover.test", "locked")
+        assert len(log._entries) == 2
+
+        await log.async_clear()
+
+        assert log._entries == []
+        mock_store.async_save.assert_called_with({"entries": []})
+
+    @pytest.mark.asyncio
+    async def test_async_clear_cancels_pending_save(self):
+        """Test that clear cancels any pending debounced save."""
+        hass = self._make_log_hass()
+        mock_store = MagicMock()
+        mock_store.async_load = AsyncMock(return_value=None)
+        mock_store.async_save = AsyncMock()
+
+        with patch(
+            "custom_components.cover_automatic.storage.Store",
+            return_value=mock_store,
+        ):
+            log = ActivityLogStorage(hass)
+            log._store = mock_store
+
+        log.add_entry("position", "cover.test", "moved")
+        assert log._save_task is not None
+
+        await log.async_clear()
+
+        assert log._save_task is None
+        assert log._entries == []

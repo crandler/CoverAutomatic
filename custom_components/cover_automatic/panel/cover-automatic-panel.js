@@ -216,6 +216,8 @@ const I18N = {
     log_loading: "Loading log...",
     log_empty: "No log entries in the last 3 days.",
     log_filter_all: "All",
+    log_clear: "Clear log",
+    log_clear_confirm: "Delete all log entries?",
     settings_section_backup: "Backup",
     settings_backup_hint: "Export the complete configuration as a JSON file. Import replaces all settings, covers, facades, rules, and scenarios.",
     settings_export: "Export configuration",
@@ -426,6 +428,8 @@ const I18N = {
     log_loading: "Protokoll wird geladen...",
     log_empty: "Keine Einträge in den letzten 3 Tagen.",
     log_filter_all: "Alle",
+    log_clear: "Protokoll leeren",
+    log_clear_confirm: "Alle Protokolleinträge löschen?",
     settings_section_backup: "Backup",
     settings_backup_hint: "Exportiere die gesamte Konfiguration als JSON-Datei. Der Import ersetzt alle Einstellungen, Behänge, Fassaden, Regeln und Szenarien.",
     settings_export: "Konfiguration exportieren",
@@ -703,7 +707,7 @@ const PANEL_STYLES = `
     width: 420px;
     max-width: 100vw;
     height: 100%;
-    background: var(--ca-card-bg);
+    background: var(--primary-background-color, #1c1c1c);
     z-index: 101;
     transform: translateX(100%);
     transition: transform var(--ca-transition);
@@ -1057,10 +1061,15 @@ const PANEL_STYLES = `
     gap: 12px;
     padding: 12px 16px;
     border: 1px solid var(--ca-border);
+    border-left: 3px solid transparent;
     border-radius: var(--ca-radius);
     margin-bottom: 8px;
     background: var(--ca-card-bg);
     transition: all var(--ca-transition);
+  }
+  .rule-row.rule-active {
+    border-left-color: #4caf50;
+    background: color-mix(in srgb, #4caf50 6%, var(--ca-card-bg));
   }
   .rule-row:hover { box-shadow: var(--ca-shadow); }
   .rule-row.drag-over {
@@ -1071,11 +1080,11 @@ const PANEL_STYLES = `
   .rule-info { flex: 1; min-width: 0; }
   .rule-name { font-weight: 500; font-size: 15px; display: flex; align-items: center; gap: 6px; }
   .rule-active-dot {
-    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
     background: var(--ca-divider, #e0e0e0);
-    transition: background 0.2s;
+    transition: background 0.2s, box-shadow 0.2s;
   }
-  .rule-active-dot.active { background: #4caf50; }
+  .rule-active-dot.active { background: #4caf50; box-shadow: 0 0 6px rgba(76, 175, 80, 0.5); }
   .rule-meta {
     font-size: 12px;
     color: var(--ca-secondary-text);
@@ -2091,7 +2100,8 @@ class CoverAutomaticPanel extends HTMLElement {
       const matchedCovers = activeRules[r.id] || [];
       const isActive = matchedCovers.length > 0;
 
-      html += `<div class="rule-row${dragging}${dragOver}" draggable="true" data-rule-id="${this._esc(r.id)}" data-action="rule-drag">`;
+      const activeClass = isActive ? " rule-active" : "";
+      html += `<div class="rule-row${activeClass}${dragging}${dragOver}" draggable="true" data-rule-id="${this._esc(r.id)}" data-action="rule-drag">`;
       html += `<span class="drag-handle" title="Drag">&#9783;</span>`;
       html += `<div class="rule-info" data-action="rule-expand" data-id="${this._esc(r.id)}">`;
       html += `<div class="rule-name">`;
@@ -2744,6 +2754,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const label = f ? this._t("log_type_" + f) : this._t("log_filter_all");
       html += '<button class="btn btn-sm' + active + '" data-action="log-filter" data-filter="' + (f || '') + '">' + label + '</button>';
     }
+    html += '<button class="btn btn-sm btn-danger" data-action="log-clear">' + this._t("log_clear") + '</button>';
     html += '</div>';
 
     let entries = this._logEntries;
@@ -3088,6 +3099,13 @@ class CoverAutomaticPanel extends HTMLElement {
       case "log-filter":
         this._logFilter = actionEl.dataset.filter || null;
         this._render();
+        break;
+      case "log-clear":
+        this._confirm(this._t("log_clear_confirm"), async () => {
+          await this._ws("cover_automatic/log/clear");
+          this._logEntries = [];
+          this._render();
+        });
         break;
       case "confirm-ok":
         if (this._confirmCallback) this._confirmCallback();
