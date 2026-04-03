@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.27.7 (2026-04-03)
+
+- Compass: wider light cone, extended 20px further, solid house background
+
 ### 1.27.6 (2026-04-03)
 
 - Compass: light cone extends behind house, house rendered on top so sun does not shine through

@@ -2517,8 +2517,8 @@ class CoverAutomaticPanel extends HTMLElement {
       const ndx = dx / dist, ndy = dy / dist;
       const perpX = -ndy, perpY = ndx;
       const sunW = 4;
-      const facadeW = hr + 8;
-      const facadeDist = dist + hr * 0.5;
+      const facadeW = hr + 20;
+      const facadeDist = dist + hr * 0.5 + 20;
       const fx = sx + ndx * facadeDist, fy = sy + ndy * facadeDist;
       sunBeams = `<polygon points="${sx + perpX * sunW},${sy + perpY * sunW} ${sx - perpX * sunW},${sy - perpY * sunW} ${fx - perpX * facadeW},${fy - perpY * facadeW} ${fx + perpX * facadeW},${fy + perpY * facadeW}" fill="#FFC107" opacity="0.08"/>`;
       sunMarker = `${symbolRays}<circle cx="${sx}" cy="${sy}" r="8" fill="#FFC107" stroke="#F57F17" stroke-width="1.5"/>
@@ -2554,7 +2554,7 @@ class CoverAutomaticPanel extends HTMLElement {
       ${sunBeams}
       <!-- House (rotated, on top of beams) -->
       <g transform="rotate(${rotation}, ${cx}, ${cy})">
-        <rect x="${cx - hr}" y="${cy - hr}" width="${hr * 2}" height="${hr * 2}" fill="var(--ha-card-background, var(--card-background-color, #fff))" stroke="var(--primary-color)" stroke-width="2"/>
+        <rect x="${cx - hr}" y="${cy - hr}" width="${hr * 2}" height="${hr * 2}" fill="var(--primary-background-color, #1c1c1c)" stroke="var(--primary-color)" stroke-width="2"/>
         <!-- Roof indicator (front = south of house before rotation) -->
         <line x1="${cx - hr + 6}" y1="${cy + hr}" x2="${cx + hr - 6}" y2="${cy + hr}" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round"/>
         <text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="var(--primary-text-color)" opacity="0.6">${rotation}°</text>
