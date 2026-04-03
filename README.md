@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.26.9 (2026-04-03)
+
+- Fix: hamburger menu toggles HA sidebar by directly setting ha-drawer.open property
+
 ### 1.26.8 (2026-04-03)
 
 - Cache busting: panel JS URL includes version query parameter to prevent stale browser cache

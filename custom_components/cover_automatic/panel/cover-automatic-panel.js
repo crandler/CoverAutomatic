@@ -3087,8 +3087,9 @@ class CoverAutomaticPanel extends HTMLElement {
     }
     if (el.closest('[data-action="toggle-menu"]')) {
       const ha = document.querySelector("home-assistant");
-      if (ha) {
-        ha.dispatchEvent(new Event("hass-toggle-menu", { bubbles: true }));
+      const drawer = ha?.shadowRoot?.querySelector("home-assistant-main")?.shadowRoot?.querySelector("ha-drawer");
+      if (drawer) {
+        drawer.open = !drawer.open;
       } else {
         window.history.back();
       }
