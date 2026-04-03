@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.27.0 (2026-04-03)
+
+- Fix: hamburger menu click handler was in _handleChange instead of _handleClick (never fired for buttons)
+
 ### 1.26.9 (2026-04-03)
 
 - Fix: hamburger menu toggles HA sidebar by directly setting ha-drawer.open property

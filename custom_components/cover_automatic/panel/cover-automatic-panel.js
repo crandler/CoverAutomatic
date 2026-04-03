@@ -3006,6 +3006,12 @@ class CoverAutomaticPanel extends HTMLElement {
     const action = actionEl.dataset.action;
 
     switch (action) {
+      case "toggle-menu": {
+        const ha = document.querySelector("home-assistant");
+        const drawer = ha?.shadowRoot?.querySelector("home-assistant-main")?.shadowRoot?.querySelector("ha-drawer");
+        if (drawer) { drawer.open = !drawer.open; } else { window.history.back(); }
+        break;
+      }
       case "retry": this._loadConfig(); break;
       case "cover-add-start": this._addingCover = true; this._render(); break;
       case "cover-add-cancel": this._addingCover = false; this._render(); break;
@@ -3085,17 +3091,6 @@ class CoverAutomaticPanel extends HTMLElement {
       this._onMasterToggle(el.checked);
       return;
     }
-    if (el.closest('[data-action="toggle-menu"]')) {
-      const ha = document.querySelector("home-assistant");
-      const drawer = ha?.shadowRoot?.querySelector("home-assistant-main")?.shadowRoot?.querySelector("ha-drawer");
-      if (drawer) {
-        drawer.open = !drawer.open;
-      } else {
-        window.history.back();
-      }
-      return;
-    }
-
     // Cover select (dropdown) changes
     if (el.matches('[data-action="cover-select"]')) {
       this._debouncedCoverSave(el.dataset.id, el.dataset.field, el.value || null);
