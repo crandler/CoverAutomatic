@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.27.2 (2026-04-03)
+
+- Fix: settings tab crash due to svgH variable used before initialization in compass SVG
+
 ### 1.27.1 (2026-04-03)
 
 - Compass: sun elevation label prefixed with angle symbol to distinguish from temperature

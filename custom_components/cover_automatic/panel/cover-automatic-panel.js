@@ -2523,11 +2523,12 @@ class CoverAutomaticPanel extends HTMLElement {
       const tempState = this._hass.states[tempEntity];
       const tempVal = parseFloat(tempState.state);
       if (!isNaN(tempVal)) {
-        infoText = `<text x="${cx}" y="${svgH - 4}" text-anchor="middle" font-size="11" fill="var(--ca-secondary-text)">${this._t("settings_outdoor_temp_short")} ${tempVal.toFixed(1)}\u00B0C</text>`;
+        infoText = `${this._t("settings_outdoor_temp_short")} ${tempVal.toFixed(1)}\u00B0C`;
       }
     }
 
     const svgW = 280, svgH = infoText ? 302 : 288;
+    const infoSvg = infoText ? `<text x="${cx}" y="${svgH - 4}" text-anchor="middle" font-size="11" fill="var(--ca-secondary-text)">${infoText}</text>` : "";
     return `<svg id="compass-svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" style="display:block">
       <!-- Compass circle -->
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--divider-color)" stroke-width="1.5"/>
@@ -2553,7 +2554,7 @@ class CoverAutomaticPanel extends HTMLElement {
       <!-- Sun -->
       ${sunMarker}
       <!-- Info -->
-      ${infoText}
+      ${infoSvg}
     </svg>`;
   }
 
