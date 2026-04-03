@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.28.0 (2026-04-03)
+
+- Fix: confirm dialog used transparent background, now solid with darker overlay
+
 ### 1.27.9 (2026-04-03)
 
 - Fix: clear log button called non-existent _confirm instead of _showConfirm

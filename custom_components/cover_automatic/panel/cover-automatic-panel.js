@@ -1278,19 +1278,19 @@ const PANEL_STYLES = `
   .confirm-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.4);
+    background: rgba(0,0,0,0.6);
     z-index: 300;
     display: flex;
     align-items: center;
     justify-content: center;
   }
   .confirm-dialog {
-    background: var(--ca-card-bg);
+    background: var(--primary-background-color, #1c1c1c);
     border-radius: var(--ca-radius);
     padding: 24px;
     min-width: 300px;
     max-width: 90vw;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
   }
   .confirm-dialog p {
     margin: 0 0 20px;
