@@ -285,6 +285,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _activate_wind_protection(self) -> None:
         """Set all covers to WIND_PROTECTED and move to fully open."""
+        commands: list[tuple[str, int]] = []
         for entity_id in self.storage._data.get("covers", {}):
             cover_raw = self.storage.get_cover_raw(entity_id)
             if cover_raw is None:
@@ -303,16 +304,27 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             actual_position = 0 if inverted else 100
             self._last_positions[entity_id] = actual_position
             self._last_command_time[entity_id] = time_mod.monotonic()
-            self.hass.async_create_task(
-                self.hass.services.async_call(
-                    "cover", "set_cover_position",
-                    {"entity_id": entity_id, "position": actual_position},
-                    blocking=False,
-                )
-            )
+            commands.append((entity_id, actual_position))
+
+        if commands:
+            self.hass.async_create_task(self._send_staggered_commands(commands))
 
         if self.data is not None:
             self.async_set_updated_data(self.data)
+
+    async def _send_staggered_commands(
+        self, commands: list[tuple[str, int]]
+    ) -> None:
+        """Send position commands with optional stagger delay between them."""
+        stagger = self.storage.command_stagger
+        for i, (entity_id, position) in enumerate(commands):
+            if i > 0 and stagger > 0:
+                await asyncio.sleep(stagger)
+            await self.hass.services.async_call(
+                "cover", "set_cover_position",
+                {"entity_id": entity_id, "position": position},
+                blocking=False,
+            )
 
     def _deactivate_wind_protection(self) -> None:
         """Remove WIND_PROTECTED status from all covers, re-derive from sensors."""
@@ -931,6 +943,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
 
         now = dt_util.now().timestamp()
+        stagger = self.storage.command_stagger
+        command_sent = False
 
         for entity_id, cover_data in self.data.get("covers", {}).items():
             # Use live status from _cover_states instead of snapshot
@@ -1003,6 +1017,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             position_changed = current != target
             if position_changed:
+                if command_sent and stagger > 0:
+                    await asyncio.sleep(stagger)
                 _LOGGER.info("[%s] Moving %d%% -> %d%%", entity_id, current, target)
                 self._hysteresis_info[entity_id] = None
                 self._last_positions[entity_id] = target
@@ -1018,6 +1034,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     blocking=False,
                 )
                 self.storage.update_cover_last_change(entity_id, now)
+                command_sent = True
             else:
                 self._hysteresis_info[entity_id] = None
                 self._last_positions[entity_id] = current

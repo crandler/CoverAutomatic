@@ -16,6 +16,9 @@ FACADE_PRESETS: Final = {
     "west": {"start": 225, "end": 315},
 }
 
+# Command stagger delay (seconds between commands to multiple covers)
+DEFAULT_COMMAND_STAGGER: Final = 0.0  # 0 = no stagger (default)
+
 # Tilt / slat control
 TILT_COMMAND_DELAY: Final = 1.5  # seconds between position and tilt command
 TILT_FEATURE_FLAG: Final = CoverEntityFeature.SET_TILT_POSITION

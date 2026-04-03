@@ -331,6 +331,16 @@ class CoverAutomaticStorage:
         """Set global house rotation offset in degrees."""
         self._data["house_rotation"] = float(value)
 
+    @property
+    def command_stagger(self) -> float:
+        """Get command stagger delay in seconds between cover commands."""
+        return self._data.get("command_stagger", 0.0)
+
+    @command_stagger.setter
+    def command_stagger(self, value: float) -> None:
+        """Set command stagger delay in seconds."""
+        self._data["command_stagger"] = max(0.0, float(value))
+
     async def async_add_facade(self, facade: Facade, *, save: bool = True) -> None:
         """Add or update a facade."""
         if "facades" not in self._data:
@@ -494,6 +504,7 @@ class CoverAutomaticStorage:
             "wind_sensor",
             "wind_speed_threshold",
             "wind_speed_hysteresis",
+            "command_stagger",
         )
         for gkey in _global_keys:
             if gkey not in data:

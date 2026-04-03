@@ -153,7 +153,7 @@ class RuleEngine:
                     _LOGGER.warning("Unknown condition type: %s", condition.type)
                     return False
         except Exception as err:
-            _LOGGER.error("Error evaluating condition %s: %s", condition.type, err)
+            _LOGGER.error("Error evaluating condition %s: %s", condition.type, err, exc_info=True)
             return False
 
     def _eval_sun_on_facade(self, condition: Condition, cover: CoverConfig) -> bool:

@@ -155,6 +155,16 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.29.0 (2026-04-03)
+
+- Feature: configurable command stagger delay for radio-based systems (Z-Wave, Zigbee)
+- Fix: falsy-0 bug in panel for min_elevation and target_position fields (value 0 was lost)
+- Fix: null crash on backup-import button when file input element missing
+- Fix: memory leak in panel disconnectedCallback (save timers not cleared)
+- Fix: XSS hardening in panel _hint() function (escape translation text)
+- Fix: engine condition error logging now includes full traceback
+- Fix: settings API rejects non-existent scenario IDs for active_scenario
+
 ### 1.28.3 (2026-04-03)
 
 - Feature: facades sorted by azimuth (clockwise from north)

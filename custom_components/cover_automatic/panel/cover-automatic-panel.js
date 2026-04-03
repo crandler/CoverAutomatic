@@ -183,6 +183,8 @@ const I18N = {
     settings_min_position_change_hint: "Minimum position difference in percent to trigger a move. Can be overridden per cover.",
     settings_min_time: "Default min. time between changes (s)",
     settings_min_time_hint: "Minimum seconds between position changes (motor protection). Can be overridden per cover.",
+    settings_command_stagger: "Command stagger delay (s)",
+    settings_command_stagger_hint: "Delay in seconds between commands when multiple covers move simultaneously. Recommended 0.3-0.5 for radio-based systems (Z-Wave, Zigbee). 0 = no delay.",
     settings_entity_placeholder: "e.g. sensor.outdoor_temperature",
     settings_current_value: "Current",
     settings_validation_min_max: "Min must be less than max",
@@ -395,6 +397,8 @@ const I18N = {
     settings_min_position_change_hint: "Mindestabweichung in Prozent für eine Fahrt. Kann pro Behang überschrieben werden.",
     settings_min_time: "Standard min. Zeit zwischen Änderungen (s)",
     settings_min_time_hint: "Mindestabstand in Sekunden zwischen Positionsänderungen (Motorschutz). Kann pro Behang überschrieben werden.",
+    settings_command_stagger: "Kommando-Verzögerung (s)",
+    settings_command_stagger_hint: "Verzögerung in Sekunden zwischen Kommandos, wenn mehrere Behänge gleichzeitig fahren. Empfohlen 0,3-0,5 für Funksysteme (Z-Wave, Zigbee). 0 = keine Verzögerung.",
     settings_entity_placeholder: "z. B. sensor.außentemperatur",
     settings_current_value: "Aktuell",
     settings_validation_min_max: "Min muss kleiner als Max sein",
@@ -1423,6 +1427,10 @@ class CoverAutomaticPanel extends HTMLElement {
 
   disconnectedCallback() {
     this._stopLiveRefresh();
+    if (this._saveTimers) {
+      Object.values(this._saveTimers).forEach(t => clearTimeout(t));
+      this._saveTimers = {};
+    }
   }
 
   /* ---------- i18n helper ---------- */
@@ -1441,7 +1449,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
   _hint(key) {
     const text = this._t(key);
-    return text !== key ? `<div class="settings-hint">${text}</div>` : "";
+    return text !== key ? `<div class="settings-hint">${this._esc(text)}</div>` : "";
   }
 
   /* ---------- Lifecycle ---------- */
@@ -2758,6 +2766,11 @@ class CoverAutomaticPanel extends HTMLElement {
             ${hint(this._t("settings_min_time_hint"))}
           </div>
         </div>
+        <div class="form-group">
+          <label>${this._t("settings_command_stagger")}</label>
+          <input type="number" step="0.1" min="0" max="2" value="${s.command_stagger != null ? s.command_stagger : 0}" data-settings-field="command_stagger">
+          ${hint(this._t("settings_command_stagger_hint"))}
+        </div>
       </div>
     </div>`;
 
@@ -3149,7 +3162,7 @@ class CoverAutomaticPanel extends HTMLElement {
       case "scenario-delete": this._onScenarioDelete(actionEl.dataset.id); break;
       case "settings-save": this._onSettingsSave(); break;
       case "backup-export": this._onBackupExport(); break;
-      case "backup-import": this._shadowRoot.querySelector('[data-action="backup-file"]').click(); break;
+      case "backup-import": { const fi = this._shadowRoot.querySelector('[data-action="backup-file"]'); if (fi) fi.click(); break; }
       case "backup-file": this._onBackupFileSelected(actionEl); break;
       case "log-filter":
         this._logFilter = actionEl.dataset.filter || null;
@@ -3381,7 +3394,7 @@ class CoverAutomaticPanel extends HTMLElement {
     const direction = (form.querySelector('[data-facade-field="direction"]') || {}).value || "south";
     const azStart = (() => { const v = (form.querySelector('[data-facade-field="azimuth_start"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 135; })();
     const azEnd = (() => { const v = (form.querySelector('[data-facade-field="azimuth_end"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 225; })();
-    const minElev = parseFloat((form.querySelector('[data-facade-field="min_elevation"]') || {}).value) || 0;
+    const minElev = (() => { const v = (form.querySelector('[data-facade-field="min_elevation"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 0; })();
     const coverIds = [];
     form.querySelectorAll('[data-action="facade-cover-toggle"].selected').forEach(b => coverIds.push(b.dataset.cover));
     try {
@@ -3402,7 +3415,7 @@ class CoverAutomaticPanel extends HTMLElement {
     const direction = (form.querySelector('[data-facade-field="direction"]') || {}).value || "south";
     const azStart = (() => { const v = (form.querySelector('[data-facade-field="azimuth_start"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 135; })();
     const azEnd = (() => { const v = (form.querySelector('[data-facade-field="azimuth_end"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 225; })();
-    const minElev = parseFloat((form.querySelector('[data-facade-field="min_elevation"]') || {}).value) || 0;
+    const minElev = (() => { const v = (form.querySelector('[data-facade-field="min_elevation"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 0; })();
     const coverIds = [];
     form.querySelectorAll('[data-action="facade-cover-toggle"].selected').forEach(b => coverIds.push(b.dataset.cover));
     try {
@@ -3492,7 +3505,7 @@ class CoverAutomaticPanel extends HTMLElement {
     if (!form) return;
     const name = (form.querySelector('[data-rule-new-field="name"]') || {}).value || "";
     if (!name.trim()) return;
-    const tp = parseInt((form.querySelector('[data-rule-new-field="target_position"]') || {}).value, 10) || 0;
+    const tp = (() => { const v = (form.querySelector('[data-rule-new-field="target_position"]') || {}).value; return v !== "" && v != null ? parseInt(v, 10) : 0; })();
     const ttp = (form.querySelector('[data-rule-new-field="target_tilt_position"]') || {}).value;
     try {
       const data = { name: name.trim(), target_position: tp };

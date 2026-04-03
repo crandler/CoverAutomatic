@@ -63,6 +63,7 @@ def _make_storage(
     storage.wind_speed_hysteresis = wind_speed_hysteresis
     storage.lock_tilt_position = None
     storage.vent_tilt_position = None
+    storage.command_stagger = 0.0
     storage.async_add_facade = AsyncMock()
     storage.async_remove_facade = AsyncMock()
     storage.async_add_cover = AsyncMock()
@@ -1194,3 +1195,68 @@ class TestWsClearLog:
         await ws_clear_log(hass, conn, msg, storage, coordinator)
 
         conn.send_result.assert_called_once_with(1, {"success": True})
+
+
+class TestSettingsValidation:
+    """Tests for settings update validation."""
+
+    @pytest.mark.asyncio
+    async def test_active_scenario_rejects_nonexistent(self) -> None:
+        """Test that setting a non-existent scenario is rejected."""
+        from custom_components.cover_automatic.api import ws_settings_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        storage._data["scenarios"] = {"everyday": {"name": "Everyday"}}
+        coordinator = _make_coordinator()
+        msg = {"id": 1, "type": "cover_automatic/settings/update", "active_scenario": "nonexistent"}
+
+        await ws_settings_update(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_called_once()
+        assert "not_found" in conn.send_error.call_args[0]
+
+    @pytest.mark.asyncio
+    async def test_active_scenario_accepts_existing(self) -> None:
+        """Test that setting an existing scenario works."""
+        from custom_components.cover_automatic.api import ws_settings_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        storage._data["scenarios"] = {"everyday": {"name": "Everyday"}, "night": {"name": "Night"}}
+        coordinator = _make_coordinator()
+        msg = {"id": 1, "type": "cover_automatic/settings/update", "active_scenario": "night"}
+
+        await ws_settings_update(hass, conn, msg, storage, coordinator)
+
+        conn.send_result.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_active_scenario_accepts_empty_string(self) -> None:
+        """Test that clearing the scenario (empty string = falsy) is accepted."""
+        from custom_components.cover_automatic.api import ws_settings_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        storage._data["scenarios"] = {}
+        coordinator = _make_coordinator()
+        msg = {"id": 1, "type": "cover_automatic/settings/update", "active_scenario": ""}
+
+        await ws_settings_update(hass, conn, msg, storage, coordinator)
+
+        conn.send_result.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_command_stagger_in_config_response(self) -> None:
+        """Test that command_stagger appears in config response."""
+        from custom_components.cover_automatic.api import _build_config_response
+
+        storage = _make_storage()
+        storage.command_stagger = 0.5
+
+        result = _build_config_response(storage)
+
+        assert result["settings"]["command_stagger"] == 0.5

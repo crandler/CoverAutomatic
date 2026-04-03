@@ -651,6 +651,7 @@ class TestImportGlobalSettings:
             "min_time_between_changes": 600,
             "house_rotation": 12.5,
             "comfort_hysteresis": 2.0,
+            "command_stagger": 0.4,
         }
         import_data = {
             "scenarios": {"everyday": {"id": "everyday", "name": "Everyday"}},
@@ -669,6 +670,7 @@ class TestImportGlobalSettings:
         assert storage._data["min_time_between_changes"] == 600
         assert storage._data["house_rotation"] == 12.5
         assert storage._data["comfort_hysteresis"] == 2.0
+        assert storage._data["command_stagger"] == 0.4
 
     @pytest.mark.asyncio
     async def test_import_overwrites_global_settings_when_present(

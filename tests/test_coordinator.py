@@ -55,6 +55,7 @@ def mock_storage():
     storage.wind_sensor = None
     storage.wind_speed_threshold = 0.0
     storage.wind_speed_hysteresis = 0.0
+    storage.command_stagger = 0.0
     storage.async_load = AsyncMock()
     storage.async_save = AsyncMock()
     storage.async_add_scenario = AsyncMock()
@@ -1894,3 +1895,119 @@ class TestPauseCoverDuration:
         now = dt_util.now().timestamp()
         # 10 minutes = 600 seconds
         assert abs(pause_until - now - 600) < 2
+
+
+class TestCommandStagger:
+    """Tests for command stagger delay between cover commands."""
+
+    @pytest.mark.asyncio
+    async def test_apply_positions_no_stagger_by_default(self, coordinator, mock_hass, mock_storage) -> None:
+        """Test that no sleep is called when stagger is 0."""
+        mock_storage.command_stagger = 0.0
+        mock_storage.enabled = True
+        mock_storage.get_cover_raw = MagicMock(side_effect=lambda eid: {
+            "entity_id": eid, "inverted": False, "supports_tilt": False,
+            "min_position_change": 0, "min_time_between_changes": 0,
+        })
+        mock_hass.states.get = MagicMock(return_value=MockState("open", {"current_position": 100}))
+        coordinator.data = {
+            "covers": {
+                "cover.a": {"target_position": 50},
+                "cover.b": {"target_position": 50},
+            }
+        }
+        coordinator._cover_states = {
+            "cover.a": CoverStatus.AUTO,
+            "cover.b": CoverStatus.AUTO,
+        }
+        coordinator.log_storage = MagicMock()
+
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            await coordinator.async_apply_positions()
+            mock_sleep.assert_not_called()
+
+        assert mock_hass.services.async_call.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_apply_positions_with_stagger(self, coordinator, mock_hass, mock_storage) -> None:
+        """Test that sleep is called between commands when stagger > 0."""
+        mock_storage.command_stagger = 0.5
+        mock_storage.enabled = True
+        mock_storage.get_cover_raw = MagicMock(side_effect=lambda eid: {
+            "entity_id": eid, "inverted": False, "supports_tilt": False,
+            "min_position_change": 0, "min_time_between_changes": 0,
+        })
+        mock_hass.states.get = MagicMock(return_value=MockState("open", {"current_position": 100}))
+        coordinator.data = {
+            "covers": {
+                "cover.a": {"target_position": 50},
+                "cover.b": {"target_position": 50},
+            }
+        }
+        coordinator._cover_states = {
+            "cover.a": CoverStatus.AUTO,
+            "cover.b": CoverStatus.AUTO,
+        }
+        coordinator.log_storage = MagicMock()
+
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            await coordinator.async_apply_positions()
+            # Sleep called once (between command 1 and 2, not before first)
+            mock_sleep.assert_called_once_with(0.5)
+
+        assert mock_hass.services.async_call.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_stagger_not_called_for_single_command(self, coordinator, mock_hass, mock_storage) -> None:
+        """Test that no sleep is called when only one cover moves."""
+        mock_storage.command_stagger = 0.5
+        mock_storage.enabled = True
+        mock_storage.get_cover_raw = MagicMock(side_effect=lambda eid: {
+            "entity_id": eid, "inverted": False, "supports_tilt": False,
+            "min_position_change": 0, "min_time_between_changes": 0,
+        })
+        mock_hass.states.get = MagicMock(return_value=MockState("open", {"current_position": 100}))
+        coordinator.data = {
+            "covers": {
+                "cover.a": {"target_position": 50},
+            }
+        }
+        coordinator._cover_states = {"cover.a": CoverStatus.AUTO}
+        coordinator.log_storage = MagicMock()
+
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            await coordinator.async_apply_positions()
+            mock_sleep.assert_not_called()
+
+        assert mock_hass.services.async_call.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_wind_protection_stagger(self, coordinator, mock_hass, mock_storage) -> None:
+        """Test that wind protection uses staggered commands."""
+        mock_storage.command_stagger = 0.3
+        mock_storage._data = {
+            "covers": {
+                "cover.a": {"inverted": False},
+                "cover.b": {"inverted": False},
+            }
+        }
+        mock_storage.get_cover_raw = MagicMock(side_effect=lambda eid: mock_storage._data["covers"].get(eid))
+
+        coordinator._activate_wind_protection()
+
+        # Should create one task for staggered commands
+        assert mock_hass.async_create_task.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_send_staggered_commands(self, coordinator, mock_hass, mock_storage) -> None:
+        """Test _send_staggered_commands sends with delay."""
+        mock_storage.command_stagger = 0.2
+        commands = [("cover.a", 100), ("cover.b", 100), ("cover.c", 100)]
+
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            await coordinator._send_staggered_commands(commands)
+            # Sleep between each pair, not before first
+            assert mock_sleep.call_count == 2
+            mock_sleep.assert_any_call(0.2)
+
+        assert mock_hass.services.async_call.call_count == 3

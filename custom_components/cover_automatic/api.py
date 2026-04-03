@@ -43,6 +43,7 @@ _SETTINGS_FIELDS = (
     "house_rotation", "active_scenario",
     "workday_sensor",
     "wind_sensor", "wind_speed_threshold", "wind_speed_hysteresis",
+    "command_stagger",
 )
 
 # Umlaut replacement map
@@ -115,6 +116,7 @@ def _build_config_response(
             "wind_sensor": storage.wind_sensor,
             "wind_speed_threshold": storage.wind_speed_threshold,
             "wind_speed_hysteresis": storage.wind_speed_hysteresis,
+            "command_stagger": storage.command_stagger,
         },
     }
     if hass:
@@ -533,6 +535,10 @@ async def ws_settings_update(
     """Handle cover_automatic/settings/update."""
     for key in _SETTINGS_FIELDS:
         if key in msg:
+            if key == "active_scenario" and msg[key]:
+                if msg[key] not in storage._data.get("scenarios", {}):
+                    connection.send_error(msg["id"], "not_found", f"Scenario '{msg[key]}' not found")
+                    return
             setattr(storage, key, msg[key])
 
     await storage.async_save()
@@ -804,6 +810,7 @@ def async_setup_api(
                 vol.Optional("wind_sensor"): vol.Any(str, None),
                 vol.Optional("wind_speed_threshold"): vol.All(vol.Coerce(float), vol.Range(min=0)),
                 vol.Optional("wind_speed_hysteresis"): vol.All(vol.Coerce(float), vol.Range(min=0)),
+                vol.Optional("command_stagger"): vol.All(vol.Coerce(float), vol.Range(min=0, max=2.0)),
             },
         ),
         (
