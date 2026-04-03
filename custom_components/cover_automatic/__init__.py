@@ -1,6 +1,7 @@
 """CoverAutomatic integration for Home Assistant."""
 from __future__ import annotations
 
+import json
 import logging
 import pathlib
 from dataclasses import dataclass
@@ -102,8 +103,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntr
     # Setup WebSocket API for config panel
     async_setup_api(hass, storage, coordinator)
 
-    # Register custom panel
-    panel_path = pathlib.Path(__file__).parent / "panel" / "cover-automatic-panel.js"
+    # Register custom panel (version query for cache busting)
+    panel_dir = pathlib.Path(__file__).parent
+    panel_path = panel_dir / "panel" / "cover-automatic-panel.js"
+    manifest = json.loads((panel_dir / "manifest.json").read_text())
+    panel_version = manifest.get("version", "0")
     await hass.http.async_register_static_paths(
         [StaticPathConfig("/cover_automatic/panel.js", str(panel_path), False)]
     )
@@ -117,7 +121,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntr
         config={
             "_panel_custom": {
                 "name": "cover-automatic-panel",
-                "js_url": "/cover_automatic/panel.js",
+                "js_url": f"/cover_automatic/panel.js?v={panel_version}",
                 "embed_iframe": False,
             }
         },
