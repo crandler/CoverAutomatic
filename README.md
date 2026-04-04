@@ -155,6 +155,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.29.2 (2026-04-04)
+
+- Fix: consistent null-safe pattern for globalPause placeholder in panel
+- Test: first-eval comfort mode boundary tests (4 cases)
+- Test: from_dict nullable fields roundtrip test
+
 ### 1.29.1 (2026-04-04)
 
 - Fix: comfort mode first-evaluation used hysteresis-extended boundaries, causing false COOLING/HEATING on restart

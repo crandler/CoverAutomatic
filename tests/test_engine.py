@@ -1176,6 +1176,50 @@ class TestComfortModeEdgeCases:
         assert result is False
 
 
+class TestComfortModeFirstEval:
+    """Tests for comfort mode first evaluation (prev=None) after restart."""
+
+    def test_first_eval_neutral_in_upper_hysteresis_band(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """First eval with temp in upper hysteresis band returns NEUTRAL, not COOLING."""
+        # comfort_max=25, h=1.0 -> hysteresis band 24.0-25.0
+        # 24.2 is in band but below hard boundary -> must be NEUTRAL
+        mock_hass.states.get.return_value = MockState("24.2")
+        cover = CoverConfig(entity_id="cover.test", name="Test")
+        mode = engine._get_comfort_mode(cover)
+        assert mode == ComfortMode.NEUTRAL
+
+    def test_first_eval_neutral_in_lower_hysteresis_band(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """First eval with temp in lower hysteresis band returns NEUTRAL, not HEATING."""
+        # comfort_min=21, h=1.0 -> hysteresis band 21.0-22.0
+        # 21.5 is in band but above hard boundary -> must be NEUTRAL
+        mock_hass.states.get.return_value = MockState("21.5")
+        cover = CoverConfig(entity_id="cover.test", name="Test")
+        mode = engine._get_comfort_mode(cover)
+        assert mode == ComfortMode.NEUTRAL
+
+    def test_first_eval_cooling_at_hard_boundary(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """First eval at hard upper boundary returns COOLING."""
+        mock_hass.states.get.return_value = MockState("25.0")
+        cover = CoverConfig(entity_id="cover.test", name="Test")
+        mode = engine._get_comfort_mode(cover)
+        assert mode == ComfortMode.COOLING
+
+    def test_first_eval_heating_at_hard_boundary(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """First eval at hard lower boundary returns HEATING."""
+        mock_hass.states.get.return_value = MockState("21.0")
+        cover = CoverConfig(entity_id="cover.test", name="Test")
+        mode = engine._get_comfort_mode(cover)
+        assert mode == ComfortMode.HEATING
+
+
 class TestConditionExceptionHandling:
     """Tests for exception handling in condition evaluation."""
 

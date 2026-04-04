@@ -101,6 +101,21 @@ class TestCoverConfig:
         assert cover.status == CoverStatus.PAUSED
         assert cover.inverted is True
 
+    def test_cover_from_dict_nullable_fields_default_to_none(self) -> None:
+        """Test that nullable per-cover fields default to None for global fallback."""
+        data = {
+            "entity_id": "cover.minimal",
+            "name": "Minimal",
+        }
+        cover = CoverConfig.from_dict(data)
+        assert cover.lock_position is None
+        assert cover.vent_position is None
+        assert cover.min_position_change is None
+        assert cover.min_time_between_changes is None
+        assert cover.pause_duration is None
+        assert cover.comfort_temp_min is None
+        assert cover.comfort_temp_max is None
+
 
 class TestCondition:
     """Tests for Condition model."""

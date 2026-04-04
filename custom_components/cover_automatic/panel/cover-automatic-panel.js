@@ -1817,7 +1817,7 @@ class CoverAutomaticPanel extends HTMLElement {
         s += this._renderFacadeDropdown(cover);
         s += this._hint("cover_facade_hint");
         // Pause duration
-        const globalPause = (this._config.settings || {}).pause_duration || 10;
+        const globalPause = (this._config.settings || {}).pause_duration != null ? this._config.settings.pause_duration : 10;
         const coverPause = cover.pause_duration != null ? cover.pause_duration : "";
         s += `<div class="form-group">
           <label>${this._t("cover_pause_duration")}</label>
