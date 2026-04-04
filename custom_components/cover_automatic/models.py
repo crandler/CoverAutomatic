@@ -213,9 +213,9 @@ class CoverConfig:
     status: CoverStatus = CoverStatus.AUTO
     pause_until: float | None = None
     lock_sensor: str | None = None
-    lock_position: int = 100
+    lock_position: int | None = None
     vent_sensor: str | None = None
-    vent_position: int = 30
+    vent_position: int | None = None
     inverted: bool = False
     supports_tilt: bool = False
     lock_tilt_position: int | None = None
@@ -224,8 +224,8 @@ class CoverConfig:
     indoor_temp_sensor: str | None = None
     comfort_temp_min: float | None = None
     comfort_temp_max: float | None = None
-    min_position_change: int = 5
-    min_time_between_changes: int = 300
+    min_position_change: int | None = None
+    min_time_between_changes: int | None = None
     last_position_change: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -281,9 +281,9 @@ class CoverConfig:
             status=status,
             pause_until=data.get("pause_until"),
             lock_sensor=data.get("lock_sensor"),
-            lock_position=data.get("lock_position", 100),
+            lock_position=data.get("lock_position"),
             vent_sensor=data.get("vent_sensor"),
-            vent_position=data.get("vent_position", 30),
+            vent_position=data.get("vent_position"),
             inverted=data.get("inverted", False),
             supports_tilt=data.get("supports_tilt", False),
             lock_tilt_position=data.get("lock_tilt_position"),
@@ -292,7 +292,7 @@ class CoverConfig:
             indoor_temp_sensor=data.get("indoor_temp_sensor"),
             comfort_temp_min=data.get("comfort_temp_min"),
             comfort_temp_max=data.get("comfort_temp_max"),
-            min_position_change=data.get("min_position_change", 5),
-            min_time_between_changes=data.get("min_time_between_changes", 300),
+            min_position_change=data.get("min_position_change"),
+            min_time_between_changes=data.get("min_time_between_changes"),
             last_position_change=data.get("last_position_change"),
         )

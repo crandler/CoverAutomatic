@@ -155,6 +155,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.29.1 (2026-04-04)
+
+- Fix: comfort mode first-evaluation used hysteresis-extended boundaries, causing false COOLING/HEATING on restart
+- Fix: per-cover fields (lock_position, vent_position, min_position_change, min_time_between_changes) could not be cleared to use global defaults
+- Fix: pause_duration API schema rejected null values
+
 ### 1.29.0 (2026-04-03)
 
 - Feature: configurable command stagger delay for radio-based systems (Z-Wave, Zigbee)

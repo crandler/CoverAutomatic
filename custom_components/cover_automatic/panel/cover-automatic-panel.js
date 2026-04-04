@@ -1853,9 +1853,10 @@ class CoverAutomaticPanel extends HTMLElement {
           ${this._renderCoverEntitySelect("lock_sensor", cover.lock_sensor, cover.entity_id, "binary_sensor", null)}
           ${this._hint("cover_lock_sensor_hint")}
         </div>`;
+        const globalLockPos = (this._config.settings || {}).lock_position != null ? this._config.settings.lock_position : 100;
         s += `<div class="form-group">
           <label>${this._t("cover_lock_position")}</label>
-          <input type="number" min="0" max="100" value="${cover.lock_position}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="lock_position">
+          <input type="number" min="0" max="100" value="${cover.lock_position != null ? cover.lock_position : ""}" placeholder="${globalLockPos}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="lock_position">
           ${this._hint("cover_lock_position_hint")}
         </div>`;
         s += `<div class="form-group">
@@ -1863,9 +1864,10 @@ class CoverAutomaticPanel extends HTMLElement {
           ${this._renderCoverEntitySelect("vent_sensor", cover.vent_sensor, cover.entity_id, "binary_sensor", null)}
           ${this._hint("cover_vent_sensor_hint")}
         </div>`;
+        const globalVentPos = (this._config.settings || {}).vent_position != null ? this._config.settings.vent_position : 30;
         s += `<div class="form-group">
           <label>${this._t("cover_vent_position")}</label>
-          <input type="number" min="0" max="100" value="${cover.vent_position}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="vent_position">
+          <input type="number" min="0" max="100" value="${cover.vent_position != null ? cover.vent_position : ""}" placeholder="${globalVentPos}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="vent_position">
           ${this._hint("cover_vent_position_hint")}
         </div>`;
         return s;
@@ -1876,14 +1878,16 @@ class CoverAutomaticPanel extends HTMLElement {
         let s = '';
         s += this._renderToggle("cover_inverted", cover.inverted, "cover-toggle", cover.entity_id, "inverted");
         s += this._hint("cover_inverted_hint");
+        const globalMinChange = (this._config.settings || {}).min_position_change != null ? this._config.settings.min_position_change : 5;
         s += `<div class="form-group">
           <label>${this._t("cover_min_pos_change")}</label>
-          <input type="number" min="1" max="50" value="${cover.min_position_change}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_position_change">
+          <input type="number" min="1" max="50" value="${cover.min_position_change != null ? cover.min_position_change : ""}" placeholder="${globalMinChange}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_position_change">
           ${this._hint("cover_min_pos_change_hint")}
         </div>`;
+        const globalMinTime = (this._config.settings || {}).min_time_between_changes != null ? this._config.settings.min_time_between_changes : 300;
         s += `<div class="form-group">
           <label>${this._t("cover_min_time")}</label>
-          <input type="number" min="60" max="3600" value="${cover.min_time_between_changes}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_time_between_changes">
+          <input type="number" min="60" max="3600" value="${cover.min_time_between_changes != null ? cover.min_time_between_changes : ""}" placeholder="${globalMinTime}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_time_between_changes">
           ${this._hint("cover_min_time_hint")}
         </div>`;
         return s;

@@ -228,16 +228,12 @@ class RuleEngine:
             return None
 
         # Hard boundaries first, then hysteresis in the transition bands.
-        # On first evaluation (prev=None, e.g. after restart), extend hard
-        # boundaries by hysteresis to prevent abrupt mode jumps when sensors
-        # become available after being temporarily unavailable.
+        # On first evaluation (prev=None, e.g. after restart), use hard
+        # boundaries only -- hysteresis should not bias towards COOLING or
+        # HEATING when there is no prior mode to maintain.
         if temp >= comfort_max:
             mode = ComfortMode.COOLING
         elif temp <= comfort_min:
-            mode = ComfortMode.HEATING
-        elif prev is None and temp >= comfort_max - h:
-            mode = ComfortMode.COOLING
-        elif prev is None and temp <= comfort_min + h:
             mode = ComfortMode.HEATING
         elif prev == ComfortMode.HEATING and temp < comfort_min + h:
             mode = ComfortMode.HEATING

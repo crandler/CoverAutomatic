@@ -75,11 +75,11 @@ class TestCoverConfig:
             name="Test",
         )
         assert cover.pause_duration is None
-        assert cover.lock_position == 100
-        assert cover.vent_position == 30
+        assert cover.lock_position is None
+        assert cover.vent_position is None
         assert cover.inverted is False
-        assert cover.min_position_change == 5
-        assert cover.min_time_between_changes == 300
+        assert cover.min_position_change is None
+        assert cover.min_time_between_changes is None
 
     def test_cover_to_dict(self, sample_cover: CoverConfig) -> None:
         """Test cover serialization."""
