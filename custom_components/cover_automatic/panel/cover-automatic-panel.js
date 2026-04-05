@@ -670,10 +670,12 @@ const PANEL_STYLES = `
     position: sticky;
     top: 0;
     z-index: 1;
+    white-space: nowrap;
   }
   .data-table th.sortable {
     cursor: pointer;
     user-select: none;
+    white-space: nowrap;
   }
   .data-table th.sortable:hover {
     color: var(--primary-text-color);
