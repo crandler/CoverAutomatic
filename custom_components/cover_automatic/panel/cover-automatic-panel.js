@@ -643,7 +643,7 @@ const PANEL_STYLES = `
   /* Card grid */
   .card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 16px;
   }
 
@@ -1653,16 +1653,15 @@ class CoverAutomaticPanel extends HTMLElement {
     const activeScenario = this._getActiveScenario();
     const version = this._config ? this._config.version : "";
     const enabled = this._config ? this._config.enabled !== false : true;
-    let html = '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px">';
-    html += '<div style="display:flex;align-items:center">';
+    let html = '<div style="display:flex;align-items:center">';
     html += '<button class="menu-btn" data-action="toggle-menu"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor"/></svg></button>';
     html += '<h1 style="display:inline">' + this._t("title") + '</h1>';
     if (version) html += ' <span class="version-info">v' + this._esc(version) + '</span>';
     if (this._latestVersion) {
       html += ' <a class="update-badge" href="https://github.com/crandler/CoverAutomatic/releases/tag/v' + this._esc(this._latestVersion) + '" target="_blank" rel="noopener">v' + this._esc(this._latestVersion) + '</a>';
     }
-    html += '</div>';
-    html += '<div style="display:flex;align-items:center;gap:12px">';
+    html += '</div><div style="display:flex;align-items:center;gap:12px">';
+    html += this._renderInfoBarInline();
     if (activeScenario) {
       html += '<span class="scenario-badge">' + (activeScenario.icon ? '<ha-icon icon="' + this._esc(activeScenario.icon) + '" style="--mdc-icon-size:16px;margin-right:4px"></ha-icon>' : '') + this._esc(activeScenario.name) + '</span>';
     }
@@ -1673,10 +1672,6 @@ class CoverAutomaticPanel extends HTMLElement {
     html += '<span class="toggle-slider"></span>';
     html += '</label>';
     html += '</div>';
-    html += '</div>';
-    html += '</div>';
-    html += '<div style="display:flex;justify-content:flex-end;min-height:20px">';
-    html += this._renderInfoBarInline();
     html += '</div>';
     return html;
   }

@@ -155,9 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
-### 1.31.2 (2026-04-05)
+### 1.31.3 (2026-04-05)
 
-- Fix: header split into two rows (title/controls top, sun info bottom-right) for better spacing
+- Fix: facade card grid limited to 2 columns for better spacing of icons and buttons
+- Fix: reverted header to single row layout (sun info inline with controls)
 
 ### 1.31.1 (2026-04-05)
 
