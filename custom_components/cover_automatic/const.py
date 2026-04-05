@@ -37,3 +37,6 @@ LOG_EVENT_POSITION: Final = "position"
 LOG_EVENT_STATUS: Final = "status"
 LOG_EVENT_RULE: Final = "rule"
 LOG_EVENT_WIND: Final = "wind"
+
+# Panel push event (fired when coordinator data changes)
+EVENT_DATA_UPDATED: Final = f"{DOMAIN}_updated"

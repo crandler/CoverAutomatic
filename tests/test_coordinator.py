@@ -104,6 +104,8 @@ def coordinator(mock_hass, mock_storage):
         coord._listeners = {}
         coord.last_update_success = True
         coord.async_set_updated_data = MagicMock()
+        coord._unsub_update_listener = None
+        coord.async_add_listener = MagicMock(return_value=MagicMock())
         return coord
 
 
@@ -635,6 +637,8 @@ class TestShutdown:
         mock_unsub1 = MagicMock()
         mock_unsub2 = MagicMock()
         coordinator._unsub_state_change = [mock_unsub1, mock_unsub2]
+        mock_update_unsub = MagicMock()
+        coordinator._unsub_update_listener = mock_update_unsub
         mock_storage._save_task = None
 
         await coordinator.async_shutdown()
@@ -642,6 +646,8 @@ class TestShutdown:
         mock_unsub1.assert_called_once()
         mock_unsub2.assert_called_once()
         assert coordinator._unsub_state_change == []
+        mock_update_unsub.assert_called_once()
+        assert coordinator._unsub_update_listener is None
 
 
 class TestStateChangeRouting:

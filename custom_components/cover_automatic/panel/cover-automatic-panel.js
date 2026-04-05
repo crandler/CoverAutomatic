@@ -1404,6 +1404,8 @@ class CoverAutomaticPanel extends HTMLElement {
     this._logFilter = null;
     this._coverSort = { key: "name", dir: "asc" };
     this._liveRefreshTimer = null;
+    this._eventUnsub = null;
+    this._eventDebounce = null;
     this._expandedSections = { base: true, sensors: true, advanced: false, tilt: false };
 
 
@@ -1432,6 +1434,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
   disconnectedCallback() {
     this._stopLiveRefresh();
+    this._unsubscribeUpdates();
     if (this._saveTimers) {
       Object.values(this._saveTimers).forEach(t => clearTimeout(t));
       this._saveTimers = {};
@@ -1460,7 +1463,33 @@ class CoverAutomaticPanel extends HTMLElement {
   /* ---------- Lifecycle ---------- */
   _initialize() {
     this._initialized = true;
+    this._subscribeUpdates();
     this._loadConfig();
+  }
+
+  _subscribeUpdates() {
+    if (this._eventUnsub || !this._hass) return;
+    this._hass.connection.subscribeEvents((ev) => {
+      if (this._activeTab !== "covers" || !this._config) return;
+      if (this._eventDebounce) clearTimeout(this._eventDebounce);
+      this._eventDebounce = setTimeout(() => {
+        this._eventDebounce = null;
+        this._refreshLiveCovers();
+      }, 500);
+    }, "cover_automatic_updated").then((unsub) => {
+      this._eventUnsub = unsub;
+    });
+  }
+
+  _unsubscribeUpdates() {
+    if (this._eventUnsub) {
+      this._eventUnsub();
+      this._eventUnsub = null;
+    }
+    if (this._eventDebounce) {
+      clearTimeout(this._eventDebounce);
+      this._eventDebounce = null;
+    }
   }
 
   /* ---------- WebSocket calls ---------- */
@@ -3006,7 +3035,7 @@ class CoverAutomaticPanel extends HTMLElement {
   _startLiveRefresh() {
     this._stopLiveRefresh();
     this._refreshLiveCovers();
-    this._liveRefreshTimer = setInterval(() => this._refreshLiveCovers(), 30000);
+    this._liveRefreshTimer = setInterval(() => this._refreshLiveCovers(), 60000);
   }
 
   _stopLiveRefresh() {

@@ -155,9 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
-### 1.29.3 (2026-04-05)
+### 1.30.0 (2026-04-05)
 
-- Fix: covers tab showed stale data on tab switch (immediate refresh instead of waiting 30s)
+- Feat: real-time status updates via event push (coordinator fires `cover_automatic_updated` event, panel subscribes)
+- Feat: immediate data refresh on covers tab switch (no more 30s wait)
 - Fix: language change not detected, required F5 to apply translations
 - Fix: resume button disappeared after live cell update when cover was paused
 

@@ -16,6 +16,7 @@ from .const import (
     BINARY_SENSOR_ON_STATES,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    EVENT_DATA_UPDATED,
     LOG_EVENT_POSITION,
     LOG_EVENT_RULE,
     LOG_EVENT_STATUS,
@@ -73,6 +74,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._hysteresis_info: dict[str, str | None] = {}
         self._last_matching_rules: dict[str, str | None] = {}
         self._startup_skip: bool = True
+        self._unsub_update_listener: Any = None
         self.log_storage: ActivityLogStorage | None = None
 
     def _cover_val(self, cover_raw: dict[str, Any], key: str) -> Any:
@@ -88,6 +90,14 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._restore_cover_states()
         await self._async_setup_default_scenarios()
         self._setup_state_tracking()
+        self._unsub_update_listener = self.async_add_listener(
+            self._fire_update_event
+        )
+
+    @callback
+    def _fire_update_event(self) -> None:
+        """Fire HA event to notify panel of data changes."""
+        self.hass.bus.async_fire(EVENT_DATA_UPDATED)
 
     def _restore_cover_states(self) -> None:
         """Restore cover states from persisted storage data.
@@ -1096,6 +1106,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_shutdown(self) -> None:
         """Shut down coordinator."""
+        if self._unsub_update_listener:
+            self._unsub_update_listener()
+            self._unsub_update_listener = None
+
         # Cancel pending tilt tasks
         for task in self._tilt_tasks.values():
             if not task.done():
