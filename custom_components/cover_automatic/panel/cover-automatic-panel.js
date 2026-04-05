@@ -879,16 +879,6 @@ const PANEL_STYLES = `
     margin-left: 4px;
     color: #f9a825;
   }
-  .live-icon-heating {
-    font-size: 11px;
-    margin-left: 2px;
-    color: #c62828;
-  }
-  .live-icon-cooling {
-    font-size: 12px;
-    margin-left: 2px;
-    color: #2196f3;
-  }
 
   /* Toggle switch */
   .toggle-row {
@@ -1805,11 +1795,7 @@ class CoverAutomaticPanel extends HTMLElement {
       } else if (hysteresis === "time") {
         infoIcon = ' <span class="status-badge status-paused" title="' + this._esc(this._t("cover_hysteresis_time")) + '" style="font-size:11px">&#9202;</span>';
       }
-      // Comfort mode icon (cooling = snowflake blue, heating = thermometer red, neutral = none)
       const cm = live.comfort_mode;
-      let comfortIcon = '';
-      if (cm === "cooling") comfortIcon = '<span class="live-icon-cooling" title="' + this._esc(this._t("comfort_cooling")) + '">\u2744</span>';
-      else if (cm === "heating") comfortIcon = '<span class="live-icon-heating" title="' + this._esc(this._t("comfort_heating")) + '">\u{1F525}</span>';
       // Rule name
       const ruleName = live.rule_name || this._t("cover_no_rule");
       // Sun on facade
@@ -1821,7 +1807,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const pauseLeft = (c.status === "paused" && live.pause_until) ? this._formatPauseRemaining(live.pause_until) : "";
       const resumeBtn = c.status === "paused" ? ' <button class="btn btn-sm" data-action="cover-resume" data-id="' + this._esc(c.entity_id) + '">' + this._t("cover_resume") + '</button>' : '';
       html += `<tr class="${selected}">`;
-      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" data-live-name="${this._esc(c.entity_id)}">${this._esc(c.name)}${comfortIcon}</td>`;
+      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" data-live-name="${this._esc(c.entity_id)}">${this._esc(c.name)}</td>`;
       html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" data-live-facade="${this._esc(c.entity_id)}">${this._esc(facadeName)}${sunIcon}</td>`;
       html += `<td data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining">' + pauseLeft + '</span>' : ''}${resumeBtn}</td>`;
       const tempSensor = c.indoor_temp_sensor || (this._config.settings || {}).indoor_temp_sensor;
@@ -2977,19 +2963,10 @@ class CoverAutomaticPanel extends HTMLElement {
           if (resumeBtn) resumeBtn.remove();
         }
       }
-      // Cover name + comfort icon
+      // Cover name
       const nCell = root.querySelector('[data-live-name="' + eid + '"]');
       if (nCell && c) {
-        nCell.textContent = "";
-        nCell.appendChild(document.createTextNode(c.name));
-        const cm = live.comfort_mode;
-        if (cm === "cooling" || cm === "heating") {
-          const ci = document.createElement("span");
-          ci.className = cm === "cooling" ? "live-icon-cooling" : "live-icon-heating";
-          ci.title = this._t("comfort_" + cm);
-          ci.textContent = cm === "cooling" ? "\u2744" : "\u{1F525}";
-          nCell.appendChild(ci);
-        }
+        nCell.textContent = c.name;
       }
       // Facade name + sun icon
       const fCell = root.querySelector('[data-live-facade="' + eid + '"]');

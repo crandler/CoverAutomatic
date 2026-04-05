@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.30.3 (2026-04-05)
+
+- Remove: redundant comfort icons from cover name column (temp color already indicates mode)
+
 ### 1.30.2 (2026-04-05)
 
 - Fix: heating comfort icon changed from thermometer to flame
