@@ -1429,8 +1429,10 @@ class CoverAutomaticPanel extends HTMLElement {
       this._render();
       return;
     }
-    if (this._config && this._activeTab === "covers") {
-      this._updateLiveCells();
+    if (this._config) {
+      const shell = this.shadowRoot ? this.shadowRoot.querySelector(".panel-container") : null;
+      if (shell) this._updateRegion(shell, "infobar", this._renderInfoBar());
+      if (this._activeTab === "covers") this._updateLiveCells();
     }
   }
 
@@ -1600,6 +1602,7 @@ class CoverAutomaticPanel extends HTMLElement {
     // Partial render: update regions individually
     this._updateRegion(shell, "header", this._renderHeaderContent());
     this._updateRegion(shell, "tabs", this._renderTabsContent());
+    this._updateRegion(shell, "infobar", this._renderInfoBar());
     this._updateRegion(shell, "content", this._renderContent());
     this._updateRegion(shell, "slideout", this._renderSlideOut());
     this._updateRegion(shell, "confirm", this._renderConfirmDialog());
@@ -1637,6 +1640,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
     html += '<div class="panel-header" data-region="header">' + this._renderHeaderContent() + '</div>';
     html += '<div class="tab-bar" data-region="tabs">' + this._renderTabsContent() + '</div>';
+    html += '<div data-region="infobar">' + this._renderInfoBar() + '</div>';
     html += '<div class="tab-content" data-region="content">' + this._renderContent() + '</div>';
     html += '<div data-region="slideout">' + this._renderSlideOut() + '</div>';
     html += '<div data-region="confirm">' + this._renderConfirmDialog() + '</div>';
@@ -1655,10 +1659,10 @@ class CoverAutomaticPanel extends HTMLElement {
     html += '<button class="menu-btn" data-action="toggle-menu"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor"/></svg></button>';
     html += '<h1 style="display:inline">' + this._t("title") + '</h1>';
     if (version) html += ' <span class="version-info">v' + this._esc(version) + '</span>';
-    html += '</div><div style="display:flex;align-items:center;gap:8px">';
     if (this._latestVersion) {
-      html += '<a class="update-badge" href="https://github.com/crandler/CoverAutomatic/releases/tag/v' + this._esc(this._latestVersion) + '" target="_blank" rel="noopener">Update: v' + this._esc(this._latestVersion) + '</a>';
+      html += ' <a class="update-badge" href="https://github.com/crandler/CoverAutomatic/releases/tag/v' + this._esc(this._latestVersion) + '" target="_blank" rel="noopener">v' + this._esc(this._latestVersion) + '</a>';
     }
+    html += '</div><div style="display:flex;align-items:center;gap:8px">';
     if (activeScenario) {
       html += '<span class="scenario-badge">' + (activeScenario.icon ? '<ha-icon icon="' + this._esc(activeScenario.icon) + '" style="--mdc-icon-size:16px;margin-right:4px"></ha-icon>' : '') + this._esc(activeScenario.name) + '</span>';
     }
@@ -1681,6 +1685,27 @@ class CoverAutomaticPanel extends HTMLElement {
       html += '<button class="' + active + '" data-tab="' + tab + '">' + this._tt("tabs", tab) + '</button>';
     }
     return html;
+  }
+
+  _renderInfoBar() {
+    const sunState = this._hass && this._hass.states ? this._hass.states["sun.sun"] : null;
+    const settings = this._config ? this._config.settings || {} : {};
+    const tempEntity = settings.outdoor_temp_sensor;
+    const tempState = tempEntity && this._hass && this._hass.states ? this._hass.states[tempEntity] : null;
+    const tempVal = tempState && tempState.state !== "unavailable" && tempState.state !== "unknown" ? parseFloat(tempState.state) : null;
+    const az = sunState && sunState.attributes ? sunState.attributes.azimuth : null;
+    const el = sunState && sunState.attributes ? sunState.attributes.elevation : null;
+    if (az == null && el == null && tempVal == null) return '';
+    const belowHorizon = el != null && el < 0;
+    let parts = [];
+    if (az != null && el != null) {
+      const icon = belowHorizon ? '\u263E' : '<span style="color:#f9a825">\u2600</span>';
+      parts.push(icon + ' ' + this._t("facade_sun_position") + ': ' + Number(az).toFixed(1) + '\u00B0 / ' + Number(el).toFixed(1) + '\u00B0');
+    }
+    if (tempVal != null) {
+      parts.push(this._t("settings_outdoor_temp_short") + ' ' + tempVal.toFixed(1) + ' \u00B0C');
+    }
+    return '<div style="display:flex;align-items:center;gap:16px;padding:6px 16px;font-size:13px;color:var(--ca-secondary-text)">' + parts.join('<span style="opacity:0.3">\u2502</span>') + '</div>';
   }
 
   _renderContent() {
@@ -1994,22 +2019,7 @@ class CoverAutomaticPanel extends HTMLElement {
     const facades = this._config.facades || {};
     const entries = Object.values(facades).sort((a, b) => (a.azimuth_start || 0) - (b.azimuth_start || 0));
 
-    // Sun position info bar
-    let html = '';
-    const sunState = this._hass && this._hass.states ? this._hass.states["sun.sun"] : null;
-    if (sunState && sunState.attributes) {
-      const az = sunState.attributes.azimuth;
-      const el = sunState.attributes.elevation;
-      if (az != null && el != null) {
-        const belowHorizon = el < 0;
-        html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 12px;border-radius:8px;background:var(--ha-card-background,var(--card-background-color));font-size:13px;color:var(--ca-secondary-text)">';
-        html += '<span style="font-size:16px">' + (belowHorizon ? '\u263E' : '\u2600') + '</span>';
-        html += '<span>' + this._t("facade_sun_position") + ': ' + Number(az).toFixed(1) + '\u00B0 / ' + Number(el).toFixed(1) + '\u00B0</span>';
-        html += '</div>';
-      }
-    }
-
-    html += '<div class="card-grid">';
+    let html = '<div class="card-grid">';
 
     for (const f of entries) {
       if (this._editingFacade === f.id) {

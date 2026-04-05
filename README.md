@@ -155,6 +155,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.31.0 (2026-04-05)
+
+- Feat: global info bar with sun position and outdoor temperature (visible on all tabs)
+- Feat: update badge moved next to version number in header
+- Remove: redundant sun info bar from facades tab (replaced by global bar)
+- Remove: redundant comfort icons from cover name column (temp color already indicates mode)
+
 ### 1.30.3 (2026-04-05)
 
 - Remove: redundant comfort icons from cover name column (temp color already indicates mode)
