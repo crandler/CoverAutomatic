@@ -1874,9 +1874,9 @@ class CoverAutomaticPanel extends HTMLElement {
       const hysteresis = live.hysteresis;
       let infoIcon = '';
       if (hysteresis === "position") {
-        infoIcon = ' <span class="status-badge status-paused" title="' + this._esc(this._t("cover_hysteresis_position")) + '" style="font-size:11px">&#8597;</span>';
+        infoIcon = ' <span class="status-badge status-paused hysteresis-badge" title="' + this._esc(this._t("cover_hysteresis_position")) + '" style="font-size:11px">&#8597;</span>';
       } else if (hysteresis === "time") {
-        infoIcon = ' <span class="status-badge status-paused" title="' + this._esc(this._t("cover_hysteresis_time")) + '" style="font-size:11px">&#9202;</span>';
+        infoIcon = ' <span class="status-badge status-paused hysteresis-badge" title="' + this._esc(this._t("cover_hysteresis_time")) + '" style="font-size:11px">&#9202;</span>';
       }
       const cm = live.comfort_mode;
       // Rule name

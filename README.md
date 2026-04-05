@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.32.8 (2026-04-05)
+
+- Fix: duplicate hysteresis badge (initial render missing `hysteresis-badge` class, live update added second)
+
 ### 1.32.7 (2026-04-05)
 
 - Fix: table column headers no longer wrap (white-space: nowrap on all th)
