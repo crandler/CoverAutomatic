@@ -1031,7 +1031,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Check hysteresis: minimum time between changes
             min_time = self._cover_val(cover_raw, "min_time_between_changes")
             last_change = cover_raw.get("last_position_change")
-            if last_change and (now - last_change) < min_time:
+            if position_diff > 0 and last_change and (now - last_change) < min_time:
                 _LOGGER.debug(
                     "Skipping %s: only %ds since last change (min %ds)",
                     entity_id, int(now - last_change), min_time

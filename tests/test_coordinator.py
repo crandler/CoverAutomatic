@@ -503,6 +503,38 @@ class TestHysteresis:
 
 
     @pytest.mark.asyncio
+    async def test_time_hysteresis_skipped_when_position_matches(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test time hysteresis does not trigger when current == target."""
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 0,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+            "min_time_between_changes": 300,
+            "last_position_change": 990,  # 10 seconds ago
+            "inverted": False,
+        }
+        mock_hass.states.get.return_value = MockState(
+            "closed", {"current_position": 0}
+        )
+
+        with patch("homeassistant.util.dt.now") as mock_now:
+            mock_now.return_value.timestamp.return_value = 1000
+
+            await coordinator.async_apply_positions()
+
+            # No command needed (position matches), no hysteresis badge
+            mock_hass.services.async_call.assert_not_called()
+            assert coordinator._hysteresis_info.get("cover.test") is None
+
+    @pytest.mark.asyncio
     async def test_hysteresis_info_cleared_when_cover_paused(
         self, coordinator, mock_hass, mock_storage
     ) -> None:
