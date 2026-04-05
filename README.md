@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.32.6 (2026-04-05)
+
+- Fix: facade name + sun icon no longer wraps in covers table (white-space: nowrap)
+
 ### 1.32.5 (2026-04-05)
 
 - Fix: hysteresis badge stays inline next to target position bar
