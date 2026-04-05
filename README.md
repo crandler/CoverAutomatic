@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.31.1 (2026-04-05)
+
+- Fix: sun/moon info bar moved into header (right-aligned), all sun/moon icons replaced with SVGs
+- Fix: `_sunIconSvg()` helper for consistent sun icon rendering across all views
+
 ### 1.31.0 (2026-04-05)
 
 - Feat: global info bar with sun position and outdoor temperature (visible on all tabs)

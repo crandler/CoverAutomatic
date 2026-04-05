@@ -1431,7 +1431,7 @@ class CoverAutomaticPanel extends HTMLElement {
     }
     if (this._config) {
       const shell = this.shadowRoot ? this.shadowRoot.querySelector(".panel-container") : null;
-      if (shell) this._updateRegion(shell, "infobar", this._renderInfoBar());
+      if (shell) this._updateRegion(shell, "header", this._renderHeaderContent());
       if (this._activeTab === "covers") this._updateLiveCells();
     }
   }
@@ -1602,7 +1602,6 @@ class CoverAutomaticPanel extends HTMLElement {
     // Partial render: update regions individually
     this._updateRegion(shell, "header", this._renderHeaderContent());
     this._updateRegion(shell, "tabs", this._renderTabsContent());
-    this._updateRegion(shell, "infobar", this._renderInfoBar());
     this._updateRegion(shell, "content", this._renderContent());
     this._updateRegion(shell, "slideout", this._renderSlideOut());
     this._updateRegion(shell, "confirm", this._renderConfirmDialog());
@@ -1640,7 +1639,6 @@ class CoverAutomaticPanel extends HTMLElement {
 
     html += '<div class="panel-header" data-region="header">' + this._renderHeaderContent() + '</div>';
     html += '<div class="tab-bar" data-region="tabs">' + this._renderTabsContent() + '</div>';
-    html += '<div data-region="infobar">' + this._renderInfoBar() + '</div>';
     html += '<div class="tab-content" data-region="content">' + this._renderContent() + '</div>';
     html += '<div data-region="slideout">' + this._renderSlideOut() + '</div>';
     html += '<div data-region="confirm">' + this._renderConfirmDialog() + '</div>';
@@ -1662,7 +1660,8 @@ class CoverAutomaticPanel extends HTMLElement {
     if (this._latestVersion) {
       html += ' <a class="update-badge" href="https://github.com/crandler/CoverAutomatic/releases/tag/v' + this._esc(this._latestVersion) + '" target="_blank" rel="noopener">v' + this._esc(this._latestVersion) + '</a>';
     }
-    html += '</div><div style="display:flex;align-items:center;gap:8px">';
+    html += '</div><div style="display:flex;align-items:center;gap:12px">';
+    html += this._renderInfoBarInline();
     if (activeScenario) {
       html += '<span class="scenario-badge">' + (activeScenario.icon ? '<ha-icon icon="' + this._esc(activeScenario.icon) + '" style="--mdc-icon-size:16px;margin-right:4px"></ha-icon>' : '') + this._esc(activeScenario.name) + '</span>';
     }
@@ -1687,7 +1686,7 @@ class CoverAutomaticPanel extends HTMLElement {
     return html;
   }
 
-  _renderInfoBar() {
+  _renderInfoBarInline() {
     const sunState = this._hass && this._hass.states ? this._hass.states["sun.sun"] : null;
     const settings = this._config ? this._config.settings || {} : {};
     const tempEntity = settings.outdoor_temp_sensor;
@@ -1697,15 +1696,21 @@ class CoverAutomaticPanel extends HTMLElement {
     const el = sunState && sunState.attributes ? sunState.attributes.elevation : null;
     if (az == null && el == null && tempVal == null) return '';
     const belowHorizon = el != null && el < 0;
+    const icon = belowHorizon
+      ? '<svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:-2px"><path d="M12 2a9.9 9.9 0 00-3.24.53A7 7 0 0015 9a7 7 0 01-6.47 6.97A9.98 9.98 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="var(--ca-secondary-text)" opacity="0.5"/></svg>'
+      : this._sunIconSvg(14);
     let parts = [];
     if (az != null && el != null) {
-      const icon = belowHorizon ? '\u263E' : '<span style="color:#f9a825">\u2600</span>';
-      parts.push(icon + ' ' + this._t("facade_sun_position") + ': ' + Number(az).toFixed(1) + '\u00B0 / ' + Number(el).toFixed(1) + '\u00B0');
+      parts.push(icon + ' ' + Number(az).toFixed(1) + '\u00B0 / ' + Number(el).toFixed(1) + '\u00B0');
     }
     if (tempVal != null) {
       parts.push(this._t("settings_outdoor_temp_short") + ' ' + tempVal.toFixed(1) + ' \u00B0C');
     }
-    return '<div style="display:flex;align-items:center;gap:16px;padding:6px 16px;font-size:13px;color:var(--ca-secondary-text)">' + parts.join('<span style="opacity:0.3">\u2502</span>') + '</div>';
+    return '<span style="display:inline-flex;align-items:center;gap:10px;font-size:12px;color:var(--ca-secondary-text)">' + parts.join('<span style="opacity:0.3">\u2502</span>') + '</span>';
+  }
+
+  _sunIconSvg(size = 14) {
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" style="vertical-align:-2px"><circle cx="12" cy="12" r="5" fill="#f9a825"/><g stroke="#f9a825" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/></g></svg>';
   }
 
   _renderContent() {
@@ -1825,7 +1830,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const ruleName = live.rule_name || this._t("cover_no_rule");
       // Sun on facade
       const liveFacade = c.facade_id ? ((this._config.live_facades || {})[c.facade_id] || {}) : {};
-      const sunIcon = liveFacade.sun_on_facade ? ' <span class="live-icon-sun" title="' + this._esc(this._t("facade_sun_active")) + '">\u2600</span>' : '';
+      const sunIcon = liveFacade.sun_on_facade ? ' <span class="live-icon-sun" title="' + this._esc(this._t("facade_sun_active")) + '">' + this._sunIconSvg(12) + '</span>' : '';
       // Last change
       const lastChange = live.last_change ? this._formatTimeAgo(live.last_change) : "";
       // Pause info
@@ -2047,7 +2052,7 @@ class CoverAutomaticPanel extends HTMLElement {
     const liveFacade = (this._config.live_facades || {})[f.id] || {};
     const sunOn = liveFacade.sun_on_facade;
     const sunBadge = sunOn
-      ? '<span class="live-icon-sun" title="' + this._esc(this._t("facade_sun_active")) + '">\u2600</span>'
+      ? '<span class="live-icon-sun" title="' + this._esc(this._t("facade_sun_active")) + '">' + this._sunIconSvg(14) + '</span>'
       : '';
     let html = `<div class="card">
       <div class="card-header">
@@ -2989,7 +2994,8 @@ class CoverAutomaticPanel extends HTMLElement {
           const sun = document.createElement("span");
           sun.className = "live-icon-sun";
           sun.title = this._t("facade_sun_active");
-          sun.textContent = "\u2600";
+          // SVG from internal _sunIconSvg() - no user input
+          sun.innerHTML = this._sunIconSvg(12);
           fCell.appendChild(document.createTextNode(" "));
           fCell.appendChild(sun);
         }
