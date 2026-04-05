@@ -1411,9 +1411,14 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   set hass(hass) {
+    const prevLang = this._hass && this._hass.language;
     this._hass = hass;
     if (!this._initialized) {
       this._initialize();
+      return;
+    }
+    if (hass && hass.language !== prevLang) {
+      this._render();
       return;
     }
     if (this._config && this._activeTab === "covers") {
@@ -2889,7 +2894,7 @@ class CoverAutomaticPanel extends HTMLElement {
           tCell.appendChild(badge);
         }
       }
-      // Status + pause remaining
+      // Status + pause remaining + resume button
       const c = covers[eid];
       const sCell = root.querySelector('[data-live-status="' + eid + '"]');
       if (sCell && c) {
@@ -2900,20 +2905,32 @@ class CoverAutomaticPanel extends HTMLElement {
           badge.textContent = this._t("status_" + st) || st;
         }
         let pauseSpan = sCell.querySelector(".pause-remaining");
-        if (st === "paused" && live.pause_until) {
-          const txt = this._formatPauseRemaining(live.pause_until);
-          if (txt) {
-            if (!pauseSpan) {
-              pauseSpan = document.createElement("span");
-              pauseSpan.className = "pause-remaining";
-              sCell.appendChild(pauseSpan);
+        let resumeBtn = sCell.querySelector(".btn-sm");
+        if (st === "paused") {
+          if (live.pause_until) {
+            const txt = this._formatPauseRemaining(live.pause_until);
+            if (txt) {
+              if (!pauseSpan) {
+                pauseSpan = document.createElement("span");
+                pauseSpan.className = "pause-remaining";
+                sCell.appendChild(pauseSpan);
+              }
+              pauseSpan.textContent = txt;
+            } else if (pauseSpan) {
+              pauseSpan.remove();
             }
-            pauseSpan.textContent = txt;
-          } else if (pauseSpan) {
-            pauseSpan.remove();
           }
-        } else if (pauseSpan) {
-          pauseSpan.remove();
+          if (!resumeBtn) {
+            resumeBtn = document.createElement("button");
+            resumeBtn.className = "btn btn-sm";
+            resumeBtn.dataset.action = "cover-resume";
+            resumeBtn.dataset.id = eid;
+            resumeBtn.textContent = this._t("cover_resume");
+            sCell.appendChild(resumeBtn);
+          }
+        } else {
+          if (pauseSpan) pauseSpan.remove();
+          if (resumeBtn) resumeBtn.remove();
         }
       }
       // Cover name + comfort icon
@@ -2988,6 +3005,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
   _startLiveRefresh() {
     this._stopLiveRefresh();
+    this._refreshLiveCovers();
     this._liveRefreshTimer = setInterval(() => this._refreshLiveCovers(), 30000);
   }
 

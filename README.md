@@ -155,6 +155,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.29.3 (2026-04-05)
+
+- Fix: covers tab showed stale data on tab switch (immediate refresh instead of waiting 30s)
+- Fix: language change not detected, required F5 to apply translations
+- Fix: resume button disappeared after live cell update when cover was paused
+
 ### 1.29.2 (2026-04-04)
 
 - Fix: consistent null-safe pattern for globalPause placeholder in panel
