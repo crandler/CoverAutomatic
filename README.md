@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.30.2 (2026-04-05)
+
+- Fix: heating comfort icon changed from thermometer to flame
+
 ### 1.30.1 (2026-04-05)
 
 - Fix: comfort icons improved (cooling = blue snowflake, heating = red thermometer, neutral = no icon)

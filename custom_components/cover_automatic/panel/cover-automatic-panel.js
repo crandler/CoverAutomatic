@@ -1809,7 +1809,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const cm = live.comfort_mode;
       let comfortIcon = '';
       if (cm === "cooling") comfortIcon = '<span class="live-icon-cooling" title="' + this._esc(this._t("comfort_cooling")) + '">\u2744</span>';
-      else if (cm === "heating") comfortIcon = '<span class="live-icon-heating" title="' + this._esc(this._t("comfort_heating")) + '">\u{1F321}</span>';
+      else if (cm === "heating") comfortIcon = '<span class="live-icon-heating" title="' + this._esc(this._t("comfort_heating")) + '">\u{1F525}</span>';
       // Rule name
       const ruleName = live.rule_name || this._t("cover_no_rule");
       // Sun on facade
@@ -2987,7 +2987,7 @@ class CoverAutomaticPanel extends HTMLElement {
           const ci = document.createElement("span");
           ci.className = cm === "cooling" ? "live-icon-cooling" : "live-icon-heating";
           ci.title = this._t("comfort_" + cm);
-          ci.textContent = cm === "cooling" ? "\u2744" : "\u{1F321}";
+          ci.textContent = cm === "cooling" ? "\u2744" : "\u{1F525}";
           nCell.appendChild(ci);
         }
       }
