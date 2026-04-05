@@ -739,6 +739,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     return
             self._cover_states[entity_id] = CoverStatus.AUTO
             self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
+            # Sync expected position to current to prevent immediate re-pause
+            self._update_last_position_from_state(entity_id)
             if self.data is not None:
                 self.async_set_updated_data(self.data)
 
