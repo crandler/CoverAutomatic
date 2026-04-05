@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.34.2 (2026-04-05)
+
+- Improve: sensors settings section uses 2-column grid layout (responsive)
+
 ### 1.34.1 (2026-04-05)
 
 - Fix: settings section header text left-aligned next to icon instead of spread apart

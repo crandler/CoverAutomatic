@@ -2781,29 +2781,33 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<div class="card">
       <div class="card-header">${this._lucideIcon("gauge")} ${this._t("settings_section_sensors")}</div>
       <div class="card-body">
-        <div class="form-group">
-          <label>${this._t("settings_outdoor_temp")}</label>
-          ${this._renderEntitySelect("outdoor_temp_sensor", s.outdoor_temp_sensor, "sensor", "temperature")}
-          ${this._renderSensorValue(s.outdoor_temp_sensor, "\u00B0")}
-          ${hint(this._t("settings_outdoor_temp_hint"))}
+        <div class="form-row">
+          <div class="form-group">
+            <label>${this._t("settings_outdoor_temp")}</label>
+            ${this._renderEntitySelect("outdoor_temp_sensor", s.outdoor_temp_sensor, "sensor", "temperature")}
+            ${this._renderSensorValue(s.outdoor_temp_sensor, "\u00B0")}
+            ${hint(this._t("settings_outdoor_temp_hint"))}
+          </div>
+          <div class="form-group">
+            <label>${this._t("settings_indoor_temp")}</label>
+            ${this._renderEntitySelect("indoor_temp_sensor", s.indoor_temp_sensor, "sensor", "temperature")}
+            ${this._renderSensorValue(s.indoor_temp_sensor, "\u00B0")}
+            ${hint(this._t("settings_indoor_temp_hint"))}
+          </div>
         </div>
-        <div class="form-group">
-          <label>${this._t("settings_indoor_temp")}</label>
-          ${this._renderEntitySelect("indoor_temp_sensor", s.indoor_temp_sensor, "sensor", "temperature")}
-          ${this._renderSensorValue(s.indoor_temp_sensor, "\u00B0")}
-          ${hint(this._t("settings_indoor_temp_hint"))}
-        </div>
-        <div class="form-group">
-          <label>${this._t("settings_weather")}</label>
-          ${this._renderEntitySelect("weather_entity", s.weather_entity, "weather", null)}
-          ${this._renderSensorValue(s.weather_entity)}
-          ${hint(this._t("settings_weather_hint"))}
-        </div>
-        <div class="form-group">
-          <label>${this._t("settings_workday_sensor")}</label>
-          ${this._renderEntitySelect("workday_sensor", s.workday_sensor, "binary_sensor", null)}
-          ${this._renderSensorValue(s.workday_sensor)}
-          ${hint(this._t("settings_workday_hint"))}
+        <div class="form-row">
+          <div class="form-group">
+            <label>${this._t("settings_weather")}</label>
+            ${this._renderEntitySelect("weather_entity", s.weather_entity, "weather", null)}
+            ${this._renderSensorValue(s.weather_entity)}
+            ${hint(this._t("settings_weather_hint"))}
+          </div>
+          <div class="form-group">
+            <label>${this._t("settings_workday_sensor")}</label>
+            ${this._renderEntitySelect("workday_sensor", s.workday_sensor, "binary_sensor", null)}
+            ${this._renderSensorValue(s.workday_sensor)}
+            ${hint(this._t("settings_workday_hint"))}
+          </div>
         </div>
       </div>
     </div>`;
