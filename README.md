@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.32.4 (2026-04-05)
+
+- Fix: resume X stays inline with paused badge and timer (no line break)
+
 ### 1.32.3 (2026-04-05)
 
 - Fix: paused status resume button replaced with compact X icon next to badge

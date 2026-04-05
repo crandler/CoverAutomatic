@@ -890,11 +890,16 @@ const PANEL_STYLES = `
   }
 
   .resume-x {
+    display: inline;
     font-size: 13px;
     padding: 2px 4px;
     margin-left: 2px;
     vertical-align: middle;
     color: var(--ca-secondary-text);
+    background: none;
+    border: none;
+    cursor: pointer;
+    line-height: 1;
   }
   .resume-x:hover {
     color: #e65100;
@@ -1884,7 +1889,7 @@ class CoverAutomaticPanel extends HTMLElement {
       html += `<tr class="${selected}" data-action="select-cover" data-id="${this._esc(c.entity_id)}">`;
       html += `<td data-live-name="${this._esc(c.entity_id)}">${this._esc(c.name)}</td>`;
       html += `<td data-live-facade="${this._esc(c.entity_id)}">${this._esc(facadeName)}${sunIcon}</td>`;
-      html += `<td data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining">' + pauseLeft + '</span>' : ''}${resumeBtn}</td>`;
+      html += `<td data-live-status="${this._esc(c.entity_id)}" style="white-space:nowrap"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining">' + pauseLeft + '</span>' : ''}${resumeBtn}</td>`;
       const tempSensor = c.indoor_temp_sensor || (this._config.settings || {}).indoor_temp_sensor;
       const tempState = tempSensor && this._hass && this._hass.states ? this._hass.states[tempSensor] : null;
       const tempVal = tempState && tempState.state !== "unavailable" && tempState.state !== "unknown" ? parseFloat(tempState.state) : null;
