@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.32.3 (2026-04-05)
+
+- Fix: paused status resume button replaced with compact X icon next to badge
+
 ### 1.32.2 (2026-04-05)
 
 - Fix: increased spacing between version label and update badge in header

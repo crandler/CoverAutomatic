@@ -889,6 +889,17 @@ const PANEL_STYLES = `
     min-width: 32px;
   }
 
+  .resume-x {
+    font-size: 13px;
+    padding: 2px 4px;
+    margin-left: 2px;
+    vertical-align: middle;
+    color: var(--ca-secondary-text);
+  }
+  .resume-x:hover {
+    color: #e65100;
+  }
+
   /* Inline live-update elements in covers table */
   .pause-remaining {
     font-size: 11px;
@@ -1869,7 +1880,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const lastChange = live.last_change ? this._formatTimeAgo(live.last_change) : "";
       // Pause info
       const pauseLeft = (c.status === "paused" && live.pause_until) ? this._formatPauseRemaining(live.pause_until) : "";
-      const resumeBtn = c.status === "paused" ? ' <button class="btn btn-sm" data-action="cover-resume" data-id="' + this._esc(c.entity_id) + '">' + this._t("cover_resume") + '</button>' : '';
+      const resumeBtn = c.status === "paused" ? '<button class="btn-icon resume-x" data-action="cover-resume" data-id="' + this._esc(c.entity_id) + '" title="' + this._esc(this._t("cover_resume")) + '">&#10005;</button>' : '';
       html += `<tr class="${selected}" data-action="select-cover" data-id="${this._esc(c.entity_id)}">`;
       html += `<td data-live-name="${this._esc(c.entity_id)}">${this._esc(c.name)}</td>`;
       html += `<td data-live-facade="${this._esc(c.entity_id)}">${this._esc(facadeName)}${sunIcon}</td>`;
@@ -3013,7 +3024,7 @@ class CoverAutomaticPanel extends HTMLElement {
           badge.textContent = this._t("status_" + st) || st;
         }
         let pauseSpan = sCell.querySelector(".pause-remaining");
-        let resumeBtn = sCell.querySelector(".btn-sm");
+        let resumeBtn = sCell.querySelector(".resume-x");
         if (st === "paused") {
           if (live.pause_until) {
             const txt = this._formatPauseRemaining(live.pause_until);
@@ -3030,10 +3041,11 @@ class CoverAutomaticPanel extends HTMLElement {
           }
           if (!resumeBtn) {
             resumeBtn = document.createElement("button");
-            resumeBtn.className = "btn btn-sm";
+            resumeBtn.className = "btn-icon resume-x";
             resumeBtn.dataset.action = "cover-resume";
             resumeBtn.dataset.id = eid;
-            resumeBtn.textContent = this._t("cover_resume");
+            resumeBtn.title = this._t("cover_resume");
+            resumeBtn.textContent = "\u2715";
             sCell.appendChild(resumeBtn);
           }
         } else {
