@@ -502,6 +502,53 @@ class TestHysteresis:
             )
 
 
+    @pytest.mark.asyncio
+    async def test_hysteresis_info_cleared_when_cover_paused(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test hysteresis badge is cleared when cover transitions to non-auto status."""
+        # Pre-set hysteresis info as if it was set before the cover was paused
+        coordinator._hysteresis_info["cover.test"] = "time"
+        coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
+
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "paused",
+                    "target_position": 60,
+                }
+            }
+        }
+
+        await coordinator.async_apply_positions()
+
+        # Hysteresis info must be cleared for paused covers
+        assert coordinator._hysteresis_info.get("cover.test") is None
+        mock_hass.services.async_call.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_hysteresis_info_cleared_when_cover_locked(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test hysteresis badge is cleared when cover is locked."""
+        coordinator._hysteresis_info["cover.test"] = "position"
+        coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
+
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "locked",
+                    "target_position": 60,
+                }
+            }
+        }
+
+        await coordinator.async_apply_positions()
+
+        assert coordinator._hysteresis_info.get("cover.test") is None
+        mock_hass.services.async_call.assert_not_called()
+
+
 class TestStateTracking:
     """Tests for state change tracking."""
 

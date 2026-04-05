@@ -966,6 +966,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Use live status from _cover_states instead of snapshot
             status = self._cover_states.get(entity_id, CoverStatus.AUTO)
             if status not in (CoverStatus.AUTO, CoverStatus.VENTING):
+                self._hysteresis_info[entity_id] = None
                 continue
 
             target = cover_data.get("target_position")

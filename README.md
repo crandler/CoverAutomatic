@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.33.5 (2026-04-05)
+
+- Fix: hysteresis badge ("too short"/"too small") persisted on covers after status changed to paused/locked/wind-protected
+
 ### 1.33.4 (2026-04-05)
 
 - Fix: cover falsely paused after HA restart (unavailable state during shutdown triggered manual override detection)
