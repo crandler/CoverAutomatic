@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.33.3 (2026-04-05)
+
+- Fix: position bar fill invisible (span needs display:block for height/width to work)
+
 ### 1.33.2 (2026-04-05)
 
 - Fix: resume syncs expected position to current, preventing immediate re-pause by apply cycle override check

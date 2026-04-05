@@ -882,6 +882,7 @@ const PANEL_STYLES = `
     outline: 1px solid rgba(255,255,255,0.15);
   }
   .pos-bar-fill {
+    display: block;
     height: 100%;
     border-radius: 3px;
     background: #5bb8f5;
