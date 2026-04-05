@@ -841,6 +841,26 @@ class TestManualOverrideDetection:
         cover.pause_duration = 30
         return cover
 
+    def test_unavailable_state_ignored(self, coordinator, mock_storage) -> None:
+        """unavailable/unknown states do not trigger manual override detection."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 40
+        coordinator._last_command_time["cover.test"] = 0.0
+
+        for bad_state in ("unavailable", "unknown"):
+            new_state = MockState(bad_state, {"current_position": 0})
+            with patch.object(coordinator, "pause_cover") as mock_pause:
+                with patch(
+                    "custom_components.cover_automatic.coordinator.time_mod"
+                ) as mock_time:
+                    mock_time.monotonic.return_value = 9999.0
+                    coordinator._handle_cover_state_change(
+                        "cover.test", None, new_state
+                    )
+                mock_pause.assert_not_called()
+
     def test_moving_state_ignored(self, coordinator, mock_storage) -> None:
         """opening/closing states do not trigger manual override detection."""
         cover = self._make_cover()
@@ -988,6 +1008,45 @@ class TestManualOverrideInApplyCycle:
                     mock_now.return_value.timestamp.return_value = 1000
                     await coordinator.async_apply_positions()
                 mock_pause.assert_not_called()
+
+
+    @pytest.mark.asyncio
+    async def test_unavailable_cover_skipped_in_apply_cycle(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Unavailable cover state is skipped entirely in apply cycle."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 40
+        coordinator._last_command_time["cover.test"] = 0.0
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 40,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "inverted": False,
+        }
+        # Cover is unavailable (position attrs cleared -> default 0)
+        mock_hass.states.get.return_value = MockState(
+            "unavailable", {}
+        )
+
+        with patch(
+            "custom_components.cover_automatic.coordinator.time_mod"
+        ) as mock_time:
+            mock_time.monotonic.return_value = 9999.0
+            with patch.object(coordinator, "pause_cover") as mock_pause:
+                await coordinator.async_apply_positions()
+                mock_pause.assert_not_called()
+
+        mock_hass.services.async_call.assert_not_called()
 
 
 class TestLockVentTransition:
@@ -1680,6 +1739,29 @@ class TestUpdateLastPositionFromState:
 
         assert "cover.test" not in coordinator._last_positions
         assert "cover.test" not in coordinator._last_tilt_positions
+
+    def test_update_unavailable_state_noop(
+        self, coordinator, mock_hass
+    ) -> None:
+        """Test unavailable state does not overwrite tracked positions."""
+        coordinator._last_positions["cover.test"] = 40
+        mock_hass.states.get.return_value = MockState("unavailable", {})
+
+        coordinator._update_last_position_from_state("cover.test")
+
+        # Must keep old value, not overwrite with 0
+        assert coordinator._last_positions["cover.test"] == 40
+
+    def test_get_current_position_unavailable_returns_none(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Test _get_current_position returns None for unavailable covers."""
+        mock_hass.states.get.return_value = MockState("unavailable", {})
+        mock_storage.get_cover_raw.return_value = {"inverted": False}
+
+        result = coordinator._get_current_position("cover.test")
+
+        assert result is None
 
 
 class TestVentSensorWithTilt:

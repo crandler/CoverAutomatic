@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.33.4 (2026-04-05)
+
+- Fix: cover falsely paused after HA restart (unavailable state during shutdown triggered manual override detection)
+
 ### 1.33.3 (2026-04-05)
 
 - Fix: position bar fill invisible (span needs display:block for height/width to work)

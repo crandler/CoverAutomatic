@@ -520,7 +520,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _get_current_position(self, entity_id: str) -> int | None:
         """Get current cover position (handles inverted covers)."""
         state = self.hass.states.get(entity_id)
-        if state is None:
+        if state is None or state.state in ("unavailable", "unknown"):
             return None
         try:
             pos = int(state.attributes.get("current_position", 0))
@@ -634,7 +634,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _update_last_position_from_state(self, entity_id: str) -> None:
         """Update _last_positions and _last_tilt_positions from current HA state."""
         state = self.hass.states.get(entity_id)
-        if state:
+        if state and state.state not in ("unavailable", "unknown"):
             try:
                 self._last_positions[entity_id] = int(
                     state.attributes.get("current_position", 0)
@@ -661,6 +661,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         cover = self.storage.covers.get(entity_id)
         if cover is None:
+            return
+
+        # Ignore unavailable/unknown states (e.g. during HA shutdown)
+        if new_state.state in ("unavailable", "unknown"):
             return
 
         # Ignore manual overrides during wind protection
@@ -974,7 +978,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
 
             state = self.hass.states.get(entity_id)
-            if state is None:
+            if state is None or state.state in ("unavailable", "unknown"):
                 continue
 
             try:
