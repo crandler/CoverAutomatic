@@ -862,6 +862,32 @@ const PANEL_STYLES = `
     flex-wrap: wrap;
   }
 
+  /* Position bar */
+  .pos-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 90px;
+  }
+  .pos-bar-track {
+    width: 50px;
+    height: 5px;
+    background: var(--divider-color, rgba(255,255,255,0.12));
+    border-radius: 3px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .pos-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--primary-color, #03a9f4);
+    transition: width 0.3s ease;
+  }
+  .pos-bar-label {
+    font-size: 12px;
+    min-width: 32px;
+  }
+
   /* Inline live-update elements in covers table */
   .pause-remaining {
     font-size: 11px;
@@ -1711,6 +1737,12 @@ class CoverAutomaticPanel extends HTMLElement {
     return '<span style="display:inline-flex;align-items:center;gap:10px;font-size:12px;color:var(--ca-secondary-text)">' + parts.join('<span style="opacity:0.3">\u2502</span>') + '</span>';
   }
 
+  _posBar(pos) {
+    if (pos == null) return '\u2013';
+    const p = Math.max(0, Math.min(100, pos));
+    return '<span class="pos-bar"><span class="pos-bar-track"><span class="pos-bar-fill" style="width:' + p + '%"></span></span><span class="pos-bar-label">' + pos + '%</span></span>';
+  }
+
   _sunIconSvg(size = 14) {
     return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" style="vertical-align:-2px"><circle cx="12" cy="12" r="5" fill="#f9a825"/><g stroke="#f9a825" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/></g></svg>';
   }
@@ -1847,8 +1879,8 @@ class CoverAutomaticPanel extends HTMLElement {
       const tempColor = cm === "cooling" ? "var(--info-color, #2196f3)" : cm === "heating" ? "#c62828" : "";
       const tempTitle = cm ? this._t("comfort_" + cm) : "";
       html += `<td data-live-temp="${this._esc(c.entity_id)}" style="white-space:nowrap;${tempColor ? 'color:' + tempColor + ';font-weight:600' : ''}"${tempTitle ? ' title="' + this._esc(tempTitle) + '"' : ''}>${tempVal != null ? tempVal.toFixed(1) + " °C" : "–"}</td>`;
-      html += `<td data-live-current="${this._esc(c.entity_id)}">${currentPos != null ? currentPos + "%" : "–"}</td>`;
-      html += `<td data-live-target="${this._esc(c.entity_id)}">${targetPos != null ? targetPos + "%" : "–"}${infoIcon}</td>`;
+      html += `<td data-live-current="${this._esc(c.entity_id)}">${this._posBar(currentPos)}</td>`;
+      html += `<td data-live-target="${this._esc(c.entity_id)}">${this._posBar(targetPos)}${infoIcon}</td>`;
       html += `<td data-live-rule="${this._esc(c.entity_id)}">${this._esc(ruleName)}</td>`;
       html += `<td data-live-lastchange="${this._esc(c.entity_id)}" style="font-size:12px;color:var(--ca-secondary-text);white-space:nowrap">${lastChange}</td>`;
       html += '</tr>';
@@ -2925,21 +2957,48 @@ class CoverAutomaticPanel extends HTMLElement {
       const haState = this._hass && this._hass.states ? this._hass.states[eid] : null;
       const curPos = haState && haState.attributes ? haState.attributes.current_position : null;
       const cell = root.querySelector('[data-live-current="' + eid + '"]');
-      if (cell) cell.textContent = curPos != null ? curPos + "%" : "\u2013";
+      if (cell) {
+        const fill = cell.querySelector(".pos-bar-fill");
+        const label = cell.querySelector(".pos-bar-label");
+        if (fill && label && curPos != null) {
+          fill.style.width = Math.max(0, Math.min(100, curPos)) + "%";
+          label.textContent = curPos + "%";
+        } else {
+          // Fallback: no bar exists yet, set innerHTML
+          cell.innerHTML = this._posBar(curPos);
+        }
+      }
       // Target position + hysteresis from coordinator
       const live = liveCvrs[eid] || {};
       const tgtPos = live.target_position;
       const hyst = live.hysteresis;
       const tCell = root.querySelector('[data-live-target="' + eid + '"]');
       if (tCell) {
-        tCell.textContent = "";
-        tCell.appendChild(document.createTextNode(tgtPos != null ? tgtPos + "%" : "\u2013"));
+        const fill = tCell.querySelector(".pos-bar-fill");
+        const label = tCell.querySelector(".pos-bar-label");
+        if (fill && label && tgtPos != null) {
+          fill.style.width = Math.max(0, Math.min(100, tgtPos)) + "%";
+          label.textContent = tgtPos + "%";
+        } else {
+          // Rebuild bar + hysteresis badge via innerHTML
+          let barHtml = this._posBar(tgtPos);
+          if (hyst === "position" || hyst === "time") {
+            barHtml += ' <span class="status-badge status-paused hysteresis-badge" title="' + this._esc(this._t(hyst === "position" ? "cover_hysteresis_position" : "cover_hysteresis_time")) + '">' + (hyst === "position" ? "\u2195" : "\u23F2") + '</span>';
+          }
+          tCell.innerHTML = barHtml;
+        }
+        // Update hysteresis badge visibility
+        const existingBadge = tCell.querySelector(".hysteresis-badge");
         if (hyst === "position" || hyst === "time") {
-          const badge = document.createElement("span");
-          badge.className = "status-badge status-paused hysteresis-badge";
-          badge.textContent = hyst === "position" ? "\u2195" : "\u23F2";
-          badge.title = this._t(hyst === "position" ? "cover_hysteresis_position" : "cover_hysteresis_time");
-          tCell.appendChild(badge);
+          if (!existingBadge) {
+            const badge = document.createElement("span");
+            badge.className = "status-badge status-paused hysteresis-badge";
+            badge.textContent = hyst === "position" ? "\u2195" : "\u23F2";
+            badge.title = this._t(hyst === "position" ? "cover_hysteresis_position" : "cover_hysteresis_time");
+            tCell.appendChild(badge);
+          }
+        } else if (existingBadge) {
+          existingBadge.remove();
         }
       }
       // Status + pause remaining + resume button

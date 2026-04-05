@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.32.1 (2026-04-05)
+
+- Feat: position columns show visual progress bars with percentage labels
+- Live updates animate bar width smoothly via CSS transition
+
 ### 1.32.0 (2026-04-05)
 
 - Feat: entire cover table row is now clickable to open slide-out (not just name/facade cells)
