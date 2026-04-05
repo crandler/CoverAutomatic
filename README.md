@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.33.1 (2026-04-05)
+
+- Fix: position bar fill color changed to bright blue (#5bb8f5) for clear visibility on dark themes
+
 ### 1.33.0 (2026-04-05)
 
 - Fix: manual override now detected in apply cycle (catches overrides missed during settle time)

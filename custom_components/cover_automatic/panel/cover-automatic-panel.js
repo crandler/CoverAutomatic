@@ -875,16 +875,16 @@ const PANEL_STYLES = `
   .pos-bar-track {
     width: 60px;
     height: 6px;
-    background: rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.06);
     border-radius: 3px;
     overflow: hidden;
     flex-shrink: 0;
-    border: 1px solid rgba(255,255,255,0.12);
+    outline: 1px solid rgba(255,255,255,0.15);
   }
   .pos-bar-fill {
     height: 100%;
     border-radius: 3px;
-    background: #4CAF50;
+    background: #5bb8f5;
     transition: width 0.3s ease;
   }
   .pos-bar-label {
