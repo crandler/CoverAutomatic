@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.32.2 (2026-04-05)
+
+- Fix: increased spacing between version label and update badge in header
+
 ### 1.32.1 (2026-04-05)
 
 - Feat: position columns show visual progress bars with percentage labels

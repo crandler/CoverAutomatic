@@ -566,7 +566,7 @@ const PANEL_STYLES = `
     font-size: 12px;
     color: var(--ca-secondary-text);
     opacity: 0.7;
-    margin-left: 6px;
+    margin-left: 8px;
   }
   .update-badge {
     display: inline-flex;
@@ -580,6 +580,7 @@ const PANEL_STYLES = `
     font-weight: 600;
     cursor: pointer;
     text-decoration: none;
+    margin-left: 8px;
   }
   .update-badge:hover { opacity: 0.85; }
 
