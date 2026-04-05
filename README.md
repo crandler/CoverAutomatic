@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.34.0 (2026-04-05)
+
+- Add: Lucide SVG icons for settings section headers (house, sensors, comfort, wind, automation, backup)
+
 ### 1.33.5 (2026-04-05)
 
 - Fix: hysteresis badge ("too short"/"too small") persisted on covers after status changed to paused/locked/wind-protected

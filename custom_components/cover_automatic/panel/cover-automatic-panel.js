@@ -818,6 +818,13 @@ const PANEL_STYLES = `
     padding: 12px 20px 8px;
     border-bottom: 1px solid var(--ca-border);
     margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .settings-stack .card-header svg {
+    flex-shrink: 0;
+    opacity: 0.7;
   }
   /* Hint text below a field */
   .settings-hint {
@@ -1767,6 +1774,20 @@ class CoverAutomaticPanel extends HTMLElement {
 
   _sunIconSvg(size = 14) {
     return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" style="vertical-align:-2px"><circle cx="12" cy="12" r="5" fill="#f9a825"/><g stroke="#f9a825" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/></g></svg>';
+  }
+
+  // Lucide-style inline SVG icons for settings sections
+  _lucideIcon(name, size = 16) {
+    const a = 'none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round';
+    const paths = {
+      house: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+      gauge: '<path d="M12 16v-4"/><path d="M12 8h.01"/><circle cx="12" cy="12" r="10"/>',
+      thermometer: '<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>',
+      wind: '<path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>',
+      cog: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+      archive: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>'
+    };
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="' + a + '">' + (paths[name] || '') + '</svg>';
   }
 
   _renderContent() {
@@ -2742,7 +2763,7 @@ class CoverAutomaticPanel extends HTMLElement {
     // Card 1: House
     const rot = s.house_rotation != null ? s.house_rotation : 0;
     html += `<div class="card">
-      <div class="card-header">${this._t("settings_section_house")}</div>
+      <div class="card-header">${this._lucideIcon("house")} ${this._t("settings_section_house")}</div>
       <div class="card-body">
         <div class="settings-house-layout">
           <div class="form-group settings-house-input">
@@ -2757,7 +2778,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
     // Card 2: Sensors (incl. workday)
     html += `<div class="card">
-      <div class="card-header">${this._t("settings_section_sensors")}</div>
+      <div class="card-header">${this._lucideIcon("gauge")} ${this._t("settings_section_sensors")}</div>
       <div class="card-body">
         <div class="form-group">
           <label>${this._t("settings_outdoor_temp")}</label>
@@ -2788,7 +2809,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
     // Card 3: Comfort
     html += `<div class="card">
-      <div class="card-header">${this._t("settings_section_comfort")}</div>
+      <div class="card-header">${this._lucideIcon("thermometer")} ${this._t("settings_section_comfort")}</div>
       <div class="card-body">
         ${hintIntro(this._t("settings_comfort_hint"))}
         <div class="form-row">
@@ -2811,7 +2832,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
     // Card 4: Wind protection
     html += `<div class="card">
-      <div class="card-header">${this._t("settings_section_wind")}</div>
+      <div class="card-header">${this._lucideIcon("wind")} ${this._t("settings_section_wind")}</div>
       <div class="card-body">
         ${hintIntro(this._t("settings_wind_hint"))}
         <div class="form-group">
@@ -2834,7 +2855,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
     // Card 5: Automation behavior
     html += `<div class="card">
-      <div class="card-header">${this._t("settings_section_automation")}</div>
+      <div class="card-header">${this._lucideIcon("cog")} ${this._t("settings_section_automation")}</div>
       <div class="card-body">
         <div class="form-group">
           <label>${this._t("settings_pause_duration")}</label>
@@ -2892,7 +2913,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
     // Card 6: Backup (not part of settings-save scope)
     html += `<div class="card">
-      <div class="card-header">${this._t("settings_section_backup")}</div>
+      <div class="card-header">${this._lucideIcon("archive")} ${this._t("settings_section_backup")}</div>
       <div class="card-body">
         ${hintIntro(this._t("settings_backup_hint"))}
         <div class="settings-backup-actions">
