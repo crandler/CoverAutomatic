@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.32.9 (2026-04-05)
+
+- Fix: position bar track more visible (wider, higher contrast, subtle border)
+
 ### 1.32.8 (2026-04-05)
 
 - Fix: duplicate hysteresis badge (initial render missing `hysteresis-badge` class, live update added second)

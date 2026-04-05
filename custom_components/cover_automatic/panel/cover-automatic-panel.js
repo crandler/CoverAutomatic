@@ -873,12 +873,13 @@ const PANEL_STYLES = `
     min-width: 90px;
   }
   .pos-bar-track {
-    width: 50px;
-    height: 5px;
-    background: var(--divider-color, rgba(255,255,255,0.12));
+    width: 60px;
+    height: 6px;
+    background: rgba(255,255,255,0.15);
     border-radius: 3px;
     overflow: hidden;
     flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.08);
   }
   .pos-bar-fill {
     height: 100%;
