@@ -820,6 +820,7 @@ const PANEL_STYLES = `
     margin-bottom: 4px;
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 8px;
   }
   .settings-stack .card-header svg {
