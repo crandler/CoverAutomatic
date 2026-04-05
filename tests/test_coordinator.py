@@ -901,6 +901,95 @@ class TestManualOverrideDetection:
             mock_pause.assert_called_once_with(cover)
 
 
+class TestManualOverrideInApplyCycle:
+    """Tests for manual override detection in async_apply_positions."""
+
+    def _make_cover(self):
+        from custom_components.cover_automatic.models import CoverConfig
+        cover = MagicMock(spec=CoverConfig)
+        cover.entity_id = "cover.test"
+        cover.auto_enabled = True
+        cover.pause_duration = 30
+        return cover
+
+    @pytest.mark.asyncio
+    async def test_override_detected_in_apply_cycle(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Position deviation beyond settle time triggers pause in apply cycle."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 100  # expected
+        coordinator._last_command_time["cover.test"] = 0.0  # long ago
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 100,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "inverted": False,
+        }
+        # Cover manually moved to 79% (deviation 21 > tolerance 2)
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 79}
+        )
+
+        with patch(
+            "custom_components.cover_automatic.coordinator.time_mod"
+        ) as mock_time:
+            mock_time.monotonic.return_value = 9999.0
+            with patch.object(coordinator, "pause_cover") as mock_pause:
+                await coordinator.async_apply_positions()
+                mock_pause.assert_called_once_with(cover)
+
+        # Should NOT have sent a position command
+        mock_hass.services.async_call.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_no_override_during_settle_time(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Position deviation within settle time is not treated as override."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 100
+        coordinator._last_command_time["cover.test"] = 9990.0  # recent
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 100,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "last_position_change": None,
+            "inverted": False,
+        }
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 79}
+        )
+
+        with patch(
+            "custom_components.cover_automatic.coordinator.time_mod"
+        ) as mock_time:
+            mock_time.monotonic.return_value = 9995.0  # 5s after command, within settle
+            with patch.object(coordinator, "pause_cover") as mock_pause:
+                with patch("homeassistant.util.dt.now") as mock_now:
+                    mock_now.return_value.timestamp.return_value = 1000
+                    await coordinator.async_apply_positions()
+                mock_pause.assert_not_called()
+
+
 class TestLockVentTransition:
     """Tests for lock->vent fallback in _handle_contact_sensor_change."""
 

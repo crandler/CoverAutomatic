@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.33.0 (2026-04-05)
+
+- Fix: manual override now detected in apply cycle (catches overrides missed during settle time)
+- Test: 2 new tests for apply-cycle override detection (454 total)
+
 ### 1.32.10 (2026-04-05)
 
 - Fix: position bar fill now green (#4CAF50) with darker track for clear contrast on all themes

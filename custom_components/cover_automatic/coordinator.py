@@ -980,6 +980,23 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except (ValueError, TypeError):
                 continue
 
+            # Detect manual override missed by state-change handler (e.g. during settle time)
+            expected = self._last_positions.get(entity_id)
+            if (
+                expected is not None
+                and abs(current - expected) > MANUAL_OVERRIDE_TOLERANCE
+                and (time_mod.monotonic() - self._last_command_time.get(entity_id, 0)) >= SETTLE_TIME
+                and status == CoverStatus.AUTO
+            ):
+                cover = self.storage.covers.get(entity_id)
+                if cover and cover.auto_enabled:
+                    _LOGGER.info(
+                        "[%s] Manual override detected in apply cycle (expected %d, got %d)",
+                        entity_id, expected, current,
+                    )
+                    self.pause_cover(cover)
+                    continue
+
             # Enforce vent minimum position (logical, before inversion)
             original_target = target
             if status == CoverStatus.VENTING:
