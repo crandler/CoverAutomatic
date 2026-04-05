@@ -155,6 +155,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.32.0 (2026-04-05)
+
+- Feat: entire cover table row is now clickable to open slide-out (not just name/facade cells)
+- Feat: delete button moved from table to slide-out panel bottom (prevents accidental deletes)
+- Remove: actions column from covers table (one less column)
+
 ### 1.31.3 (2026-04-05)
 
 - Fix: facade card grid limited to 2 columns for better spacing of icons and buttons

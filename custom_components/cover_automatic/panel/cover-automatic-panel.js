@@ -72,6 +72,7 @@ const I18N = {
     cover_rule: "Rule",
     cover_no_rule: "–",
     cover_resume: "Resume",
+    cover_remove: "Remove cover",
     cover_last_change: "Last change",
     cover_just_now: "just now",
     cover_minutes_ago: "min ago",
@@ -292,6 +293,7 @@ const I18N = {
     cover_rule: "Regel",
     cover_no_rule: "–",
     cover_resume: "Fortsetzen",
+    cover_remove: "Behang entfernen",
     cover_last_change: "Letzte Änderung",
     cover_just_now: "gerade",
     cover_minutes_ago: "Min.",
@@ -1786,7 +1788,6 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<th>${this._t("cover_target_pos")}</th>`;
     html += `<th>${this._t("cover_rule")}</th>`;
     html += `<th>${this._t("cover_last_change")}</th>`;
-    html += '<th></th>';
     html += '</tr></thead><tbody>';
 
     // Sort entries
@@ -1836,9 +1837,9 @@ class CoverAutomaticPanel extends HTMLElement {
       // Pause info
       const pauseLeft = (c.status === "paused" && live.pause_until) ? this._formatPauseRemaining(live.pause_until) : "";
       const resumeBtn = c.status === "paused" ? ' <button class="btn btn-sm" data-action="cover-resume" data-id="' + this._esc(c.entity_id) + '">' + this._t("cover_resume") + '</button>' : '';
-      html += `<tr class="${selected}">`;
-      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" data-live-name="${this._esc(c.entity_id)}">${this._esc(c.name)}</td>`;
-      html += `<td data-action="select-cover" data-id="${this._esc(c.entity_id)}" data-live-facade="${this._esc(c.entity_id)}">${this._esc(facadeName)}${sunIcon}</td>`;
+      html += `<tr class="${selected}" data-action="select-cover" data-id="${this._esc(c.entity_id)}">`;
+      html += `<td data-live-name="${this._esc(c.entity_id)}">${this._esc(c.name)}</td>`;
+      html += `<td data-live-facade="${this._esc(c.entity_id)}">${this._esc(facadeName)}${sunIcon}</td>`;
       html += `<td data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining">' + pauseLeft + '</span>' : ''}${resumeBtn}</td>`;
       const tempSensor = c.indoor_temp_sensor || (this._config.settings || {}).indoor_temp_sensor;
       const tempState = tempSensor && this._hass && this._hass.states ? this._hass.states[tempSensor] : null;
@@ -1850,7 +1851,6 @@ class CoverAutomaticPanel extends HTMLElement {
       html += `<td data-live-target="${this._esc(c.entity_id)}">${targetPos != null ? targetPos + "%" : "–"}${infoIcon}</td>`;
       html += `<td data-live-rule="${this._esc(c.entity_id)}">${this._esc(ruleName)}</td>`;
       html += `<td data-live-lastchange="${this._esc(c.entity_id)}" style="font-size:12px;color:var(--ca-secondary-text);white-space:nowrap">${lastChange}</td>`;
-      html += `<td><button class="btn-icon" data-action="cover-delete" data-id="${this._esc(c.entity_id)}" title="${this._t("delete")}">&#10005;</button></td>`;
       html += '</tr>';
     }
 
@@ -1975,6 +1975,9 @@ class CoverAutomaticPanel extends HTMLElement {
         });
       }
 
+      html += `<div style="padding:16px 0;border-top:1px solid var(--ca-border);margin-top:16px">
+        <button class="btn" style="color:#c62828" data-action="cover-delete" data-id="${this._esc(cover.entity_id)}">${this._t("cover_remove")}</button>
+      </div>`;
       html += '</div>'; // slide-body
     }
 
