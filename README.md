@@ -155,6 +155,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.30.1 (2026-04-05)
+
+- Fix: comfort icons improved (cooling = blue snowflake, heating = red thermometer, neutral = no icon)
+- Fix: sun-on-facade icon now yellow with proper styling instead of generic star
+- Fix: venting status now has its own badge style (indigo) instead of unstyled text
+- Fix: temperature color for heating mode changed from orange to red
+
 ### 1.30.0 (2026-04-05)
 
 - Feat: real-time status updates via event push (coordinator fires `cover_automatic_updated` event, panel subscribes)

@@ -708,6 +708,7 @@ const PANEL_STYLES = `
   .status-paused { background: #fff3e0; color: #e65100; }
   .status-manual { background: #e3f2fd; color: #1565c0; }
   .status-locked { background: #fce4ec; color: #c62828; }
+  .status-venting { background: #e8eaf6; color: #283593; }
   .status-wind_protected { background: #fce4ec; color: #c62828; }
 
   /* Slide-out panel */
@@ -872,6 +873,21 @@ const PANEL_STYLES = `
   .live-icon {
     font-size: 12px;
     margin-left: 2px;
+  }
+  .live-icon-sun {
+    font-size: 14px;
+    margin-left: 4px;
+    color: #f9a825;
+  }
+  .live-icon-heating {
+    font-size: 11px;
+    margin-left: 2px;
+    color: #c62828;
+  }
+  .live-icon-cooling {
+    font-size: 12px;
+    margin-left: 2px;
+    color: #2196f3;
   }
 
   /* Toggle switch */
@@ -1789,17 +1805,16 @@ class CoverAutomaticPanel extends HTMLElement {
       } else if (hysteresis === "time") {
         infoIcon = ' <span class="status-badge status-paused" title="' + this._esc(this._t("cover_hysteresis_time")) + '" style="font-size:11px">&#9202;</span>';
       }
-      // Comfort mode icon
+      // Comfort mode icon (cooling = snowflake blue, heating = thermometer red, neutral = none)
       const cm = live.comfort_mode;
       let comfortIcon = '';
-      if (cm === "cooling") comfortIcon = '<span class="live-icon" title="' + this._esc(this._t("comfort_cooling")) + '">\u2744</span>';
-      else if (cm === "heating") comfortIcon = '<span class="live-icon" title="' + this._esc(this._t("comfort_heating")) + '">\u2600</span>';
-      else if (cm === "neutral") comfortIcon = '<span class="live-icon" title="' + this._esc(this._t("comfort_neutral")) + '">\u25CF</span>';
+      if (cm === "cooling") comfortIcon = '<span class="live-icon-cooling" title="' + this._esc(this._t("comfort_cooling")) + '">\u2744</span>';
+      else if (cm === "heating") comfortIcon = '<span class="live-icon-heating" title="' + this._esc(this._t("comfort_heating")) + '">\u{1F321}</span>';
       // Rule name
       const ruleName = live.rule_name || this._t("cover_no_rule");
       // Sun on facade
       const liveFacade = c.facade_id ? ((this._config.live_facades || {})[c.facade_id] || {}) : {};
-      const sunIcon = liveFacade.sun_on_facade ? ' <span class="live-icon" title="' + this._esc(this._t("facade_sun_active")) + '">\u2600</span>' : '';
+      const sunIcon = liveFacade.sun_on_facade ? ' <span class="live-icon-sun" title="' + this._esc(this._t("facade_sun_active")) + '">\u2600</span>' : '';
       // Last change
       const lastChange = live.last_change ? this._formatTimeAgo(live.last_change) : "";
       // Pause info
@@ -1812,7 +1827,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const tempSensor = c.indoor_temp_sensor || (this._config.settings || {}).indoor_temp_sensor;
       const tempState = tempSensor && this._hass && this._hass.states ? this._hass.states[tempSensor] : null;
       const tempVal = tempState && tempState.state !== "unavailable" && tempState.state !== "unknown" ? parseFloat(tempState.state) : null;
-      const tempColor = cm === "cooling" ? "var(--info-color, #2196f3)" : cm === "heating" ? "var(--warning-color, #ff9800)" : "";
+      const tempColor = cm === "cooling" ? "var(--info-color, #2196f3)" : cm === "heating" ? "#c62828" : "";
       const tempTitle = cm ? this._t("comfort_" + cm) : "";
       html += `<td data-live-temp="${this._esc(c.entity_id)}" style="white-space:nowrap;${tempColor ? 'color:' + tempColor + ';font-weight:600' : ''}"${tempTitle ? ' title="' + this._esc(tempTitle) + '"' : ''}>${tempVal != null ? tempVal.toFixed(1) + " °C" : "–"}</td>`;
       html += `<td data-live-current="${this._esc(c.entity_id)}">${currentPos != null ? currentPos + "%" : "–"}</td>`;
@@ -2036,7 +2051,7 @@ class CoverAutomaticPanel extends HTMLElement {
     const liveFacade = (this._config.live_facades || {})[f.id] || {};
     const sunOn = liveFacade.sun_on_facade;
     const sunBadge = sunOn
-      ? '<span style="font-size:14px;margin-left:6px" title="' + this._esc(this._t("facade_sun_active")) + '">\u2600</span>'
+      ? '<span class="live-icon-sun" title="' + this._esc(this._t("facade_sun_active")) + '">\u2600</span>'
       : '';
     let html = `<div class="card">
       <div class="card-header">
@@ -2968,11 +2983,11 @@ class CoverAutomaticPanel extends HTMLElement {
         nCell.textContent = "";
         nCell.appendChild(document.createTextNode(c.name));
         const cm = live.comfort_mode;
-        if (cm === "cooling" || cm === "heating" || cm === "neutral") {
+        if (cm === "cooling" || cm === "heating") {
           const ci = document.createElement("span");
-          ci.className = "live-icon";
+          ci.className = cm === "cooling" ? "live-icon-cooling" : "live-icon-heating";
           ci.title = this._t("comfort_" + cm);
-          ci.textContent = cm === "cooling" ? "\u2744" : cm === "heating" ? "\u2600" : "\u25CF";
+          ci.textContent = cm === "cooling" ? "\u2744" : "\u{1F321}";
           nCell.appendChild(ci);
         }
       }
@@ -2985,7 +3000,7 @@ class CoverAutomaticPanel extends HTMLElement {
         fCell.appendChild(document.createTextNode(facadeName));
         if (liveFacade.sun_on_facade) {
           const sun = document.createElement("span");
-          sun.className = "live-icon";
+          sun.className = "live-icon-sun";
           sun.title = this._t("facade_sun_active");
           sun.textContent = "\u2600";
           fCell.appendChild(document.createTextNode(" "));
@@ -3004,7 +3019,7 @@ class CoverAutomaticPanel extends HTMLElement {
         const tv = tst && tst.state !== "unavailable" && tst.state !== "unknown" ? parseFloat(tst.state) : null;
         tempCell.textContent = tv != null ? tv.toFixed(1) + " \u00B0C" : "\u2013";
         const cm2 = live.comfort_mode;
-        tempCell.style.color = cm2 === "cooling" ? "var(--info-color, #2196f3)" : cm2 === "heating" ? "var(--warning-color, #ff9800)" : "";
+        tempCell.style.color = cm2 === "cooling" ? "var(--info-color, #2196f3)" : cm2 === "heating" ? "#c62828" : "";
         tempCell.style.fontWeight = (cm2 === "cooling" || cm2 === "heating") ? "600" : "";
         tempCell.title = cm2 ? this._t("comfort_" + cm2) : "";
       }
