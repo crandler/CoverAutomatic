@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.32.10 (2026-04-05)
+
+- Fix: position bar fill now green (#4CAF50) with darker track for clear contrast on all themes
+
 ### 1.32.9 (2026-04-05)
 
 - Fix: position bar track more visible (wider, higher contrast, subtle border)
