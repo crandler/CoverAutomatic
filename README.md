@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.32.5 (2026-04-05)
+
+- Fix: hysteresis badge stays inline next to target position bar
+
 ### 1.32.4 (2026-04-05)
 
 - Fix: resume X stays inline with paused badge and timer (no line break)

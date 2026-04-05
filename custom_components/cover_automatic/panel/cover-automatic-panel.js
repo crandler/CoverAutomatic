@@ -914,6 +914,7 @@ const PANEL_STYLES = `
   .hysteresis-badge {
     font-size: 11px;
     margin-left: 4px;
+    vertical-align: middle;
   }
   .live-icon {
     font-size: 12px;
@@ -1897,7 +1898,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const tempTitle = cm ? this._t("comfort_" + cm) : "";
       html += `<td data-live-temp="${this._esc(c.entity_id)}" style="white-space:nowrap;${tempColor ? 'color:' + tempColor + ';font-weight:600' : ''}"${tempTitle ? ' title="' + this._esc(tempTitle) + '"' : ''}>${tempVal != null ? tempVal.toFixed(1) + " °C" : "–"}</td>`;
       html += `<td data-live-current="${this._esc(c.entity_id)}">${this._posBar(currentPos)}</td>`;
-      html += `<td data-live-target="${this._esc(c.entity_id)}">${this._posBar(targetPos)}${infoIcon}</td>`;
+      html += `<td data-live-target="${this._esc(c.entity_id)}" style="white-space:nowrap">${this._posBar(targetPos)}${infoIcon}</td>`;
       html += `<td data-live-rule="${this._esc(c.entity_id)}">${this._esc(ruleName)}</td>`;
       html += `<td data-live-lastchange="${this._esc(c.entity_id)}" style="font-size:12px;color:var(--ca-secondary-text);white-space:nowrap">${lastChange}</td>`;
       html += '</tr>';
