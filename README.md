@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.31.2 (2026-04-05)
+
+- Fix: header split into two rows (title/controls top, sun info bottom-right) for better spacing
+
 ### 1.31.1 (2026-04-05)
 
 - Fix: sun/moon info bar moved into header (right-aligned), all sun/moon icons replaced with SVGs
