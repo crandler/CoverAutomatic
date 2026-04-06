@@ -543,6 +543,7 @@ async def ws_settings_update(
 
     await storage.async_save()
     coordinator.refresh_state_tracking()
+    await coordinator.async_request_refresh()
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 

@@ -88,6 +88,7 @@ def _make_coordinator() -> MagicMock:
     """Create a mock coordinator."""
     coordinator = MagicMock()
     coordinator.refresh_state_tracking = MagicMock()
+    coordinator.async_request_refresh = AsyncMock()
     coordinator.get_active_rules = MagicMock(return_value={})
     coordinator.get_live_cover_data = MagicMock(return_value={})
     coordinator.get_live_facade_data = MagicMock(return_value={})
@@ -993,6 +994,7 @@ class TestWsSettingsUpdate:
         assert storage.weather_entity == "weather.home"
         storage.async_save.assert_awaited_once()
         coordinator.refresh_state_tracking.assert_called_once()
+        coordinator.async_request_refresh.assert_awaited_once()
         conn.send_result.assert_called_once()
 
     @pytest.mark.asyncio

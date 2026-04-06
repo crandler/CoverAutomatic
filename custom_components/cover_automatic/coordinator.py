@@ -915,6 +915,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     if matching_rule_id:
                         active_rules.setdefault(matching_rule_id, []).append(entity_id)
 
+            # Always refresh comfort mode for live display (independent of rules)
+            self.engine._get_comfort_mode(cover)
+
             # Log rule match changes
             prev_rule = self._last_matching_rules.get(entity_id)
             if matching_rule_id != prev_rule:

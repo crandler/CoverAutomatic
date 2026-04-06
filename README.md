@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.34.4 (2026-04-06)
+
+- Fix: stale comfort mode display -- refresh comfort mode every update cycle, not only during sun_on_facade evaluation
+- Fix: settings update now triggers immediate rule re-evaluation
+
 ### 1.34.3 (2026-04-05)
 
 - Fix: time hysteresis badge shown when current position already matches target
