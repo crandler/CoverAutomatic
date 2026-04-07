@@ -87,6 +87,7 @@ def coordinator(mock_hass, mock_storage):
         coord._last_tilt_positions = {}
         coord._tilt_tasks = {}
         coord._last_command_time = {}
+        coord._pending_settle = set()
         coord._pre_lock_states = {}
         coord._wind_protected = False
         coord._hysteresis_info = {}
@@ -1126,6 +1127,144 @@ class TestManualOverrideInApplyCycle:
                 mock_pause.assert_not_called()
 
         mock_hass.services.async_call.assert_not_called()
+
+
+class TestPendingSettleSync:
+    """Tests for post-settle position sync to prevent false overrides."""
+
+    def _make_cover(self):
+        from custom_components.cover_automatic.models import CoverConfig
+        cover = MagicMock(spec=CoverConfig)
+        cover.entity_id = "cover.test"
+        cover.auto_enabled = True
+        cover.pause_duration = 30
+        return cover
+
+    def test_pending_settle_syncs_position_instead_of_override(
+        self, coordinator, mock_storage
+    ) -> None:
+        """First state change after settle syncs position, no pause."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 100  # target
+        coordinator._last_command_time["cover.test"] = 0.0
+        coordinator._pending_settle.add("cover.test")
+
+        # Actuator reports 97% (slight deviation from target 100)
+        new_state = MockState("open", {"current_position": 97})
+
+        with patch.object(coordinator, "pause_cover") as mock_pause:
+            with patch(
+                "custom_components.cover_automatic.coordinator.time_mod"
+            ) as mock_time:
+                mock_time.monotonic.return_value = 9999.0
+                coordinator._handle_cover_state_change(
+                    "cover.test", None, new_state
+                )
+            mock_pause.assert_not_called()
+
+        # Position synced to actual
+        assert coordinator._last_positions["cover.test"] == 97
+        assert "cover.test" not in coordinator._pending_settle
+
+    def test_override_detected_after_settle_sync(
+        self, coordinator, mock_storage
+    ) -> None:
+        """After settle sync, real manual override is still detected."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 97  # synced from settle
+        coordinator._last_command_time["cover.test"] = 0.0
+        # NOT in _pending_settle (already synced)
+
+        # User manually moves to 50%
+        new_state = MockState("open", {"current_position": 50})
+
+        with patch.object(coordinator, "pause_cover") as mock_pause:
+            with patch(
+                "custom_components.cover_automatic.coordinator.time_mod"
+            ) as mock_time:
+                mock_time.monotonic.return_value = 9999.0
+                coordinator._handle_cover_state_change(
+                    "cover.test", None, new_state
+                )
+            mock_pause.assert_called_once_with(cover)
+
+    @pytest.mark.asyncio
+    async def test_apply_cycle_clears_pending_settle(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Apply cycle syncs position for pending settle covers."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 100
+        coordinator._last_command_time["cover.test"] = 0.0
+        coordinator._pending_settle.add("cover.test")
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 100,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "inverted": False,
+        }
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 97}
+        )
+
+        with patch(
+            "custom_components.cover_automatic.coordinator.time_mod"
+        ) as mock_time:
+            mock_time.monotonic.return_value = 9999.0
+            with patch.object(coordinator, "pause_cover") as mock_pause:
+                await coordinator.async_apply_positions()
+                mock_pause.assert_not_called()
+
+        assert coordinator._last_positions["cover.test"] == 97
+        assert "cover.test" not in coordinator._pending_settle
+
+
+class TestPauseExpirySyncsPosition:
+    """Tests for position sync on pause expiry in _sync_cover_statuses."""
+
+    def test_pause_expiry_syncs_last_positions(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Expired pause syncs _last_positions to prevent false re-override."""
+        coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
+        coordinator._last_positions["cover.test"] = 40  # old value
+        mock_storage._data = {
+            "covers": {
+                "cover.test": {
+                    "auto_enabled": True,
+                    "status": "paused",
+                    "pause_until": 1000.0,  # expired
+                    "lock_sensor": None,
+                    "vent_sensor": None,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = mock_storage._data["covers"]["cover.test"]
+
+        # Cover is actually at 100%
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 100}
+        )
+
+        with patch("homeassistant.util.dt.now") as mock_now:
+            mock_now.return_value.timestamp.return_value = 2000.0  # after pause_until
+            coordinator._sync_cover_statuses()
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
+        assert coordinator._last_positions["cover.test"] == 100
 
 
 class TestLockVentTransition:

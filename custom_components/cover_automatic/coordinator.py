@@ -69,6 +69,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_tilt_positions: dict[str, int | None] = {}
         self._tilt_tasks: dict[str, asyncio.Task[None]] = {}
         self._last_command_time: dict[str, float] = {}
+        self._pending_settle: set[str] = set()
         self._pre_lock_states: dict[str, CoverStatus] = {}
         self._wind_protected: bool = False
         self._hysteresis_info: dict[str, str | None] = {}
@@ -680,12 +681,23 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if (time_mod.monotonic() - last_cmd) < SETTLE_TIME:
             return
 
-        expected_position = self._last_positions.get(entity_id)
-
         try:
             current_position = int(new_state.attributes.get("current_position", 0))
         except (ValueError, TypeError):
             return
+
+        # After settle time, sync actual position before override check
+        # (HmIP actuators may not reach exact target position)
+        if entity_id in self._pending_settle:
+            self._pending_settle.discard(entity_id)
+            self._last_positions[entity_id] = current_position
+            _LOGGER.debug(
+                "[%s] Post-settle sync: position %d%%",
+                entity_id, current_position,
+            )
+            return
+
+        expected_position = self._last_positions.get(entity_id)
 
         position_mismatch = (
             expected_position is not None
@@ -822,6 +834,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if pause_until and dt_util.now().timestamp() > pause_until:
                     self._cover_states[entity_id] = CoverStatus.AUTO
                     self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
+                    # Sync expected position to prevent false override after resume
+                    self._update_last_position_from_state(entity_id)
 
     def get_cover_status(self, entity_id: str) -> CoverStatus:
         """Get automation status for a cover (read-only, no side effects)."""
@@ -990,12 +1004,20 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except (ValueError, TypeError):
                 continue
 
+            # After settle time, sync actual position (actuator may not reach exact target)
+            last_cmd_t = self._last_command_time.get(entity_id, 0)
+            if entity_id in self._pending_settle and (time_mod.monotonic() - last_cmd_t) >= SETTLE_TIME:
+                self._pending_settle.discard(entity_id)
+                self._last_positions[entity_id] = current
+                _LOGGER.debug("[%s] Post-settle sync in apply cycle: position %d%%", entity_id, current)
+
             # Detect manual override missed by state-change handler (e.g. during settle time)
             expected = self._last_positions.get(entity_id)
             if (
                 expected is not None
                 and abs(current - expected) > MANUAL_OVERRIDE_TOLERANCE
                 and (time_mod.monotonic() - self._last_command_time.get(entity_id, 0)) >= SETTLE_TIME
+                and entity_id not in self._pending_settle
                 and status == CoverStatus.AUTO
             ):
                 cover = self.storage.covers.get(entity_id)
@@ -1060,6 +1082,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._hysteresis_info[entity_id] = None
                 self._last_positions[entity_id] = target
                 self._last_command_time[entity_id] = time_mod.monotonic()
+                self._pending_settle.add(entity_id)
                 self._log(
                     LOG_EVENT_POSITION, entity_id, f"{current}% -> {target}%",
                     {"from": current, "to": target, "rule_id": cover_data.get("matching_rule_id")},

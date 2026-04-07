@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.34.5 (2026-04-07)
+
+- Fix: false manual override detection after own position commands (pending settle sync)
+- Fix: pause expiry now syncs expected position to prevent immediate re-pause
+
 ### 1.34.4 (2026-04-06)
 
 - Fix: stale comfort mode display -- refresh comfort mode every update cycle, not only during sun_on_facade evaluation
