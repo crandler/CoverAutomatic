@@ -102,6 +102,7 @@ def coordinator(mock_hass, mock_storage):
         coord._wind_protected = False
         coord._hysteresis_info = {}
         coord._last_matching_rules = {}
+        coord._startup_time = 0.0
         coord._startup_skip = False
         coord.log_storage = None
         coord.data = {}
@@ -156,23 +157,49 @@ class TestStartupSkipIntegration:
 
     @pytest.mark.asyncio
     async def test_first_refresh_skips_position_apply(self, coordinator, mock_hass, mock_storage) -> None:
-        """First refresh should evaluate rules but not move covers."""
+        """First refresh during grace period should evaluate rules but not move covers."""
         self._setup(coordinator, mock_hass, mock_storage)
         coordinator._startup_skip = True
 
-        result = await coordinator._async_update_data()
+        with patch(
+            "custom_components.cover_automatic.coordinator.time_mod"
+        ) as mock_time:
+            # 10s after startup -> within grace period
+            mock_time.monotonic.return_value = coordinator._startup_time + 10
+            result = await coordinator._async_update_data()
 
         assert result["covers"]["cover.test"]["target_position"] == 50
         mock_hass.services.async_call.assert_not_called()
         assert coordinator._startup_skip is False
 
     @pytest.mark.asyncio
-    async def test_second_refresh_applies_positions(self, coordinator, mock_hass, mock_storage) -> None:
-        """Second refresh should apply positions normally."""
+    async def test_grace_period_still_skips(self, coordinator, mock_hass, mock_storage) -> None:
+        """Refresh within grace period (but after first) still skips."""
         self._setup(coordinator, mock_hass, mock_storage)
         coordinator._startup_skip = False
 
-        await coordinator._async_update_data()
+        with patch(
+            "custom_components.cover_automatic.coordinator.time_mod"
+        ) as mock_time:
+            # 90s after startup -> still within 120s grace period
+            mock_time.monotonic.return_value = coordinator._startup_time + 90
+            await coordinator._async_update_data()
+
+        mock_hass.services.async_call.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_after_grace_period_applies_positions(self, coordinator, mock_hass, mock_storage) -> None:
+        """Refresh after grace period should apply positions normally."""
+        self._setup(coordinator, mock_hass, mock_storage)
+        coordinator._startup_skip = False
+
+        with patch(
+            "custom_components.cover_automatic.coordinator.time_mod"
+        ) as mock_time:
+            mock_time.monotonic.return_value = coordinator._startup_time + 200
+            with patch("homeassistant.util.dt.now") as mock_now:
+                mock_now.return_value.timestamp.return_value = 1000
+                await coordinator._async_update_data()
 
         mock_hass.services.async_call.assert_called()
 

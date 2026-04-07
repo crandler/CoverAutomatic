@@ -155,8 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
-### 1.34.5 (2026-04-07)
+### 1.35.0 (2026-04-07)
 
+- Feat: startup grace period (120s) prevents wrong cover movements from incomplete sensor data after HA restart
+- Feat: initialize cover positions from HA state on startup for correct override detection
 - Fix: false manual override detection after own position commands (pending settle sync)
 - Fix: pause expiry now syncs expected position to prevent immediate re-pause
 

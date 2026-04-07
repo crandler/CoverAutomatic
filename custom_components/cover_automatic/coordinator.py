@@ -41,6 +41,9 @@ MANUAL_OVERRIDE_TOLERANCE = 2
 # Seconds to ignore position changes after our own commands
 SETTLE_TIME = 30
 
+# Seconds after startup before applying positions (sensor stabilization)
+STARTUP_GRACE_PERIOD = 120
+
 
 class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinate data updates and rule evaluation."""
@@ -74,6 +77,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._wind_protected: bool = False
         self._hysteresis_info: dict[str, str | None] = {}
         self._last_matching_rules: dict[str, str | None] = {}
+        self._startup_time: float = time_mod.monotonic()
         self._startup_skip: bool = True
         self._unsub_update_listener: Any = None
         self.log_storage: ActivityLogStorage | None = None
@@ -957,12 +961,22 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Store result first so async_apply_positions can use it
         self.data = result
 
-        # Skip position application on first refresh after startup to avoid
-        # unnecessary movements caused by incomplete sensor data (e.g. sun.sun
-        # not yet available), which would trigger low-priority fallback rules.
-        if self._startup_skip:
-            self._startup_skip = False
-            _LOGGER.debug("Startup: skipping position application on first refresh")
+        # Skip position application during startup grace period to avoid
+        # unnecessary movements caused by incomplete sensor data (e.g. sun.sun,
+        # temperature sensors not yet stable), which would trigger low-priority
+        # fallback rules instead of the correct shading rules.
+        startup_elapsed = time_mod.monotonic() - self._startup_time
+        if startup_elapsed < STARTUP_GRACE_PERIOD:
+            if self._startup_skip:
+                self._startup_skip = False
+                # Initialize _last_positions from current HA state
+                for eid in self.storage._data.get("covers", {}):
+                    self._update_last_position_from_state(eid)
+                _LOGGER.debug("Startup: initialized positions from HA state")
+            _LOGGER.debug(
+                "Startup grace period: skipping position application (%ds remaining)",
+                int(STARTUP_GRACE_PERIOD - startup_elapsed),
+            )
             return result
 
         # Apply calculated positions to covers
