@@ -219,6 +219,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self.storage.wind_sensor:
             entities_to_track.add(self.storage.wind_sensor)
 
+        if self.storage.solar_sensor:
+            entities_to_track.add(self.storage.solar_sensor)
+
         for rule_data in self.storage._data.get("rules", {}).values():
             for condition in rule_data.get("conditions", []):
                 if sensor := condition.get("params", {}).get("sensor"):
