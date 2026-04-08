@@ -155,6 +155,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.36.0 (2026-04-08)
+
+- Feat: preemptive shading -- configurable solar intensity sensor + threshold for early shading within comfort zone
+- Feat: sun_on_facade shades in NEUTRAL comfort mode when solar intensity exceeds threshold (HEATING still blocks)
+- Feat: weather entity state displayed in header info bar alongside outdoor temperature
+
 ### 1.35.0 (2026-04-07)
 
 - Feat: startup grace period (120s) prevents wrong cover movements from incomplete sensor data after HA restart
