@@ -44,6 +44,7 @@ _SETTINGS_FIELDS = (
     "workday_sensor",
     "wind_sensor", "wind_speed_threshold", "wind_speed_hysteresis",
     "command_stagger",
+    "solar_sensor", "solar_threshold",
 )
 
 # Umlaut replacement map
@@ -117,6 +118,8 @@ def _build_config_response(
             "wind_speed_threshold": storage.wind_speed_threshold,
             "wind_speed_hysteresis": storage.wind_speed_hysteresis,
             "command_stagger": storage.command_stagger,
+            "solar_sensor": storage.solar_sensor,
+            "solar_threshold": storage.solar_threshold,
         },
     }
     if hass:
@@ -812,6 +815,8 @@ def async_setup_api(
                 vol.Optional("wind_speed_threshold"): vol.All(vol.Coerce(float), vol.Range(min=0)),
                 vol.Optional("wind_speed_hysteresis"): vol.All(vol.Coerce(float), vol.Range(min=0)),
                 vol.Optional("command_stagger"): vol.All(vol.Coerce(float), vol.Range(min=0, max=2.0)),
+                vol.Optional("solar_sensor"): vol.Any(str, None),
+                vol.Optional("solar_threshold"): vol.All(vol.Coerce(float), vol.Range(min=0)),
             },
         ),
         (
