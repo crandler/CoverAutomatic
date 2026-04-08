@@ -219,6 +219,38 @@ class TestStorageProperties:
         assert storage.wind_speed_threshold == 0.0
         assert storage.wind_speed_hysteresis == 0.0
 
+    def test_solar_sensor_default_none(self, storage) -> None:
+        """Test solar_sensor defaults to None."""
+        storage._data = {}
+        assert storage.solar_sensor is None
+
+    def test_solar_sensor_setter(self, storage) -> None:
+        """Test setting solar_sensor to a valid entity id."""
+        storage.solar_sensor = "sensor.pv_power"
+        assert storage._data["solar_sensor"] == "sensor.pv_power"
+
+    def test_solar_sensor_setter_none(self, storage) -> None:
+        """Test clearing solar_sensor back to None."""
+        storage.solar_sensor = "sensor.pv_power"
+        storage.solar_sensor = None
+        assert storage._data["solar_sensor"] is None
+
+    def test_solar_threshold_default_zero(self, storage) -> None:
+        """Test solar_threshold defaults to 0.0."""
+        storage._data = {}
+        assert storage.solar_threshold == 0.0
+
+    def test_solar_threshold_setter(self, storage) -> None:
+        """Test setting solar_threshold to a float value."""
+        storage.solar_threshold = 5000.0
+        assert storage._data["solar_threshold"] == 5000.0
+
+    def test_solar_threshold_coerces_to_float(self, storage) -> None:
+        """Test solar_threshold coerces int to float."""
+        storage.solar_threshold = 3000
+        assert storage._data["solar_threshold"] == 3000.0
+        assert isinstance(storage._data["solar_threshold"], float)
+
 
 class TestStorageCRUD:
     """Tests for CRUD operations."""

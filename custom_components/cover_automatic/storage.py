@@ -69,6 +69,8 @@ class CoverAutomaticStorage:
                 "wind_sensor": None,
                 "wind_speed_threshold": 0.0,
                 "wind_speed_hysteresis": 0.0,
+                "solar_sensor": None,
+                "solar_threshold": 0.0,
             }
         else:
             self._data = data
@@ -322,6 +324,26 @@ class CoverAutomaticStorage:
         self._data["wind_speed_hysteresis"] = float(value)
 
     @property
+    def solar_sensor(self) -> str | None:
+        """Get solar intensity sensor entity id."""
+        return self._data.get("solar_sensor")
+
+    @solar_sensor.setter
+    def solar_sensor(self, value: str | None) -> None:
+        """Set solar intensity sensor entity id."""
+        self._data["solar_sensor"] = value
+
+    @property
+    def solar_threshold(self) -> float:
+        """Get solar intensity threshold for preemptive shading."""
+        return self._data.get("solar_threshold", 0.0)
+
+    @solar_threshold.setter
+    def solar_threshold(self, value: float) -> None:
+        """Set solar intensity threshold for preemptive shading."""
+        self._data["solar_threshold"] = float(value)
+
+    @property
     def house_rotation(self) -> float:
         """Get global house rotation offset in degrees."""
         return self._data.get("house_rotation", 0.0)
@@ -504,6 +526,8 @@ class CoverAutomaticStorage:
             "wind_sensor",
             "wind_speed_threshold",
             "wind_speed_hysteresis",
+            "solar_sensor",
+            "solar_threshold",
             "command_stagger",
         )
         for gkey in _global_keys:
