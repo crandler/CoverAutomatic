@@ -197,6 +197,11 @@ const I18N = {
     settings_wind_sensor: "Wind speed sensor",
     settings_wind_threshold: "Threshold (activation)",
     settings_wind_hysteresis: "Hysteresis (deactivation difference)",
+    settings_section_solar: "Preemptive shading",
+    settings_solar_hint: "Sensor for solar radiation (e.g. PV power in W, solar irradiance in W/m\u00B2, or illuminance in lux). When the threshold is exceeded, shading starts within the comfort zone.",
+    settings_solar_sensor: "Solar intensity sensor",
+    settings_solar_threshold: "Solar intensity threshold",
+    settings_solar_threshold_hint: "Shading starts within the comfort zone when this value is exceeded.",
     status_auto: "Auto",
     status_paused: "Paused",
     status_manual: "Manual",
@@ -412,6 +417,11 @@ const I18N = {
     settings_wind_sensor: "Windgeschwindigkeits-Sensor",
     settings_wind_threshold: "Schwellwert (Aktivierung)",
     settings_wind_hysteresis: "Hysterese (Deaktivierungsdifferenz)",
+    settings_section_solar: "Pr\u00E4ventive Beschattung",
+    settings_solar_hint: "Sensor f\u00FCr Sonneneinstrahlung (z.\u00A0B. PV-Leistung in W, Solarstrahlung in W/m\u00B2 oder Helligkeit in Lux). Bei \u00DCberschreitung des Schwellwerts wird bereits innerhalb der Komfortzone beschattet.",
+    settings_solar_sensor: "Solarintensit\u00E4ts-Sensor",
+    settings_solar_threshold: "Solarintensit\u00E4ts-Schwellwert",
+    settings_solar_threshold_hint: "Beschattung beginnt innerhalb der Komfortzone, wenn dieser Wert \u00FCberschritten wird.",
     status_auto: "Auto",
     status_paused: "Pausiert",
     status_manual: "Manuell",
@@ -1752,7 +1762,10 @@ class CoverAutomaticPanel extends HTMLElement {
     const tempVal = tempState && tempState.state !== "unavailable" && tempState.state !== "unknown" ? parseFloat(tempState.state) : null;
     const az = sunState && sunState.attributes ? sunState.attributes.azimuth : null;
     const el = sunState && sunState.attributes ? sunState.attributes.elevation : null;
-    if (az == null && el == null && tempVal == null) return '';
+    const weatherEntity = settings.weather_entity;
+    const weatherState = weatherEntity && this._hass && this._hass.states ? this._hass.states[weatherEntity] : null;
+    const weatherVal = weatherState && weatherState.state !== "unavailable" && weatherState.state !== "unknown" ? weatherState.state : null;
+    if (az == null && el == null && tempVal == null && weatherVal == null) return '';
     const belowHorizon = el != null && el < 0;
     const icon = belowHorizon
       ? '<svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:-2px"><path d="M12 2a9.9 9.9 0 00-3.24.53A7 7 0 0015 9a7 7 0 01-6.47 6.97A9.98 9.98 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="var(--ca-secondary-text)" opacity="0.5"/></svg>'
@@ -1763,6 +1776,9 @@ class CoverAutomaticPanel extends HTMLElement {
     }
     if (tempVal != null) {
       parts.push(this._t("settings_outdoor_temp_short") + ' ' + tempVal.toFixed(1) + ' \u00B0C');
+    }
+    if (weatherVal != null) {
+      parts.push(weatherVal);
     }
     return '<span style="display:inline-flex;align-items:center;gap:10px;font-size:12px;color:var(--ca-secondary-text)">' + parts.join('<span style="opacity:0.3">\u2502</span>') + '</span>';
   }
@@ -2858,7 +2874,25 @@ class CoverAutomaticPanel extends HTMLElement {
       </div>
     </div>`;
 
-    // Card 5: Automation behavior
+    // Card 5: Preemptive shading (solar intensity)
+    html += `<div class="card">
+      <div class="card-header">${this._sunIconSvg(18)} ${this._t("settings_section_solar")}</div>
+      <div class="card-body">
+        ${hintIntro(this._t("settings_solar_hint"))}
+        <div class="form-group">
+          <label>${this._t("settings_solar_sensor")}</label>
+          ${this._renderEntitySelect("solar_sensor", s.solar_sensor, "sensor")}
+          ${this._renderSensorValue(s.solar_sensor)}
+        </div>
+        <div class="form-group">
+          <label>${this._t("settings_solar_threshold")}</label>
+          <input type="number" step="100" min="0" value="${s.solar_threshold != null ? s.solar_threshold : 0}" data-settings-field="solar_threshold">
+          ${hint(this._t("settings_solar_threshold_hint"))}
+        </div>
+      </div>
+    </div>`;
+
+    // Card 6: Automation behavior
     html += `<div class="card">
       <div class="card-header">${this._lucideIcon("cog")} ${this._t("settings_section_automation")}</div>
       <div class="card-body">
@@ -2911,12 +2945,12 @@ class CoverAutomaticPanel extends HTMLElement {
       </div>
     </div>`;
 
-    // Save bar: scoped to all config cards above (Cards 1-5), before Backup
+    // Save bar: scoped to all config cards above (Cards 1-6), before Backup
     html += `<div class="settings-save-bar">
       <button class="btn btn-primary" data-action="settings-save">${this._t("save")}</button>
     </div>`;
 
-    // Card 6: Backup (not part of settings-save scope)
+    // Card 7: Backup (not part of settings-save scope)
     html += `<div class="card">
       <div class="card-header">${this._lucideIcon("archive")} ${this._t("settings_section_backup")}</div>
       <div class="card-body">
