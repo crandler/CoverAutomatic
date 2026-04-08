@@ -49,6 +49,8 @@ def mock_storage():
     storage.comfort_temp_min = 21.0
     storage.comfort_temp_max = 25.0
     storage.comfort_hysteresis = 1.0
+    storage.solar_sensor = None
+    storage.solar_threshold = 0.0
     return storage
 
 
@@ -869,6 +871,99 @@ class TestSunOnFacadeCondition:
         result = engine._eval_sun_on_facade(condition, test_cover)
 
         assert result is False
+
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_eval_sun_on_facade_preemptive_shading_neutral_solar_above(
+        self, mock_is_sun_on_facade, engine, mock_storage
+    ) -> None:
+        """Test sun_on_facade shades in NEUTRAL mode when solar sensor exceeds threshold."""
+        facade = Facade(id="south", name="South", azimuth_start=135.0, azimuth_end=225.0, direction="south")
+        mock_storage.facades = {"south": facade}
+        mock_is_sun_on_facade.return_value = True
+        mock_storage.solar_sensor = "sensor.pv_power"
+        mock_storage.solar_threshold = 5000.0
+        temp_state = MagicMock()
+        temp_state.state = "23.0"
+        solar_state = MagicMock()
+        solar_state.state = "6000.0"
+        engine.hass.states.get = lambda eid: {"sensor.indoor_temp": temp_state, "sensor.pv_power": solar_state}.get(eid)
+        cover = CoverConfig(entity_id="cover.test", name="Test", facade_id="south")
+        condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
+        assert engine._eval_sun_on_facade(condition, cover) is True
+
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_eval_sun_on_facade_preemptive_shading_neutral_solar_below(
+        self, mock_is_sun_on_facade, engine, mock_storage
+    ) -> None:
+        """Test sun_on_facade does not shade in NEUTRAL mode when solar sensor is below threshold."""
+        facade = Facade(id="south", name="South", azimuth_start=135.0, azimuth_end=225.0, direction="south")
+        mock_storage.facades = {"south": facade}
+        mock_is_sun_on_facade.return_value = True
+        mock_storage.solar_sensor = "sensor.pv_power"
+        mock_storage.solar_threshold = 5000.0
+        temp_state = MagicMock()
+        temp_state.state = "23.0"
+        solar_state = MagicMock()
+        solar_state.state = "2000.0"
+        engine.hass.states.get = lambda eid: {"sensor.indoor_temp": temp_state, "sensor.pv_power": solar_state}.get(eid)
+        cover = CoverConfig(entity_id="cover.test", name="Test", facade_id="south")
+        condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
+        assert engine._eval_sun_on_facade(condition, cover) is False
+
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_eval_sun_on_facade_heating_blocks_even_with_solar_above(
+        self, mock_is_sun_on_facade, engine, mock_storage
+    ) -> None:
+        """Test sun_on_facade does not shade in HEATING mode even when solar sensor exceeds threshold."""
+        facade = Facade(id="south", name="South", azimuth_start=135.0, azimuth_end=225.0, direction="south")
+        mock_storage.facades = {"south": facade}
+        mock_is_sun_on_facade.return_value = True
+        mock_storage.solar_sensor = "sensor.pv_power"
+        mock_storage.solar_threshold = 5000.0
+        temp_state = MagicMock()
+        temp_state.state = "18.0"
+        solar_state = MagicMock()
+        solar_state.state = "8000.0"
+        engine.hass.states.get = lambda eid: {"sensor.indoor_temp": temp_state, "sensor.pv_power": solar_state}.get(eid)
+        cover = CoverConfig(entity_id="cover.test", name="Test", facade_id="south")
+        condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
+        assert engine._eval_sun_on_facade(condition, cover) is False
+
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_eval_sun_on_facade_neutral_no_solar_sensor(
+        self, mock_is_sun_on_facade, engine, mock_storage
+    ) -> None:
+        """Test sun_on_facade does not shade in NEUTRAL mode when no solar sensor is configured."""
+        facade = Facade(id="south", name="South", azimuth_start=135.0, azimuth_end=225.0, direction="south")
+        mock_storage.facades = {"south": facade}
+        mock_is_sun_on_facade.return_value = True
+        mock_storage.solar_sensor = None
+        mock_storage.solar_threshold = 0.0
+        temp_state = MagicMock()
+        temp_state.state = "23.0"
+        engine.hass.states.get = lambda eid: {"sensor.indoor_temp": temp_state}.get(eid)
+        cover = CoverConfig(entity_id="cover.test", name="Test", facade_id="south")
+        condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
+        assert engine._eval_sun_on_facade(condition, cover) is False
+
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_eval_sun_on_facade_neutral_solar_sensor_unavailable(
+        self, mock_is_sun_on_facade, engine, mock_storage
+    ) -> None:
+        """Test sun_on_facade does not shade in NEUTRAL mode when solar sensor is unavailable."""
+        facade = Facade(id="south", name="South", azimuth_start=135.0, azimuth_end=225.0, direction="south")
+        mock_storage.facades = {"south": facade}
+        mock_is_sun_on_facade.return_value = True
+        mock_storage.solar_sensor = "sensor.pv_power"
+        mock_storage.solar_threshold = 5000.0
+        temp_state = MagicMock()
+        temp_state.state = "23.0"
+        solar_state = MagicMock()
+        solar_state.state = "unavailable"
+        engine.hass.states.get = lambda eid: {"sensor.indoor_temp": temp_state, "sensor.pv_power": solar_state}.get(eid)
+        cover = CoverConfig(entity_id="cover.test", name="Test", facade_id="south")
+        condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
+        assert engine._eval_sun_on_facade(condition, cover) is False
 
 
 class TestTimeAfterSunriseCondition:

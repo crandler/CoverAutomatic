@@ -176,23 +176,29 @@ class RuleEngine:
         if not is_sun_on_facade(self.hass, facade):
             return False
 
-        # Auto comfort check: only shade in COOLING mode
+        # Auto comfort check: shade in COOLING, optionally in NEUTRAL with solar trigger
         sensor_id = cover.indoor_temp_sensor or self.storage.indoor_temp_sensor
         if sensor_id:
             comfort_mode = self._get_comfort_mode(cover)
             if comfort_mode is None:
-                # Sensor configured but unavailable -- don't act without data
                 _LOGGER.debug(
                     "[%s] sun_on_facade: sensor unavailable, deferring",
                     cover.entity_id,
                 )
                 return False
-            if comfort_mode != ComfortMode.COOLING:
+            if comfort_mode == ComfortMode.COOLING:
+                return True
+            if comfort_mode == ComfortMode.NEUTRAL and self._check_solar_intensity():
                 _LOGGER.debug(
-                    "[%s] sun_on_facade: skipping shading (%s mode)",
-                    cover.entity_id, comfort_mode.value,
+                    "[%s] sun_on_facade: preemptive shading (solar above threshold)",
+                    cover.entity_id,
                 )
-                return False
+                return True
+            _LOGGER.debug(
+                "[%s] sun_on_facade: skipping shading (%s mode)",
+                cover.entity_id, comfort_mode.value,
+            )
+            return False
 
         return True
 
@@ -249,6 +255,22 @@ class RuleEngine:
             )
         self._last_comfort_mode[cover.entity_id] = mode
         return mode
+
+    def _check_solar_intensity(self) -> bool:
+        """Check if solar intensity exceeds threshold for preemptive shading."""
+        sensor_id = self.storage.solar_sensor
+        if not sensor_id:
+            return False
+        threshold = self.storage.solar_threshold
+        if threshold <= 0:
+            return False
+        state = self.hass.states.get(sensor_id)
+        if state is None or state.state in ("unavailable", "unknown"):
+            return False
+        try:
+            return float(state.state) > threshold
+        except (ValueError, TypeError):
+            return False
 
     def _eval_sun_elevation(self, condition: Condition, *, above: bool) -> bool:
         """Evaluate sun elevation above/below threshold."""
