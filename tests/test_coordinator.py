@@ -1147,12 +1147,13 @@ class TestPendingSettleSync:
         """First state change after settle syncs position, no pause."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
+        mock_storage.get_cover_raw.return_value = {"min_position_change": 5}
         coordinator._cover_states["cover.test"] = CoverStatus.AUTO
         coordinator._last_positions["cover.test"] = 100  # target
         coordinator._last_command_time["cover.test"] = 0.0
         coordinator._pending_settle.add("cover.test")
 
-        # Actuator reports 97% (slight deviation from target 100)
+        # Actuator reports 97% (3% deviation < min_position_change 5 -> settle sync)
         new_state = MockState("open", {"current_position": 97})
 
         with patch.object(coordinator, "pause_cover") as mock_pause:
@@ -2689,3 +2690,147 @@ class TestManualOverrideDuringVenting:
         assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
         # Position synced to actual (60), not stale lock position (100)
         assert coordinator._last_positions["cover.test"] == 60
+
+
+class TestSettleDuringVenting:
+    """Tests for pending_settle during vent moves to prevent false automation."""
+
+    def _make_cover(self):
+        from custom_components.cover_automatic.models import CoverConfig
+        cover = MagicMock(spec=CoverConfig)
+        cover.entity_id = "cover.test"
+        cover.auto_enabled = True
+        cover.pause_duration = 30
+        return cover
+
+    def test_vent_move_sets_pending_settle(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Vent move adds cover to _pending_settle."""
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": "binary_sensor.vent",
+            "vent_position": 30,
+            "inverted": False,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.return_value = MockState("on", {"current_position": 10})
+        mock_hass.async_create_task = MagicMock()
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
+            mock_time.monotonic.return_value = 100.0
+            with patch.object(coordinator, "_cover_val", return_value=30):
+                coordinator._handle_contact_sensor_change(
+                    "binary_sensor.vent", [], ["cover.test"],
+                    MockState("off"), MockState("on"),
+                )
+
+        assert "cover.test" in coordinator._pending_settle
+
+    @pytest.mark.asyncio
+    async def test_apply_skips_cover_during_settle(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Apply cycle skips covers in _pending_settle during settle time."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.VENTING
+        coordinator._last_positions["cover.test"] = 30
+        coordinator._last_command_time["cover.test"] = 9990.0  # recent
+        coordinator._pending_settle.add("cover.test")
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "venting",
+                    "target_position": 20,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "vent_position": 30,
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "inverted": False,
+        }
+        # User manually moved to 80% during settle
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 80})
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
+            mock_time.monotonic.return_value = 9995.0  # within settle
+            await coordinator.async_apply_positions()
+
+        # No command sent -- cover skipped during settle
+        mock_hass.services.async_call.assert_not_called()
+        # Cover stays at user's position, not moved back
+        assert "cover.test" in coordinator._pending_settle
+
+    @pytest.mark.asyncio
+    async def test_apply_detects_override_after_settle(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """After settle, large deviation triggers override detection."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.VENTING
+        coordinator._last_positions["cover.test"] = 30  # vent target
+        coordinator._last_command_time["cover.test"] = 9960.0
+        coordinator._pending_settle.add("cover.test")
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "venting",
+                    "target_position": 20,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "vent_position": 30,
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "inverted": False,
+        }
+        # User at 80% (large deviation from vent target 30%)
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 80})
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
+            mock_time.monotonic.return_value = 9995.0  # settle passed (35s)
+            with patch.object(coordinator, "pause_cover") as mock_pause:
+                await coordinator.async_apply_positions()
+                mock_pause.assert_called_once_with(cover)
+
+    @pytest.mark.asyncio
+    async def test_apply_syncs_small_deviation_after_settle(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """After settle, small deviation syncs position (normal actuator settling)."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.VENTING
+        coordinator._last_positions["cover.test"] = 30  # vent target
+        coordinator._last_command_time["cover.test"] = 9960.0
+        coordinator._pending_settle.add("cover.test")
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "venting",
+                    "target_position": 20,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "vent_position": 30,
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "inverted": False,
+        }
+        # Actuator settled at 29% (small deviation, normal)
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 29})
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
+            mock_time.monotonic.return_value = 9995.0  # settle passed
+            await coordinator.async_apply_positions()
+
+        # Position synced to actual, no override
+        assert coordinator._last_positions["cover.test"] == 29
+        assert "cover.test" not in coordinator._pending_settle

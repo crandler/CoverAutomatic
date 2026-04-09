@@ -467,6 +467,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         actual = (100 - vent_pos) if inverted else vent_pos
                         self._last_positions[cover_id] = actual
                         self._last_command_time[cover_id] = time_mod.monotonic()
+                        self._pending_settle.add(cover_id)
                         self.hass.async_create_task(
                             self.hass.services.async_call(
                                 "cover", "set_cover_position",
@@ -504,6 +505,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     actual = (100 - vent_pos) if inverted else vent_pos
                     self._last_positions[cover_id] = actual
                     self._last_command_time[cover_id] = time_mod.monotonic()
+                    self._pending_settle.add(cover_id)
                     self.hass.async_create_task(
                         self.hass.services.async_call(
                             "cover", "set_cover_position",
@@ -701,12 +703,24 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # (HmIP actuators may not reach exact target position)
         if entity_id in self._pending_settle:
             self._pending_settle.discard(entity_id)
-            self._last_positions[entity_id] = current_position
-            _LOGGER.debug(
-                "[%s] Post-settle sync: position %d%%",
-                entity_id, current_position,
+            expected_target = self._last_positions.get(entity_id)
+            cover_raw = self.storage.get_cover_raw(entity_id)
+            settle_threshold = (
+                self._cover_val(cover_raw, "min_position_change") if cover_raw else MANUAL_OVERRIDE_TOLERANCE
             )
-            return
+            if expected_target is not None and abs(current_position - expected_target) > settle_threshold:
+                _LOGGER.debug(
+                    "[%s] Post-settle: large deviation %d%% vs expected %d%%, checking override",
+                    entity_id, current_position, expected_target,
+                )
+                # Fall through to override check below
+            else:
+                self._last_positions[entity_id] = current_position
+                _LOGGER.debug(
+                    "[%s] Post-settle sync: position %d%%",
+                    entity_id, current_position,
+                )
+                return
 
         expected_position = self._last_positions.get(entity_id)
 
@@ -832,6 +846,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         actual = (100 - vent_pos) if inverted else vent_pos
                         self._last_positions[entity_id] = actual
                         self._last_command_time[entity_id] = time_mod.monotonic()
+                        self._pending_settle.add(entity_id)
                         self.hass.async_create_task(
                             self.hass.services.async_call(
                                 "cover", "set_cover_position",
@@ -1041,12 +1056,24 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except (ValueError, TypeError):
                 continue
 
-            # After settle time, sync actual position (actuator may not reach exact target)
+            # Skip covers still settling after our commands (vent/lock moves, rule commands)
             last_cmd_t = self._last_command_time.get(entity_id, 0)
-            if entity_id in self._pending_settle and (time_mod.monotonic() - last_cmd_t) >= SETTLE_TIME:
+            if entity_id in self._pending_settle:
+                if (time_mod.monotonic() - last_cmd_t) < SETTLE_TIME:
+                    continue
+                # Settle time passed: check if position deviated significantly (manual override)
                 self._pending_settle.discard(entity_id)
-                self._last_positions[entity_id] = current
-                _LOGGER.debug("[%s] Post-settle sync in apply cycle: position %d%%", entity_id, current)
+                expected_target = self._last_positions.get(entity_id)
+                settle_threshold = self._cover_val(cover_raw, "min_position_change")
+                if expected_target is not None and abs(current - expected_target) > settle_threshold:
+                    _LOGGER.debug(
+                        "[%s] Post-settle: large deviation %d%% vs expected %d%%",
+                        entity_id, current, expected_target,
+                    )
+                    # Don't sync -- let override check below detect the manual move
+                else:
+                    self._last_positions[entity_id] = current
+                    _LOGGER.debug("[%s] Post-settle sync: position %d%%", entity_id, current)
 
             # Detect manual override missed by state-change handler (e.g. during settle time)
             expected = self._last_positions.get(entity_id)

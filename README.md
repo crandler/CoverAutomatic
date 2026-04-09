@@ -155,6 +155,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.39.0 (2026-04-09)
+
+- Fix: manual override during VENTING not detected within settle time (cover was pushed back instead of pausing)
+- Feat: vent/lock-to-vent moves now use _pending_settle mechanism for proper settle handling
+- Feat: post-settle sync uses min_position_change threshold to distinguish actuator settling from manual overrides
+- Feat: apply cycle skips covers during settle time to prevent overriding manual positions
+
 ### 1.38.3 (2026-04-09)
 
 - Fix: resume_cover restores VENTING (not AUTO) when vent sensor is still open
