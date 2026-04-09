@@ -514,6 +514,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         "[%s] Vent sensor open -> VENTING (at %d%%, min %d%%)",
                         cover_id, current or 0, vent_pos,
                     )
+                    self._update_last_position_from_state(cover_id)
                 self._cover_states[cover_id] = CoverStatus.VENTING
                 self.storage.update_cover_status(cover_id, CoverStatus.VENTING.value, None)
                 if self.data is not None:
@@ -831,6 +832,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                                 blocking=False,
                             )
                         )
+                    else:
+                        self._update_last_position_from_state(entity_id)
                     self._cover_states[entity_id] = CoverStatus.VENTING
                     self.storage.update_cover_status(entity_id, CoverStatus.VENTING.value, None)
                 continue
