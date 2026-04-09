@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.38.3 (2026-04-09)
+
+- Fix: resume_cover restores VENTING (not AUTO) when vent sensor is still open
+- Fix: lock-to-vent transition syncs _last_positions when no move needed (prevents false override after manual move during LOCKED)
+
 ### 1.38.2 (2026-04-09)
 
 - Fix: sync _last_positions when entering VENTING without move (prevents false override loop after PAUSED -> VENTING transition)

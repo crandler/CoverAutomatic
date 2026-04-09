@@ -2612,3 +2612,80 @@ class TestManualOverrideDuringVenting:
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
         assert coordinator._last_positions["cover.test"] == 80
+
+    def test_resume_during_venting_restores_venting(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Resume while vent sensor open transitions to VENTING, not AUTO."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
+
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": "binary_sensor.vent",
+            "vent_position": 30,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 80})
+
+        with patch.object(coordinator, "_is_sensor_open", side_effect=lambda raw, key: key == "vent_sensor"):
+            coordinator.resume_cover("cover.test")
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
+        mock_storage.update_cover_status.assert_called_with(
+            "cover.test", CoverStatus.VENTING.value, None
+        )
+
+    def test_resume_without_vent_restores_auto(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Resume without vent sensor open transitions to AUTO."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
+
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": "binary_sensor.vent",
+            "vent_position": 30,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 80})
+
+        with patch.object(coordinator, "_is_sensor_open", return_value=False):
+            coordinator.resume_cover("cover.test")
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
+
+    def test_lock_to_vent_syncs_positions_when_no_move(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Lock-to-vent transition syncs _last_positions when cover already above vent_min."""
+        cover_raw = {
+            "lock_sensor": "binary_sensor.lock",
+            "vent_sensor": "binary_sensor.vent",
+            "vent_position": 30,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
+        coordinator._pre_lock_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 100  # stale lock position
+
+        # Cover at 60% (user moved during LOCKED, above vent_min)
+        mock_hass.states.get.return_value = MockState("on", {"current_position": 60})
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod"):
+            with patch.object(coordinator, "_cover_val", return_value=30):
+                with patch.object(coordinator, "_get_current_position", return_value=60):
+                    coordinator._handle_contact_sensor_change(
+                        "binary_sensor.lock",
+                        ["cover.test"],
+                        [],
+                        MockState("on"),
+                        MockState("off"),
+                    )
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
+        # Position synced to actual (60), not stale lock position (100)
+        assert coordinator._last_positions["cover.test"] == 60

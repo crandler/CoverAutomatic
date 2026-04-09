@@ -474,6 +474,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                                 blocking=False,
                             )
                         )
+                    else:
+                        self._update_last_position_from_state(cover_id)
                     self._pre_lock_states.pop(cover_id, None)
                     self._cover_states[cover_id] = CoverStatus.VENTING
                     self.storage.update_cover_status(cover_id, CoverStatus.VENTING.value, None)
@@ -762,8 +764,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if self._cover_states.get(entity_id) == CoverStatus.LOCKED:
                 if self._is_sensor_open(cover_raw, "lock_sensor") or self._is_sensor_open(cover_raw, "vent_sensor"):
                     return
-            self._cover_states[entity_id] = CoverStatus.AUTO
-            self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
+            # Resume to VENTING if vent sensor is still open
+            if self._is_sensor_open(cover_raw, "vent_sensor"):
+                self._cover_states[entity_id] = CoverStatus.VENTING
+                self.storage.update_cover_status(entity_id, CoverStatus.VENTING.value, None)
+            else:
+                self._cover_states[entity_id] = CoverStatus.AUTO
+                self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
             # Sync expected position to current to prevent immediate re-pause
             self._update_last_position_from_state(entity_id)
             if self.data is not None:
