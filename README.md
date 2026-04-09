@@ -155,6 +155,11 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.38.0 (2026-04-09)
+
+- Fix: manual overrides during VENTING status are now detected and respected (cover pauses instead of being reset)
+- Fix: pause timer runs to completion while vent sensor is open, then resumes VENTING
+
 ### 1.37.0 (2026-04-09)
 
 - Feat: solar sensor value displayed in header info bar with threshold indicator (orange highlight + arrow when exceeded)

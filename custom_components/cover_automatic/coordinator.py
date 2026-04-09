@@ -725,7 +725,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     pass
 
         if position_mismatch or tilt_mismatch:
-            if cover.auto_enabled and self._cover_states.get(entity_id) == CoverStatus.AUTO:
+            if cover.auto_enabled and self._cover_states.get(entity_id) in (CoverStatus.AUTO, CoverStatus.VENTING):
                 _LOGGER.info(
                     "[%s] Manual override -> PAUSED (expected pos %s, got %s, expected tilt %s)",
                     entity_id,
@@ -806,7 +806,16 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Check vent sensor state - also above auto_enabled
             if self._is_sensor_open(cover_raw, "vent_sensor"):
-                if self._cover_states.get(entity_id) != CoverStatus.VENTING:
+                current_status = self._cover_states.get(entity_id, CoverStatus.AUTO)
+                # Respect PAUSED during venting (manual override)
+                if current_status == CoverStatus.PAUSED:
+                    pause_until = cover_raw.get("pause_until")
+                    if pause_until and dt_util.now().timestamp() > pause_until:
+                        # Pause expired -> back to VENTING
+                        self._cover_states[entity_id] = CoverStatus.VENTING
+                        self.storage.update_cover_status(entity_id, CoverStatus.VENTING.value, None)
+                        self._update_last_position_from_state(entity_id)
+                elif current_status != CoverStatus.VENTING:
                     vent_pos = self._cover_val(cover_raw, "vent_position")
                     current = self._get_current_position(entity_id)
                     if current is not None and current < vent_pos:
@@ -1035,7 +1044,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 and abs(current - expected) > MANUAL_OVERRIDE_TOLERANCE
                 and (time_mod.monotonic() - self._last_command_time.get(entity_id, 0)) >= SETTLE_TIME
                 and entity_id not in self._pending_settle
-                and status == CoverStatus.AUTO
+                and status in (CoverStatus.AUTO, CoverStatus.VENTING)
             ):
                 cover = self.storage.covers.get(entity_id)
                 if cover and cover.auto_enabled:

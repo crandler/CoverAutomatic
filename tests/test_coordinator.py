@@ -2407,3 +2407,120 @@ class TestCommandStagger:
             mock_sleep.assert_any_call(0.2)
 
         assert mock_hass.services.async_call.call_count == 3
+
+
+class TestManualOverrideDuringVenting:
+    """Tests for manual override detection during VENTING status."""
+
+    def _make_cover(self):
+        from custom_components.cover_automatic.models import CoverConfig
+        cover = MagicMock(spec=CoverConfig)
+        cover.entity_id = "cover.test"
+        cover.auto_enabled = True
+        cover.pause_duration = 30
+        return cover
+
+    def test_state_change_override_during_venting(self, coordinator, mock_storage) -> None:
+        """Position mismatch during VENTING triggers pause."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.VENTING
+        coordinator._last_positions["cover.test"] = 30
+        coordinator._last_command_time["cover.test"] = 0.0
+
+        new_state = MockState("open", {"current_position": 80})
+
+        with patch.object(coordinator, "pause_cover") as mock_pause:
+            with patch(
+                "custom_components.cover_automatic.coordinator.time_mod"
+            ) as mock_time:
+                mock_time.monotonic.return_value = 9999.0
+                coordinator._handle_cover_state_change("cover.test", None, new_state)
+            mock_pause.assert_called_once_with(cover)
+
+    @pytest.mark.asyncio
+    async def test_apply_cycle_override_during_venting(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Position deviation during VENTING triggers pause in apply cycle."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.VENTING
+        coordinator._last_positions["cover.test"] = 30
+        coordinator._last_command_time["cover.test"] = 0.0
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "venting",
+                    "target_position": 30,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "vent_position": 30,
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "inverted": False,
+        }
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 80}
+        )
+
+        with patch(
+            "custom_components.cover_automatic.coordinator.time_mod"
+        ) as mock_time:
+            mock_time.monotonic.return_value = 9999.0
+            with patch.object(coordinator, "pause_cover") as mock_pause:
+                await coordinator.async_apply_positions()
+                mock_pause.assert_called_once_with(cover)
+
+    def test_sync_respects_paused_during_venting(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Vent sensor open + PAUSED status keeps PAUSED (pause not expired)."""
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": "binary_sensor.vent",
+            "vent_position": 30,
+            "auto_enabled": True,
+            "pause_until": 99999999999.0,  # far future
+        }
+        mock_storage._data = {"covers": {"cover.test": cover_raw}}
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.return_value = MockState("on", {"current_position": 80})
+
+        coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
+        coordinator._wind_protected = False
+
+        with patch.object(coordinator, "_is_sensor_open", side_effect=lambda raw, key: key == "vent_sensor"):
+            with patch.object(coordinator, "_cover_val", return_value=30):
+                coordinator._sync_cover_statuses()
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.PAUSED
+
+    def test_sync_paused_expires_back_to_venting(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Vent sensor open + PAUSED expired -> back to VENTING."""
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": "binary_sensor.vent",
+            "vent_position": 30,
+            "auto_enabled": True,
+            "pause_until": 1.0,  # expired
+        }
+        mock_storage._data = {"covers": {"cover.test": cover_raw}}
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.return_value = MockState("on", {"current_position": 80})
+
+        coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
+        coordinator._wind_protected = False
+
+        with patch.object(coordinator, "_is_sensor_open", side_effect=lambda raw, key: key == "vent_sensor"):
+            with patch.object(coordinator, "_cover_val", return_value=30):
+                coordinator._sync_cover_statuses()
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
+        mock_storage.update_cover_status.assert_called_with(
+            "cover.test", CoverStatus.VENTING.value, None
+        )
