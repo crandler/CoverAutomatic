@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.37.0 (2026-04-09)
+
+- Feat: solar sensor value displayed in header info bar with threshold indicator (orange highlight + arrow when exceeded)
+
 ### 1.36.0 (2026-04-08)
 
 - Feat: preemptive shading -- configurable solar intensity sensor + threshold for early shading within comfort zone

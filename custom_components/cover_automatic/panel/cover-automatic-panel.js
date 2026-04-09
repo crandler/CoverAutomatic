@@ -202,6 +202,7 @@ const I18N = {
     settings_solar_sensor: "Solar intensity sensor",
     settings_solar_threshold: "Solar intensity threshold",
     settings_solar_threshold_hint: "Shading starts within the comfort zone when this value is exceeded.",
+    settings_solar_short: "Solar:",
     status_auto: "Auto",
     status_paused: "Paused",
     status_manual: "Manual",
@@ -422,6 +423,7 @@ const I18N = {
     settings_solar_sensor: "Solarintensit\u00E4ts-Sensor",
     settings_solar_threshold: "Solarintensit\u00E4ts-Schwellwert",
     settings_solar_threshold_hint: "Beschattung beginnt innerhalb der Komfortzone, wenn dieser Wert \u00FCberschritten wird.",
+    settings_solar_short: "Solar:",
     status_auto: "Auto",
     status_paused: "Pausiert",
     status_manual: "Manuell",
@@ -1765,7 +1767,10 @@ class CoverAutomaticPanel extends HTMLElement {
     const weatherEntity = settings.weather_entity;
     const weatherState = weatherEntity && this._hass && this._hass.states ? this._hass.states[weatherEntity] : null;
     const weatherVal = weatherState && weatherState.state !== "unavailable" && weatherState.state !== "unknown" ? weatherState.state : null;
-    if (az == null && el == null && tempVal == null && weatherVal == null) return '';
+    const solarEntity = settings.solar_sensor;
+    const solarState = solarEntity && this._hass && this._hass.states ? this._hass.states[solarEntity] : null;
+    const solarVal = solarState && solarState.state !== "unavailable" && solarState.state !== "unknown" ? parseFloat(solarState.state) : null;
+    if (az == null && el == null && tempVal == null && weatherVal == null && solarVal == null) return '';
     const belowHorizon = el != null && el < 0;
     const icon = belowHorizon
       ? '<svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:-2px"><path d="M12 2a9.9 9.9 0 00-3.24.53A7 7 0 0015 9a7 7 0 01-6.47 6.97A9.98 9.98 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="var(--ca-secondary-text)" opacity="0.5"/></svg>'
@@ -1779,6 +1784,13 @@ class CoverAutomaticPanel extends HTMLElement {
     }
     if (weatherVal != null) {
       parts.push(weatherVal);
+    }
+    if (solarVal != null) {
+      const threshold = settings.solar_threshold != null ? settings.solar_threshold : 0;
+      const exceeded = threshold > 0 && solarVal > threshold;
+      const unit = solarState.attributes && solarState.attributes.unit_of_measurement ? ' ' + solarState.attributes.unit_of_measurement : '';
+      const style = exceeded ? 'color:#e67e22;font-weight:600' : '';
+      parts.push('<span' + (style ? ' style="' + style + '"' : '') + '>' + this._t("settings_solar_short") + ' ' + solarVal.toFixed(0) + unit + (exceeded ? ' \u25B2' : '') + '</span>');
     }
     return '<span style="display:inline-flex;align-items:center;gap:10px;font-size:12px;color:var(--ca-secondary-text)">' + parts.join('<span style="opacity:0.3">\u2502</span>') + '</span>';
   }
