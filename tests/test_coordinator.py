@@ -2524,3 +2524,33 @@ class TestManualOverrideDuringVenting:
         mock_storage.update_cover_status.assert_called_with(
             "cover.test", CoverStatus.VENTING.value, None
         )
+
+    def test_vent_sensor_close_cancels_pause(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Vent sensor closing while PAUSED -> immediate AUTO (no stale pause)."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
+
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": "binary_sensor.vent",
+            "vent_position": 30,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 80})
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod"):
+            coordinator._handle_contact_sensor_change(
+                "binary_sensor.vent",
+                [],
+                ["cover.test"],
+                MockState("on"),
+                MockState("off"),
+            )
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
+        mock_storage.update_cover_status.assert_called_with(
+            "cover.test", CoverStatus.AUTO.value, None
+        )

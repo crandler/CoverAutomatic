@@ -518,10 +518,11 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.storage.update_cover_status(cover_id, CoverStatus.VENTING.value, None)
                 if self.data is not None:
                     self.async_set_updated_data(self.data)
-            elif not is_open and current_status == CoverStatus.VENTING:
+            elif not is_open and current_status in (CoverStatus.VENTING, CoverStatus.PAUSED):
                 _LOGGER.info("[%s] Vent sensor closed -> AUTO", cover_id)
                 self._cover_states[cover_id] = CoverStatus.AUTO
                 self.storage.update_cover_status(cover_id, CoverStatus.AUTO.value, None)
+                self._update_last_position_from_state(cover_id)
                 if self.data is not None:
                     self.async_set_updated_data(self.data)
 

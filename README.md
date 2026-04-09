@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.38.1 (2026-04-09)
+
+- Fix: vent sensor closing while paused (from venting override) now immediately restores AUTO instead of leaving stale pause
+
 ### 1.38.0 (2026-04-09)
 
 - Fix: manual overrides during VENTING status are now detected and respected (cover pauses instead of being reset)
