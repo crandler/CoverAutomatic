@@ -155,6 +155,12 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.39.1 (2026-04-09)
+
+- Fix: state-change handler now respects startup grace period (prevents false PAUSED from device reconnection after HA restart)
+- Fix: positions re-synced from HA state at end of grace period (ensures correct tracking after sensor stabilization)
+- Fix: tilt position synced alongside position in all sync paths (post-settle, hysteresis skip, no-move) to prevent false tilt mismatch overrides
+
 ### 1.39.0 (2026-04-09)
 
 - Fix: manual override during VENTING not detected within settle time (cover was pushed back instead of pausing)

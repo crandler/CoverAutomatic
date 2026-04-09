@@ -94,6 +94,7 @@ def coordinator(mock_hass, mock_storage):
         coord._last_matching_rules = {}
         coord._startup_time = -999.0
         coord._startup_skip = False
+        coord._grace_synced = True
         coord.log_storage = None
         coord.data = {}
         coord.logger = MagicMock()
@@ -2834,3 +2835,170 @@ class TestSettleDuringVenting:
         # Position synced to actual, no override
         assert coordinator._last_positions["cover.test"] == 29
         assert "cover.test" not in coordinator._pending_settle
+
+
+class TestStartupGraceOverrideProtection:
+    """Tests for startup grace period blocking false override detection."""
+
+    def test_state_change_ignored_during_grace_period(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """State changes during startup grace period should not trigger override."""
+        from custom_components.cover_automatic.models import CoverConfig
+        cover = MagicMock(spec=CoverConfig)
+        cover.entity_id = "cover.test"
+        cover.auto_enabled = True
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 60
+
+        # Simulate being within startup grace period
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
+            mock_time.monotonic.return_value = coordinator._startup_time + 10
+            coordinator._handle_cover_state_change(
+                "cover.test",
+                MockState("open", {"current_position": 60}),
+                MockState("open", {"current_position": 50}),
+            )
+
+        # Should NOT be paused (grace period protects)
+        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
+
+    def test_state_change_detected_after_grace_period(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """State changes after grace period should trigger override normally."""
+        from custom_components.cover_automatic.models import CoverConfig
+        cover = MagicMock(spec=CoverConfig)
+        cover.entity_id = "cover.test"
+        cover.auto_enabled = True
+        cover.pause_duration = 10
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 60
+        coordinator._startup_time = 0.0
+        coordinator._last_command_time["cover.test"] = 0.0
+
+        # Simulate being past startup grace period and settle time
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
+            mock_time.monotonic.return_value = 200.0
+            coordinator._handle_cover_state_change(
+                "cover.test",
+                MockState("open", {"current_position": 60}),
+                MockState("open", {"current_position": 50}),
+            )
+
+        # Should be paused (10% deviation after grace period)
+        assert coordinator._cover_states["cover.test"] == CoverStatus.PAUSED
+
+
+class TestTiltSyncOnPositionSync:
+    """Tests for tilt position syncing alongside position syncing."""
+
+    def test_post_settle_syncs_tilt_in_state_handler(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Post-settle sync in state handler should also sync tilt."""
+        from custom_components.cover_automatic.models import CoverConfig
+        cover = MagicMock(spec=CoverConfig)
+        cover.entity_id = "cover.test"
+        cover.auto_enabled = True
+        mock_storage.covers = {"cover.test": cover}
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+        }
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 50
+        coordinator._last_tilt_positions["cover.test"] = 30
+        coordinator._pending_settle.add("cover.test")
+        coordinator._last_command_time["cover.test"] = 100.0
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
+            mock_time.monotonic.return_value = 135.0  # past settle
+            coordinator._handle_cover_state_change(
+                "cover.test",
+                MockState("open", {"current_position": 50}),
+                MockState("open", {"current_position": 52, "current_tilt_position": 70}),
+            )
+
+        # Both position and tilt synced
+        assert coordinator._last_positions["cover.test"] == 52
+        assert coordinator._last_tilt_positions["cover.test"] == 70
+        # Not paused (small deviation within settle threshold)
+        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
+
+    @pytest.mark.asyncio
+    async def test_hysteresis_skip_syncs_tilt(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Hysteresis skip should sync tilt to prevent false tilt override."""
+        from custom_components.cover_automatic.models import CoverConfig
+        cover = MagicMock(spec=CoverConfig)
+        cover.entity_id = "cover.test"
+        cover.auto_enabled = True
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 50
+        coordinator._last_tilt_positions["cover.test"] = 30
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 52,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "inverted": False,
+        }
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 50, "current_tilt_position": 70}
+        )
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
+            mock_time.monotonic.return_value = 9999.0
+            await coordinator.async_apply_positions()
+
+        # Position stayed (hysteresis skip), but tilt was synced
+        assert coordinator._last_positions["cover.test"] == 50
+        assert coordinator._last_tilt_positions["cover.test"] == 70
+
+    @pytest.mark.asyncio
+    async def test_no_move_syncs_tilt(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """No-move sync should also sync tilt."""
+        from custom_components.cover_automatic.models import CoverConfig
+        cover = MagicMock(spec=CoverConfig)
+        cover.entity_id = "cover.test"
+        cover.auto_enabled = True
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 50
+        coordinator._last_tilt_positions["cover.test"] = 30
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 50,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "inverted": False,
+        }
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 50, "current_tilt_position": 80}
+        )
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
+            mock_time.monotonic.return_value = 9999.0
+            await coordinator.async_apply_positions()
+
+        # Position unchanged, tilt synced
+        assert coordinator._last_positions["cover.test"] == 50
+        assert coordinator._last_tilt_positions["cover.test"] == 80

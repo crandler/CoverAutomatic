@@ -104,6 +104,7 @@ def coordinator(mock_hass, mock_storage):
         coord._last_matching_rules = {}
         coord._startup_time = -999.0
         coord._startup_skip = False
+        coord._grace_synced = True
         coord.log_storage = None
         coord.data = {}
         coord.logger = MagicMock()

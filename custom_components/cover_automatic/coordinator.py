@@ -79,6 +79,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_matching_rules: dict[str, str | None] = {}
         self._startup_time: float = time_mod.monotonic()
         self._startup_skip: bool = True
+        self._grace_synced: bool = False
         self._unsub_update_listener: Any = None
         self.log_storage: ActivityLogStorage | None = None
 
@@ -88,6 +89,15 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if val is not None:
             return val
         return getattr(self.storage, key, None)
+
+    def _sync_tilt_from_state(self, entity_id: str, state: Any) -> None:
+        """Sync _last_tilt_positions from cover state attributes."""
+        tilt_val = state.attributes.get("current_tilt_position")
+        if tilt_val is not None:
+            try:
+                self._last_tilt_positions[entity_id] = int(tilt_val)
+            except (ValueError, TypeError):
+                pass
 
     async def async_setup(self) -> None:
         """Set up the coordinator."""
@@ -681,6 +691,11 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if new_state.state in ("unavailable", "unknown"):
             return
 
+        # Ignore during startup grace period (device reconnection can report
+        # positions that differ from HA's persisted state)
+        if (time_mod.monotonic() - self._startup_time) < STARTUP_GRACE_PERIOD:
+            return
+
         # Ignore manual overrides during wind protection
         if self._wind_protected:
             return
@@ -716,6 +731,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 # Fall through to override check below
             else:
                 self._last_positions[entity_id] = current_position
+                self._sync_tilt_from_state(entity_id, new_state)
                 _LOGGER.debug(
                     "[%s] Post-settle sync: position %d%%",
                     entity_id, current_position,
@@ -1017,6 +1033,14 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
             return result
 
+        # Re-sync positions after grace period ends (devices now fully
+        # connected, positions stable -- overwrite stale startup values)
+        if not self._grace_synced:
+            self._grace_synced = True
+            for eid in self.storage._data.get("covers", {}):
+                self._update_last_position_from_state(eid)
+            _LOGGER.info("Grace period ended: re-synced cover positions from HA state")
+
         # Apply calculated positions to covers
         await self.async_apply_positions()
 
@@ -1073,6 +1097,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     # Don't sync -- let override check below detect the manual move
                 else:
                     self._last_positions[entity_id] = current
+                    self._sync_tilt_from_state(entity_id, state)
                     _LOGGER.debug("[%s] Post-settle sync: position %d%%", entity_id, current)
 
             # Detect manual override missed by state-change handler (e.g. during settle time)
@@ -1115,6 +1140,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
                 self._hysteresis_info[entity_id] = "position"
                 self._last_positions[entity_id] = current
+                self._sync_tilt_from_state(entity_id, state)
                 continue
 
             # Check hysteresis: minimum time between changes
@@ -1127,6 +1153,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
                 self._hysteresis_info[entity_id] = "time"
                 self._last_positions[entity_id] = current
+                self._sync_tilt_from_state(entity_id, state)
                 continue
 
             # Determine target tilt (if applicable)
@@ -1162,6 +1189,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 self._hysteresis_info[entity_id] = None
                 self._last_positions[entity_id] = current
+                self._sync_tilt_from_state(entity_id, state)
 
             # Send tilt if changed (after position with delay, or immediately)
             if actual_tilt is not None:
