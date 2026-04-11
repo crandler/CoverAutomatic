@@ -55,5 +55,8 @@ docs/
 *.local.yaml
 *.local.json
 
+# Brand source assets (originals, not deployed)
+CoverAutomatic.png
+
 # Deployment
 deploy.sh
