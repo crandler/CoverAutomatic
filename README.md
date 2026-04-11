@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="custom_components/cover_automatic/brand/logo.png" alt="CoverAutomatic Logo" width="400">
+  <img src="https://raw.githubusercontent.com/crandler/CoverAutomatic/main/custom_components/cover_automatic/brand/logo@2x.png" alt="CoverAutomatic Logo" width="331">
 </p>
 
 <h1 align="center">CoverAutomatic</h1>
@@ -154,6 +154,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 1.11.0
 
 ## Changelog
+
+### 1.39.3 (2026-04-11)
+
+- Chore: README logo uses absolute raw.githubusercontent.com URL and sharper @2x asset
 
 ### 1.39.2 (2026-04-11)
 
