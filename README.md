@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.39.2 (2026-04-11)
+
+- Chore: new brand logo, regenerated all HA brand assets (icon, logo, dark variants in 1x/2x)
+
 ### 1.39.1 (2026-04-09)
 
 - Fix: state-change handler now respects startup grace period (prevents false PAUSED from device reconnection after HA restart)
