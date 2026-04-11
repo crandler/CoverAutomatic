@@ -9,8 +9,8 @@
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/crandler/cover_automatic/issues",
-  "homeassistant": "2025.1.0",
+  "homeassistant": "2026.3.0",
   "requirements": [],
   "single_config_entry": true,
-  "version": "1.39.3"
+  "version": "1.39.4"
 }

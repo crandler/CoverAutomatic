@@ -155,6 +155,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.39.4 (2026-04-11)
+
+- Chore: raise minimum Home Assistant version to 2026.3.0 (brand proxy API, StaticPathConfig, Python 3.14)
+
 ### 1.39.3 (2026-04-11)
 
 - Chore: README logo uses absolute raw.githubusercontent.com URL and sharper @2x asset
