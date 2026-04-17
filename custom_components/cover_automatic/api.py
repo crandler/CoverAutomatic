@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
+from homeassistant.helpers import config_validation as cv
 
 from .const import DOMAIN, FACADE_PRESETS
 from .models import Condition, CoverConfig, Facade, Rule, Scenario
@@ -676,7 +677,7 @@ def async_setup_api(
             f"{DOMAIN}/cover/add",
             ws_cover_add,
             {
-                vol.Required("entity_ids"): [str],
+                vol.Required("entity_ids"): [cv.entity_domain("cover")],
             },
         ),
         (
