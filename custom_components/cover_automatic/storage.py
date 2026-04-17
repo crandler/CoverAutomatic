@@ -454,6 +454,9 @@ class CoverAutomaticStorage:
         if scenario_id in self._data.get("scenarios", {}):
             del self._data["scenarios"][scenario_id]
             self._cache_scenarios = None
+            if self._data.get("active_scenario") == scenario_id:
+                remaining = self._data.get("scenarios", {})
+                self._data["active_scenario"] = next(iter(remaining), "everyday")
             await self.async_save()
 
     def get_raw_data(self) -> dict[str, Any]:

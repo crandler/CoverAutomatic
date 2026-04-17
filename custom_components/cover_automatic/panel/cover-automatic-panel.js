@@ -3358,7 +3358,7 @@ class CoverAutomaticPanel extends HTMLElement {
       case "scenario-delete": this._onScenarioDelete(actionEl.dataset.id); break;
       case "settings-save": this._onSettingsSave(); break;
       case "backup-export": this._onBackupExport(); break;
-      case "backup-import": { const fi = this._shadowRoot.querySelector('[data-action="backup-file"]'); if (fi) fi.click(); break; }
+      case "backup-import": { const fi = this.shadowRoot.querySelector('[data-action="backup-file"]'); if (fi) fi.click(); break; }
       case "backup-file": this._onBackupFileSelected(actionEl); break;
       case "log-filter":
         this._logFilter = actionEl.dataset.filter || null;
@@ -3888,7 +3888,7 @@ class CoverAutomaticPanel extends HTMLElement {
       try {
         const result = await this._ws("cover_automatic/import", { data });
         this._updateConfigFromResult(result);
-        this._showSaved();
+        this._showToast();
         alert(this._t("settings_import_success"));
       } catch (e) {
         console.error(e);

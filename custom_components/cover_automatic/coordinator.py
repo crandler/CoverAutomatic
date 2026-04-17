@@ -1267,5 +1267,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.log_storage.flush_pending_save()
         try:
             await self.storage.async_save()
+            if self.log_storage:
+                await self.log_storage.async_save()
         except Exception:
             _LOGGER.warning("Failed to flush pending save during shutdown")

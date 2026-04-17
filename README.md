@@ -150,9 +150,16 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.39.6
+1.39.7
 
 ## Changelog
+
+### 1.39.7 (2026-04-17)
+
+- Fix: backup-import button was dead -- typo `this._shadowRoot` (should be `shadowRoot`), file picker never opened
+- Fix: silent error after successful backup import -- call to nonexistent `_showSaved()` (now `_showToast()`)
+- Fix: deleting the active scenario left `active_scenario` pointing at a dead ID; storage now falls back to first remaining scenario
+- Fix: log entries from last 2 seconds were lost on HA shutdown -- log storage was cancelled without `async_save()`
 
 ### 1.39.6 (2026-04-17)
 
