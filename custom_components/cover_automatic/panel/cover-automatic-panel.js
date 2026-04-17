@@ -3464,7 +3464,10 @@ class CoverAutomaticPanel extends HTMLElement {
     // Cover input fields (debounced save)
     if (el.matches('[data-action="cover-input"]')) {
       let value = el.value;
-      if (el.type === "number") value = value === "" ? null : Number(value);
+      if (el.type === "number") {
+        const n = value === "" ? NaN : Number(value);
+        value = Number.isFinite(n) ? n : null;
+      }
       if (el.type === "text" && value === "") value = null;
       this._debouncedCoverSave(el.dataset.id, el.dataset.field, value);
       return;
