@@ -171,7 +171,11 @@ class FacadeSunTimeSensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorEn
         try:
             entry_time, exit_time = get_facade_sun_times(self.hass, facade)
         except Exception:
-            _LOGGER.debug("Failed to calculate sun times for facade %s", self._facade_id)
+            _LOGGER.warning(
+                "Failed to calculate sun times for facade %s",
+                self._facade_id,
+                exc_info=True,
+            )
             return None
         return entry_time if self._is_entry else exit_time
 
