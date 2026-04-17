@@ -3444,7 +3444,7 @@ class CoverAutomaticPanel extends HTMLElement {
     if (el.matches('[data-facade-field="direction"]')) {
       const presets = FACADE_PRESETS[el.value];
       if (presets) {
-        const rot = (this._config && this._config.settings) ? (this._config.settings.house_rotation || 0) : 0;
+        const rot = (this._config && this._config.settings && this._config.settings.house_rotation != null) ? this._config.settings.house_rotation : 0;
         const form = el.closest(".inline-form");
         if (form) {
           const startInput = form.querySelector('[data-facade-field="azimuth_start"]');
