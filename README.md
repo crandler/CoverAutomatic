@@ -150,9 +150,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.39.5
+1.39.6
 
 ## Changelog
+
+### 1.39.6 (2026-04-17)
+
+- Fix: falsy-0 patterns discarded legitimate zero values in panel sorting -- rules with priority=0, facades pointing north (azimuth=0), and house-rotation input "0" were treated as missing
+- Chore: remove 10 unused i18n keys from panel translations (en/de)
+- Chore: remove unused constant DEFAULT_COMMAND_STAGGER
 
 ### 1.39.5 (2026-04-14)
 
