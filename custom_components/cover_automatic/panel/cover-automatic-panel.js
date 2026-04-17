@@ -2109,7 +2109,7 @@ class CoverAutomaticPanel extends HTMLElement {
    * ============================================================ */
   _renderFacades() {
     const facades = this._config.facades || {};
-    const entries = Object.values(facades).sort((a, b) => (a.azimuth_start || 0) - (b.azimuth_start || 0));
+    const entries = Object.values(facades).sort((a, b) => (a.azimuth_start ?? 0) - (b.azimuth_start ?? 0));
 
     let html = '<div class="card-grid">';
 
@@ -2276,7 +2276,7 @@ class CoverAutomaticPanel extends HTMLElement {
    * ============================================================ */
   _renderRules() {
     const rules = this._config.rules || {};
-    const sorted = Object.values(rules).sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    const sorted = Object.values(rules).sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
     let html = `<div style="margin-bottom:12px;font-size:12px;color:var(--ca-secondary-text)">${this._t("rule_reorder_hint")}</div>`;
 
@@ -3478,7 +3478,8 @@ class CoverAutomaticPanel extends HTMLElement {
 
     // Live compass update
     if (el.id === "house-rotation-input") {
-      const val = parseFloat(el.value) || 0;
+      const parsed = parseFloat(el.value);
+      const val = Number.isFinite(parsed) ? parsed : 0;
       const svg = this.shadowRoot.querySelector("#compass-svg");
       if (svg && svg.parentElement) {
         svg.parentElement.innerHTML = this._renderCompassSVG(val);
@@ -3534,7 +3535,7 @@ class CoverAutomaticPanel extends HTMLElement {
     const targetId = row.dataset.ruleId;
     if (draggedId && targetId && draggedId !== targetId) {
       const rules = this._config.rules || {};
-      const sorted = Object.values(rules).sort((a, b) => (b.priority || 0) - (a.priority || 0));
+      const sorted = Object.values(rules).sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
       const ids = sorted.map(r => r.id);
       const fromIdx = ids.indexOf(draggedId);
       const toIdx = ids.indexOf(targetId);

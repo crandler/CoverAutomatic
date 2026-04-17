@@ -526,7 +526,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 else:
                     _LOGGER.info(
                         "[%s] Vent sensor open -> VENTING (at %d%%, min %d%%)",
-                        cover_id, current or 0, vent_pos,
+                        cover_id, current if current is not None else 0, vent_pos,
                     )
                     self._update_last_position_from_state(cover_id)
                 self._cover_states[cover_id] = CoverStatus.VENTING
