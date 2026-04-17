@@ -150,9 +150,16 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.39.7
+1.39.8
 
 ## Changelog
+
+### 1.39.8 (2026-04-17)
+
+- Fix: panel number inputs with comma or invalid content now safely resolve to null instead of NaN being sent to backend
+- Fix: target_tilt_position from panel sends null instead of NaN when input is invalid
+- Fix: facade sun time calculation errors are now logged at warning level with traceback instead of silently on debug
+- Fix: cover/add API now rejects non-cover entity IDs (e.g. light.foo) at schema validation time
 
 ### 1.39.7 (2026-04-17)
 
