@@ -3709,7 +3709,10 @@ class CoverAutomaticPanel extends HTMLElement {
     const ttp = (form.querySelector('[data-rule-new-field="target_tilt_position"]') || {}).value;
     try {
       const data = { name: name.trim(), target_position: tp };
-      if (ttp !== "" && ttp != null) data.target_tilt_position = parseInt(ttp, 10);
+      if (ttp !== "" && ttp != null) {
+        const n = parseInt(ttp, 10);
+        if (Number.isFinite(n)) data.target_tilt_position = n;
+      }
       const result = await this._ws("cover_automatic/rule/add", data);
       this._addingRule = false;
       this._updateConfigFromResult(result);
@@ -3914,7 +3917,11 @@ class CoverAutomaticPanel extends HTMLElement {
     const name = nameEl ? nameEl.value.trim() : rule.name;
     const tp = tpEl && tpEl.value !== "" ? parseInt(tpEl.value, 10) : rule.target_position;
     const ttpVal = ttpEl ? ttpEl.value : null;
-    const ttp = (ttpVal !== "" && ttpVal != null) ? parseInt(ttpVal, 10) : null;
+    const ttp = (() => {
+      if (ttpVal === "" || ttpVal == null) return null;
+      const n = parseInt(ttpVal, 10);
+      return Number.isFinite(n) ? n : null;
+    })();
     const op = opEl ? opEl.value : rule.condition_operator;
 
     // Collect selected facades
