@@ -178,6 +178,8 @@ const I18N = {
     settings_min_time_hint: "Minimum seconds between position changes (motor protection). Can be overridden per cover.",
     settings_command_stagger: "Command stagger delay (s)",
     settings_command_stagger_hint: "Delay in seconds between commands when multiple covers move simultaneously. Recommended 0.3-0.5 for radio-based systems (Z-Wave, Zigbee). 0 = no delay.",
+    settings_logbook_enabled: "Write logbook entries",
+    settings_logbook_enabled_hint: "Record cover movements, lock/unlock, pause/resume and wind protection in Home Assistant's logbook.",
     settings_current_value: "Current",
     settings_validation_min_max: "Min must be less than max",
     settings_workday_sensor: "Workday sensor",
@@ -389,6 +391,8 @@ const I18N = {
     settings_min_time_hint: "Mindestabstand in Sekunden zwischen Positionsänderungen (Motorschutz). Kann pro Behang überschrieben werden.",
     settings_command_stagger: "Kommando-Verzögerung (s)",
     settings_command_stagger_hint: "Verzögerung in Sekunden zwischen Kommandos, wenn mehrere Behänge gleichzeitig fahren. Empfohlen 0,3-0,5 für Funksysteme (Z-Wave, Zigbee). 0 = keine Verzögerung.",
+    settings_logbook_enabled: "Logbuch-Einträge schreiben",
+    settings_logbook_enabled_hint: "Bewegungen, Sperren, Pausen und Windschutz im Home-Assistant-Logbuch protokollieren.",
     settings_current_value: "Aktuell",
     settings_validation_min_max: "Min muss kleiner als Max sein",
     settings_workday_sensor: "Arbeitstag-Sensor",
@@ -863,6 +867,13 @@ const PANEL_STYLES = `
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
+  }
+  /* Inline checkbox label (icon + text on one row) */
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
   }
 
   /* Position bar */
@@ -2934,6 +2945,13 @@ class CoverAutomaticPanel extends HTMLElement {
           <input type="number" step="0.1" min="0" max="2" value="${s.command_stagger != null ? s.command_stagger : 0}" data-settings-field="command_stagger">
           ${hint(this._t("settings_command_stagger_hint"))}
         </div>
+        <div class="form-group">
+          <label class="checkbox-row">
+            <input type="checkbox" data-settings-field="logbook_enabled" ${s.logbook_enabled !== false ? "checked" : ""}>
+            <span>${this._t("settings_logbook_enabled")}</span>
+          </label>
+          ${hint(this._t("settings_logbook_enabled_hint"))}
+        </div>
       </div>
     </div>`;
 
@@ -3841,11 +3859,13 @@ class CoverAutomaticPanel extends HTMLElement {
     const data = {};
     this.shadowRoot.querySelectorAll("[data-settings-field]").forEach(input => {
       const field = input.dataset.settingsField;
-      let val = input.value;
-      if (input.type === "number") {
-        val = val === "" ? null : parseFloat(val);
+      let val;
+      if (input.type === "checkbox") {
+        val = input.checked;
+      } else if (input.type === "number") {
+        val = input.value === "" ? null : parseFloat(input.value);
       } else {
-        val = val.trim() || null;
+        val = input.value.trim() || null;
       }
       data[field] = val;
     });

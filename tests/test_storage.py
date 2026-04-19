@@ -251,6 +251,23 @@ class TestStorageProperties:
         assert storage._data["solar_threshold"] == 3000.0
         assert isinstance(storage._data["solar_threshold"], float)
 
+    def test_logbook_enabled_default_true(self, storage) -> None:
+        """Test logbook_enabled defaults to True."""
+        storage._data = {}
+        assert storage.logbook_enabled is True
+
+    def test_logbook_enabled_setter(self, storage) -> None:
+        """Test setting logbook_enabled to False."""
+        storage.logbook_enabled = False
+        assert storage._data["logbook_enabled"] is False
+
+    def test_logbook_enabled_coerces_to_bool(self, storage) -> None:
+        """Test logbook_enabled coerces truthy values to bool."""
+        storage.logbook_enabled = 1
+        assert storage._data["logbook_enabled"] is True
+        storage.logbook_enabled = 0
+        assert storage._data["logbook_enabled"] is False
+
 
 class TestStorageCRUD:
     """Tests for CRUD operations."""
@@ -684,6 +701,7 @@ class TestImportGlobalSettings:
             "house_rotation": 12.5,
             "comfort_hysteresis": 2.0,
             "command_stagger": 0.4,
+            "logbook_enabled": False,
         }
         import_data = {
             "scenarios": {"everyday": {"id": "everyday", "name": "Everyday"}},
@@ -703,6 +721,7 @@ class TestImportGlobalSettings:
         assert storage._data["house_rotation"] == 12.5
         assert storage._data["comfort_hysteresis"] == 2.0
         assert storage._data["command_stagger"] == 0.4
+        assert storage._data["logbook_enabled"] is False
 
     @pytest.mark.asyncio
     async def test_import_overwrites_global_settings_when_present(

@@ -72,6 +72,7 @@ def mock_storage():
     storage.wind_sensor = None
     storage.wind_speed_threshold = 0.0
     storage.wind_speed_hysteresis = 0.0
+    storage.logbook_enabled = True
 
     storage.async_load = AsyncMock()
     storage.async_save = AsyncMock()

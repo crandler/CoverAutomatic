@@ -7,6 +7,7 @@ import time as time_mod
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.components.logbook import async_log_entry
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -304,11 +305,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.info("Wind protection ACTIVATED (%.1f >= %.1f)", wind_speed, threshold)
             self._wind_protected = True
             self._log(LOG_EVENT_WIND, None, f"Activated ({wind_speed:.1f} >= {threshold:.1f})")
+            self._logbook(f"wind protection activated ({wind_speed:.1f} >= {threshold:.1f})")
             self._activate_wind_protection()
         elif self._wind_protected and wind_speed <= threshold - hysteresis:
             _LOGGER.info("Wind protection DEACTIVATED (%.1f <= %.1f)", wind_speed, threshold - hysteresis)
             self._wind_protected = False
             self._log(LOG_EVENT_WIND, None, f"Deactivated ({wind_speed:.1f} <= {threshold - hysteresis:.1f})")
+            self._logbook(f"wind protection deactivated ({wind_speed:.1f} <= {threshold - hysteresis:.1f})")
             self._deactivate_wind_protection()
 
     def _activate_wind_protection(self) -> None:
@@ -613,6 +616,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._cover_states[entity_id] = CoverStatus.LOCKED
         prev_val = self._pre_lock_states.get(entity_id, CoverStatus.AUTO).value
         self._log(LOG_EVENT_STATUS, entity_id, f"{prev_val} -> locked")
+        self._logbook(f"locked at {lock_position}% (window open)", entity_id)
         self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
 
         # Handle inverted covers
@@ -654,6 +658,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         _LOGGER.debug("Unlocking cover %s", entity_id)
         self._log(LOG_EVENT_STATUS, entity_id, "locked -> unlocked")
+        self._logbook("unlocked (window closed)", entity_id)
 
         # Restore previous state if was PAUSED and pause not expired
         previous = self._pre_lock_states.pop(entity_id, CoverStatus.AUTO)
@@ -826,6 +831,11 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.storage.update_cover_status(
             cover.entity_id, CoverStatus.PAUSED.value, pause_until
         )
+        if prev != CoverStatus.PAUSED:
+            self._logbook(
+                f"paused for {duration} min (manual override)",
+                cover.entity_id,
+            )
         if self.data is not None:
             self.async_set_updated_data(self.data)
 
@@ -844,9 +854,11 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if self._is_sensor_open(cover_raw, "vent_sensor"):
                 self._cover_states[entity_id] = CoverStatus.VENTING
                 self.storage.update_cover_status(entity_id, CoverStatus.VENTING.value, None)
+                self._logbook("resumed (venting)", entity_id)
             else:
                 self._cover_states[entity_id] = CoverStatus.AUTO
                 self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
+                self._logbook("resumed", entity_id)
             # Sync expected position to current to prevent immediate re-pause
             self._update_last_position_from_state(entity_id)
             if self.data is not None:
@@ -999,6 +1011,18 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Add an activity log entry if log_storage is available."""
         if self.log_storage:
             self.log_storage.add_entry(event_type, entity_id, message, data)
+
+    def _logbook(self, message: str, entity_id: str | None = None) -> None:
+        """Write an entry to the HA logbook when enabled in settings."""
+        if not self.storage.logbook_enabled:
+            return
+        async_log_entry(
+            self.hass,
+            "Cover Automatic",
+            message,
+            domain=DOMAIN,
+            entity_id=entity_id,
+        )
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Update data and evaluate rules."""
@@ -1223,6 +1247,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._log(
                     LOG_EVENT_POSITION, entity_id, f"{current}% -> {target}%",
                     {"from": current, "to": target, "rule_id": cover_data.get("matching_rule_id")},
+                )
+                rule_id = cover_data.get("matching_rule_id")
+                rule_obj = self.storage.rules.get(rule_id) if rule_id else None
+                rule_suffix = f" (rule: {rule_obj.name})" if rule_obj else ""
+                self._logbook(
+                    f"moved {current}% -> {target}%{rule_suffix}",
+                    entity_id,
                 )
                 await self.hass.services.async_call(
                     "cover",

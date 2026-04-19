@@ -56,6 +56,7 @@ def mock_storage():
     storage.wind_speed_threshold = 0.0
     storage.wind_speed_hysteresis = 0.0
     storage.command_stagger = 0.0
+    storage.logbook_enabled = True
     storage.async_load = AsyncMock()
     storage.async_save = AsyncMock()
     storage.async_add_scenario = AsyncMock()
@@ -3057,3 +3058,46 @@ class TestTiltSyncOnPositionSync:
         # Position unchanged, tilt synced
         assert coordinator._last_positions["cover.test"] == 50
         assert coordinator._last_tilt_positions["cover.test"] == 80
+
+
+class TestLogbookHelper:
+    """Test HA logbook entry helper."""
+
+    def test_logbook_calls_async_log_entry_when_enabled(
+        self, coordinator, mock_storage, mock_hass
+    ) -> None:
+        """_logbook calls async_log_entry when setting is enabled."""
+        mock_storage.logbook_enabled = True
+        with patch(
+            "custom_components.cover_automatic.coordinator.async_log_entry"
+        ) as mock_log:
+            coordinator._logbook("moved 50% -> 80%", "cover.test")
+        mock_log.assert_called_once_with(
+            mock_hass,
+            "Cover Automatic",
+            "moved 50% -> 80%",
+            domain="cover_automatic",
+            entity_id="cover.test",
+        )
+
+    def test_logbook_skips_when_disabled(self, coordinator, mock_storage) -> None:
+        """_logbook does nothing when logbook_enabled is False."""
+        mock_storage.logbook_enabled = False
+        with patch(
+            "custom_components.cover_automatic.coordinator.async_log_entry"
+        ) as mock_log:
+            coordinator._logbook("moved 50% -> 80%", "cover.test")
+        mock_log.assert_not_called()
+
+    def test_logbook_allows_global_message_without_entity(
+        self, coordinator, mock_storage, mock_hass
+    ) -> None:
+        """_logbook passes entity_id=None for global events (e.g. wind)."""
+        mock_storage.logbook_enabled = True
+        with patch(
+            "custom_components.cover_automatic.coordinator.async_log_entry"
+        ) as mock_log:
+            coordinator._logbook("wind protection activated")
+        mock_log.assert_called_once()
+        _, kwargs = mock_log.call_args
+        assert kwargs["entity_id"] is None

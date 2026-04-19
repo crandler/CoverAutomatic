@@ -363,6 +363,16 @@ class CoverAutomaticStorage:
         """Set command stagger delay in seconds."""
         self._data["command_stagger"] = max(0.0, float(value))
 
+    @property
+    def logbook_enabled(self) -> bool:
+        """Get whether to write HA logbook entries for cover actions."""
+        return self._data.get("logbook_enabled", True)
+
+    @logbook_enabled.setter
+    def logbook_enabled(self, value: bool) -> None:
+        """Set whether to write HA logbook entries for cover actions."""
+        self._data["logbook_enabled"] = bool(value)
+
     async def async_add_facade(self, facade: Facade, *, save: bool = True) -> None:
         """Add or update a facade."""
         if "facades" not in self._data:
@@ -532,6 +542,7 @@ class CoverAutomaticStorage:
             "solar_sensor",
             "solar_threshold",
             "command_stagger",
+            "logbook_enabled",
         )
         for gkey in _global_keys:
             if gkey not in data:

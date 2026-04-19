@@ -68,6 +68,7 @@ def _make_storage(
     storage.lock_tilt_position = None
     storage.vent_tilt_position = None
     storage.command_stagger = 0.0
+    storage.logbook_enabled = True
     storage.async_add_facade = AsyncMock()
     storage.async_remove_facade = AsyncMock()
     storage.async_add_cover = AsyncMock()
@@ -1281,3 +1282,35 @@ class TestSettingsValidation:
         result = _build_config_response(storage)
 
         assert result["settings"]["command_stagger"] == 0.5
+
+    @pytest.mark.asyncio
+    async def test_logbook_enabled_in_config_response(self) -> None:
+        """Test that logbook_enabled appears in config response."""
+        from custom_components.cover_automatic.api import _build_config_response
+
+        storage = _make_storage()
+        storage.logbook_enabled = False
+
+        result = _build_config_response(storage)
+
+        assert result["settings"]["logbook_enabled"] is False
+
+    @pytest.mark.asyncio
+    async def test_logbook_enabled_update_persists(self) -> None:
+        """Test that logbook_enabled update is written to storage."""
+        from custom_components.cover_automatic.api import ws_settings_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/settings/update",
+            "logbook_enabled": False,
+        }
+
+        await ws_settings_update(hass, conn, msg, storage, coordinator)
+
+        assert storage.logbook_enabled is False
+        conn.send_result.assert_called_once()
