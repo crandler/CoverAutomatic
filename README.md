@@ -150,9 +150,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.39.10
+1.39.11
 
 ## Changelog
+
+### 1.39.11 (2026-04-19)
+
+- Fix: rule condition add/delete no longer mutates the panel config before the websocket call; on WS failure the local state stays in sync with the backend instead of silently diverging (#140)
 
 ### 1.39.10 (2026-04-19)
 

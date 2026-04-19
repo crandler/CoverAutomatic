@@ -3669,10 +3669,9 @@ class CoverAutomaticPanel extends HTMLElement {
     const paramDefs = CONDITION_PARAMS[condType] || [];
     const params = {};
     for (const p of paramDefs) params[p.key] = p.default;
-    if (!rule.conditions) rule.conditions = [];
-    rule.conditions.push({ type: condType, params: params });
-    // Auto-save immediately
-    const data = this._collectRuleEditorData(this.shadowRoot, ruleId);
+    // Build next conditions locally; mutate _config only after successful WS call
+    const nextConditions = [...(rule.conditions || []), { type: condType, params: params }];
+    const data = this._collectRuleEditorData(this.shadowRoot, ruleId, nextConditions);
     if (data) {
       try {
         const result = await this._ws("cover_automatic/rule/update", data);
@@ -3685,18 +3684,19 @@ class CoverAutomaticPanel extends HTMLElement {
 
   async _onRuleDeleteCondition(ruleId, idx) {
     const rule = (this._config.rules || {})[ruleId];
-    if (rule && rule.conditions) {
-      rule.conditions.splice(parseInt(idx, 10), 1);
-      // Auto-save immediately (don't require explicit save click)
-      const data = this._collectRuleEditorData(this.shadowRoot, ruleId);
-      if (data) {
-        try {
-          const result = await this._ws("cover_automatic/rule/update", data);
-          this._updateConfigFromResult(result);
-        } catch (e) { console.error(e); }
-      } else {
-        this._render();
-      }
+    if (!rule || !rule.conditions) return;
+    const idxInt = parseInt(idx, 10);
+    if (!Number.isFinite(idxInt)) return;
+    // Build next conditions locally; mutate _config only after successful WS call
+    const nextConditions = rule.conditions.filter((_, i) => i !== idxInt);
+    const data = this._collectRuleEditorData(this.shadowRoot, ruleId, nextConditions);
+    if (data) {
+      try {
+        const result = await this._ws("cover_automatic/rule/update", data);
+        this._updateConfigFromResult(result);
+      } catch (e) { console.error(e); }
+    } else {
+      this._render();
     }
   }
 
@@ -3904,7 +3904,7 @@ class CoverAutomaticPanel extends HTMLElement {
     reader.readAsText(file);
   }
 
-  _collectRuleEditorData(root, ruleId) {
+  _collectRuleEditorData(root, ruleId, overrideConditions = null) {
     const rule = (this._config.rules || {})[ruleId];
     if (!rule) return null;
 
@@ -3936,8 +3936,9 @@ class CoverAutomaticPanel extends HTMLElement {
       coverIds.push(el.dataset.cover);
     });
 
-    // Conditions from local state (updated via change handlers)
-    const conditions = (rule.conditions || []).map(c => ({ type: c.type, params: c.params || {} }));
+    // Conditions from override (pending add/delete) or local state
+    const source = overrideConditions != null ? overrideConditions : (rule.conditions || []);
+    const conditions = source.map(c => ({ type: c.type, params: c.params || {} }));
 
     return {
       rule_id: ruleId,
