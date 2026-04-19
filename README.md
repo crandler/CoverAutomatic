@@ -150,9 +150,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.39.9
+1.39.10
 
 ## Changelog
+
+### 1.39.10 (2026-04-19)
+
+- Fix: pause duration number entity now resets to the global fallback when set to 0 instead of persisting 0 and breaking the per-cover fallback chain (#141)
 
 ### 1.39.9 (2026-04-19)
 

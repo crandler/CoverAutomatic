@@ -73,9 +73,9 @@ class PauseDurationNumber(CoordinatorEntity[CoverAutomaticCoordinator], NumberEn
         return float(duration)
 
     async def async_set_native_value(self, value: float) -> None:
-        """Set the pause duration."""
+        """Set the pause duration. 0 resets to the global fallback (None)."""
         cover = self.coordinator.storage.covers.get(self._cover_entity_id)
         if cover:
-            cover.pause_duration = int(value)
+            cover.pause_duration = int(value) if value > 0 else None
             await self.coordinator.storage.async_add_cover(cover)
             self.async_write_ha_state()

@@ -424,6 +424,27 @@ class TestNumberPlatform:
         assert number._attr_native_max_value == 480
         assert number._attr_native_step == 5
 
+    @pytest.mark.asyncio
+    async def test_set_pause_duration_zero_resets_to_global(self, mock_coordinator) -> None:
+        """Setting pause duration to 0 resets to global fallback (None)."""
+        from custom_components.cover_automatic.number import PauseDurationNumber
+
+        mock_cover = CoverConfig(
+            entity_id="cover.test",
+            name="Test",
+            pause_duration=120,
+        )
+        mock_coordinator.storage.covers = {"cover.test": mock_cover}
+
+        number = PauseDurationNumber(mock_coordinator, "cover.test", "Test")
+        number.hass = MagicMock()
+        number.async_write_ha_state = MagicMock()
+
+        await number.async_set_native_value(0.0)
+
+        assert mock_cover.pause_duration is None
+        mock_coordinator.storage.async_add_cover.assert_called_once_with(mock_cover)
+
 
 class TestSelectCurrentOptionFallback:
     """Tests for ScenarioSelect fallback logic when active scenario is unavailable."""
