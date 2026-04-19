@@ -2257,6 +2257,61 @@ class TestWindProtection:
         # Wind should override, even with lock sensor
         assert coordinator._cover_states["cover.test"] == CoverStatus.WIND_PROTECTED
 
+    def test_wind_deactivate_with_lock_sensor_open(self, coordinator, mock_storage, mock_hass) -> None:
+        """Deactivating wind protection while lock sensor open transitions to LOCKED."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "55")
+        mock_storage._data["covers"]["cover.test"]["lock_sensor"] = "binary_sensor.window"
+        mock_storage._data["covers"]["cover.test"]["lock_position"] = 0
+        coordinator._check_wind_protection()
+        assert coordinator._cover_states["cover.test"] == CoverStatus.WIND_PROTECTED
+
+        def states_get(entity_id):
+            if entity_id == "sensor.wind_speed":
+                return MockState("30")
+            if entity_id == "binary_sensor.window":
+                return MockState("on")
+            if entity_id == "cover.test":
+                return MockState("open", {"current_position": 100})
+            return None
+        mock_hass.states.get = states_get
+
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is False
+        assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED
+
+    def test_wind_deactivate_with_vent_sensor_open(self, coordinator, mock_storage, mock_hass) -> None:
+        """Deactivating wind protection while vent sensor open transitions to VENTING."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "55")
+        mock_storage._data["covers"]["cover.test"]["vent_sensor"] = "binary_sensor.window_tilt"
+        mock_storage._data["covers"]["cover.test"]["vent_position"] = 30
+        coordinator._check_wind_protection()
+        assert coordinator._cover_states["cover.test"] == CoverStatus.WIND_PROTECTED
+
+        def states_get(entity_id):
+            if entity_id == "sensor.wind_speed":
+                return MockState("30")
+            if entity_id == "binary_sensor.window_tilt":
+                return MockState("on")
+            if entity_id == "cover.test":
+                return MockState("open", {"current_position": 100})
+            return None
+        mock_hass.states.get = states_get
+
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is False
+        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
+
+    def test_wind_deactivate_no_sensors_open_falls_to_auto(self, coordinator, mock_storage, mock_hass) -> None:
+        """Deactivating wind protection without open sensors transitions to AUTO."""
+        self._setup_wind(coordinator, mock_storage, mock_hass, "55")
+        coordinator._check_wind_protection()
+        assert coordinator._cover_states["cover.test"] == CoverStatus.WIND_PROTECTED
+
+        mock_hass.states.get.return_value = MockState("30", {"current_position": 100})
+        coordinator._check_wind_protection()
+        assert coordinator._wind_protected is False
+        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
+
 
 class TestPauseCoverDuration:
     """Tests for pause_cover duration handling."""

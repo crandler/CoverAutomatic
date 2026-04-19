@@ -355,13 +355,59 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
 
     def _deactivate_wind_protection(self) -> None:
-        """Remove WIND_PROTECTED status from all covers, re-derive from sensors."""
-        for entity_id in self.storage._data.get("covers", {}):
-            if self._cover_states.get(entity_id) == CoverStatus.WIND_PROTECTED:
-                self._cover_states[entity_id] = CoverStatus.AUTO
-                self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
-                self._pre_lock_states.pop(entity_id, None)
-                self._update_last_position_from_state(entity_id)
+        """Remove WIND_PROTECTED status from all covers, re-derive from sensors.
+
+        Evaluates lock/vent sensors inline so covers with open windows
+        transition directly to LOCKED/VENTING instead of briefly landing in
+        AUTO and waiting for the next scan tick.
+        """
+        for entity_id in list(self.storage._data.get("covers", {})):
+            if self._cover_states.get(entity_id) != CoverStatus.WIND_PROTECTED:
+                continue
+
+            cover_raw = self.storage.get_cover_raw(entity_id)
+            if cover_raw is None:
+                continue
+
+            self._pre_lock_states.pop(entity_id, None)
+
+            if self._is_sensor_open(cover_raw, "lock_sensor"):
+                lock_pos = self._cover_val(cover_raw, "lock_position")
+                current = self._get_current_position(entity_id)
+                if current is None or current < lock_pos:
+                    lock_tilt = self._cover_val(cover_raw, "lock_tilt_position")
+                    self._lock_cover(entity_id, lock_pos, lock_tilt=lock_tilt)
+                else:
+                    self._cover_states[entity_id] = CoverStatus.LOCKED
+                    self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
+                    self._update_last_position_from_state(entity_id)
+                continue
+
+            if self._is_sensor_open(cover_raw, "vent_sensor"):
+                vent_pos = self._cover_val(cover_raw, "vent_position")
+                current = self._get_current_position(entity_id)
+                if current is not None and current < vent_pos:
+                    inverted = cover_raw.get("inverted", False)
+                    actual = (100 - vent_pos) if inverted else vent_pos
+                    self._last_positions[entity_id] = actual
+                    self._last_command_time[entity_id] = time_mod.monotonic()
+                    self._pending_settle.add(entity_id)
+                    self.hass.async_create_task(
+                        self.hass.services.async_call(
+                            "cover", "set_cover_position",
+                            {"entity_id": entity_id, "position": actual},
+                            blocking=False,
+                        )
+                    )
+                else:
+                    self._update_last_position_from_state(entity_id)
+                self._cover_states[entity_id] = CoverStatus.VENTING
+                self.storage.update_cover_status(entity_id, CoverStatus.VENTING.value, None)
+                continue
+
+            self._cover_states[entity_id] = CoverStatus.AUTO
+            self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
+            self._update_last_position_from_state(entity_id)
 
         if self.data is not None:
             self.async_set_updated_data(self.data)

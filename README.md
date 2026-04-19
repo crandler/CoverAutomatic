@@ -150,9 +150,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.39.8
+1.39.9
 
 ## Changelog
+
+### 1.39.9 (2026-04-19)
+
+- Fix: wind protection deactivation now re-derives LOCKED/VENTING from sensors inline, preventing brief AUTO state and wrong position until next scan tick when a window is open (#134)
+- Docs: CLAUDE.md WebSocket command count corrected to 20 (#129)
+- CI: drop Python 3.13 matrix -- HA 2026.3 requires 3.14 (#130)
 
 ### 1.39.8 (2026-04-17)
 
