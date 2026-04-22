@@ -150,9 +150,18 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.40.0
+1.42.0
 
 ## Changelog
+
+### 1.42.0 (2026-04-22)
+
+- UX: panel header now wraps correctly on mobile; the master switch and scenario badge are no longer pushed off-screen by the info bar.
+- UX: weather state in the header is now localized (e.g. "Klare Nacht" instead of "clear-night") and paired with a Lucide weather icon.
+- UX: clickable cover rows now show a chevron affordance and a stronger hover highlight so users discover the slide-out editor.
+- UX: table sort arrows now only show direction on the active column; inactive columns display a neutral indicator.
+- UX: active scenario card now stands out with a tinted background and colored primary glow instead of a subtle border.
+- Chore: replaced several inline `style=` attributes in the panel header and info bar with reusable CSS classes.
 
 ### 1.41.2 (2026-04-22)
 

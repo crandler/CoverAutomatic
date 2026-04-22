@@ -205,6 +205,22 @@ const I18N = {
     status_locked: "Locked",
     status_venting: "Venting",
     status_wind_protected: "Wind protected",
+    weather_sunny: "Sunny",
+    weather_cloudy: "Cloudy",
+    weather_partlycloudy: "Partly cloudy",
+    weather_rainy: "Rainy",
+    weather_pouring: "Heavy rain",
+    weather_snowy: "Snowy",
+    weather_snowy_rainy: "Sleet",
+    weather_windy: "Windy",
+    weather_windy_variant: "Windy & cloudy",
+    weather_fog: "Foggy",
+    weather_hail: "Hail",
+    weather_lightning: "Lightning",
+    weather_lightning_rainy: "Thunderstorm",
+    weather_exceptional: "Severe weather",
+    weather_clear_night: "Clear night",
+    weather_unknown: "Unknown",
     rule_active_for: "Active for",
     rule_covers_count: "cover(s)",
     rule_inactive: "Not matching",
@@ -422,6 +438,22 @@ const I18N = {
     status_locked: "Gesperrt",
     status_venting: "Lüften",
     status_wind_protected: "Windschutz",
+    weather_sunny: "Sonnig",
+    weather_cloudy: "Bewölkt",
+    weather_partlycloudy: "Teils bewölkt",
+    weather_rainy: "Regen",
+    weather_pouring: "Starkregen",
+    weather_snowy: "Schnee",
+    weather_snowy_rainy: "Schneeregen",
+    weather_windy: "Windig",
+    weather_windy_variant: "Windig & bewölkt",
+    weather_fog: "Nebel",
+    weather_hail: "Hagel",
+    weather_lightning: "Gewitter",
+    weather_lightning_rainy: "Gewitter mit Regen",
+    weather_exceptional: "Extremwetter",
+    weather_clear_night: "Klare Nacht",
+    weather_unknown: "Unbekannt",
     rule_active_for: "Aktiv für",
     rule_covers_count: "Behang/Behänge",
     rule_inactive: "Nicht aktiv",
@@ -548,12 +580,50 @@ const PANEL_STYLES = `
     justify-content: space-between;
     padding: 16px 0 8px;
     margin-bottom: 8px;
+    gap: 12px;
   }
   .panel-header h1 {
     font-size: 24px;
     font-weight: 500;
     margin: 0;
     letter-spacing: -0.5px;
+  }
+  .header-left {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .info-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--ca-secondary-text);
+    flex-wrap: wrap;
+  }
+  .info-bar-sep {
+    opacity: 0.25;
+    user-select: none;
+  }
+  .info-bar .weather-chunk {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .info-bar-icon {
+    vertical-align: -2px;
+    flex-shrink: 0;
+  }
+  .info-bar-solar-active {
+    color: #e67e22;
+    font-weight: 600;
   }
   .scenario-badge {
     display: inline-flex;
@@ -565,6 +635,10 @@ const PANEL_STYLES = `
     border-radius: 16px;
     font-size: 13px;
     font-weight: 500;
+  }
+  .scenario-badge-icon {
+    --mdc-icon-size: 16px;
+    margin-right: 4px;
   }
   .version-info {
     font-size: 12px;
@@ -660,9 +734,23 @@ const PANEL_STYLES = `
   }
 
   /* Table */
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
   .data-table {
     width: 100%;
     border-collapse: collapse;
+  }
+  .data-table td.last-change {
+    font-size: 12px;
+    color: var(--ca-secondary-text);
+    white-space: nowrap;
+  }
+  .data-table th.row-chevron-head {
+    width: 24px;
+    padding-left: 0;
+    padding-right: 12px;
   }
   .data-table th, .data-table td {
     text-align: left;
@@ -693,20 +781,45 @@ const PANEL_STYLES = `
     display: inline-block;
     margin-left: 4px;
     font-size: 10px;
-    opacity: 0.4;
+    opacity: 0;
+    color: var(--ca-primary);
+    transition: opacity var(--ca-transition);
+  }
+  .data-table th.sortable:hover .sort-arrow {
+    opacity: 0.35;
+    color: var(--ca-secondary-text);
   }
   .data-table th.sorted .sort-arrow {
     opacity: 1;
+    color: var(--ca-primary);
   }
   .data-table tr {
     cursor: pointer;
     transition: background var(--ca-transition);
   }
   .data-table tbody tr:hover {
-    background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.06);
+    background: color-mix(in srgb, var(--ca-primary) 10%, transparent);
   }
   .data-table tbody tr.selected {
-    background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.12);
+    background: color-mix(in srgb, var(--ca-primary) 16%, transparent);
+  }
+  .data-table td.row-chevron {
+    width: 24px;
+    padding-left: 8px;
+    padding-right: 12px;
+    text-align: right;
+    color: var(--ca-secondary-text);
+    opacity: 0.35;
+    transition: opacity var(--ca-transition), transform var(--ca-transition), color var(--ca-transition);
+  }
+  .data-table tbody tr:hover td.row-chevron {
+    opacity: 1;
+    transform: translateX(2px);
+    color: var(--ca-primary);
+  }
+  .data-table td.row-chevron svg {
+    display: block;
+    margin-left: auto;
   }
 
   /* Status badge */
@@ -1267,7 +1380,13 @@ const PANEL_STYLES = `
   }
   .scenario-card.active-scenario {
     border-color: var(--ca-primary);
-    box-shadow: 0 0 0 3px rgba(var(--rgb-primary-color, 3, 169, 244), 0.15);
+    background: color-mix(in srgb, var(--ca-primary) 6%, var(--ca-card-bg));
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--ca-primary) 35%, transparent),
+      0 4px 16px color-mix(in srgb, var(--ca-primary) 18%, transparent);
+  }
+  .scenario-card.active-scenario .sc-name {
+    color: var(--ca-primary);
   }
   .scenario-card .sc-header {
     display: flex;
@@ -1447,7 +1566,28 @@ const PANEL_STYLES = `
     .form-row { grid-template-columns: 1fr; }
     .tab-bar button { padding: 10px 14px; font-size: 13px; }
     .data-table th, .data-table td { padding: 10px 12px; font-size: 13px; }
+    .data-table td.row-chevron { display: none; }
     .condition-card .cond-params { grid-template-columns: 1fr; }
+    .panel-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      padding: 12px 0 6px;
+    }
+    .header-left {
+      justify-content: flex-start;
+    }
+    .header-right {
+      justify-content: space-between;
+      row-gap: 8px;
+      padding-top: 6px;
+      border-top: 1px solid var(--ca-border);
+    }
+    .info-bar {
+      flex-basis: 100%;
+      order: -1;
+      font-size: 11px;
+    }
   }
 `;
 
@@ -1727,9 +1867,9 @@ class CoverAutomaticPanel extends HTMLElement {
     const activeScenario = this._getActiveScenario();
     const version = this._config ? this._config.version : "";
     const enabled = this._config ? this._config.enabled !== false : true;
-    let html = '<div style="display:flex;align-items:center">';
+    let html = '<div class="header-left">';
     html += '<button class="menu-btn" data-action="toggle-menu"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor"/></svg></button>';
-    html += '<h1 style="display:inline">' + this._t("title") + '</h1>';
+    html += '<h1>' + this._t("title") + '</h1>';
     if (this._latestVersion) {
       const v = this._esc(version);
       const latest = this._esc(this._latestVersion);
@@ -1738,10 +1878,10 @@ class CoverAutomaticPanel extends HTMLElement {
       const v = this._esc(version);
       html += ' <a class="version-info" href="https://github.com/crandler/CoverAutomatic/releases/tag/v' + v + '" target="_blank" rel="noopener noreferrer" title="' + this._t("version_link_title") + '">v' + v + '</a>';
     }
-    html += '</div><div style="display:flex;align-items:center;gap:12px">';
+    html += '</div><div class="header-right">';
     html += this._renderInfoBarInline();
     if (activeScenario) {
-      html += '<span class="scenario-badge">' + (activeScenario.icon ? '<ha-icon icon="' + this._esc(activeScenario.icon) + '" style="--mdc-icon-size:16px;margin-right:4px"></ha-icon>' : '') + this._esc(activeScenario.name) + '</span>';
+      html += '<span class="scenario-badge">' + (activeScenario.icon ? '<ha-icon icon="' + this._esc(activeScenario.icon) + '" class="scenario-badge-icon"></ha-icon>' : '') + this._esc(activeScenario.name) + '</span>';
     }
     html += '<div class="master-switch" title="' + this._t("master_enabled_hint") + '">';
     html += '<span class="master-label">' + this._t("master_enabled") + '</span>';
@@ -1781,7 +1921,7 @@ class CoverAutomaticPanel extends HTMLElement {
     if (az == null && el == null && tempVal == null && weatherVal == null && solarVal == null) return '';
     const belowHorizon = el != null && el < 0;
     const icon = belowHorizon
-      ? '<svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:-2px"><path d="M12 2a9.9 9.9 0 00-3.24.53A7 7 0 0015 9a7 7 0 01-6.47 6.97A9.98 9.98 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="var(--ca-secondary-text)" opacity="0.5"/></svg>'
+      ? '<svg class="info-bar-icon" width="14" height="14" viewBox="0 0 24 24"><path d="M12 2a9.9 9.9 0 00-3.24.53A7 7 0 0015 9a7 7 0 01-6.47 6.97A9.98 9.98 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="var(--ca-secondary-text)" opacity="0.5"/></svg>'
       : this._sunIconSvg(14);
     let parts = [];
     if (az != null && el != null) {
@@ -1791,16 +1931,19 @@ class CoverAutomaticPanel extends HTMLElement {
       parts.push(this._t("settings_outdoor_temp_short") + ' ' + tempVal.toFixed(1) + ' \u00B0C');
     }
     if (weatherVal != null) {
-      parts.push(weatherVal);
+      const weatherKey = "weather_" + String(weatherVal).replace(/-/g, "_");
+      const translated = this._t(weatherKey);
+      const weatherLabel = translated && translated !== weatherKey ? translated : String(weatherVal);
+      parts.push('<span class="weather-chunk">' + this._weatherIconSvg(weatherVal) + this._esc(weatherLabel) + '</span>');
     }
     if (solarVal != null) {
       const threshold = settings.solar_threshold != null ? settings.solar_threshold : 0;
       const exceeded = threshold > 0 && solarVal > threshold;
       const unit = solarState.attributes && solarState.attributes.unit_of_measurement ? ' ' + solarState.attributes.unit_of_measurement : '';
-      const style = exceeded ? 'color:#e67e22;font-weight:600' : '';
-      parts.push('<span' + (style ? ' style="' + style + '"' : '') + '>' + this._t("settings_solar_short") + ' ' + solarVal.toFixed(0) + unit + (exceeded ? ' \u25B2' : '') + '</span>');
+      const cls = exceeded ? ' class="info-bar-solar-active"' : '';
+      parts.push('<span' + cls + '>' + this._t("settings_solar_short") + ' ' + solarVal.toFixed(0) + unit + (exceeded ? ' \u25B2' : '') + '</span>');
     }
-    return '<span style="display:inline-flex;align-items:center;gap:10px;font-size:12px;color:var(--ca-secondary-text)">' + parts.join('<span style="opacity:0.3">\u2502</span>') + '</span>';
+    return '<span class="info-bar">' + parts.join('<span class="info-bar-sep">\u2502</span>') + '</span>';
   }
 
   _posBar(pos) {
@@ -1811,6 +1954,31 @@ class CoverAutomaticPanel extends HTMLElement {
 
   _sunIconSvg(size = 14) {
     return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" style="vertical-align:-2px"><circle cx="12" cy="12" r="5" fill="#f9a825"/><g stroke="#f9a825" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/></g></svg>';
+  }
+
+  // Lucide-based weather icon by HA weather state
+  _weatherIconSvg(state, size = 14) {
+    const a = 'none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round';
+    const paths = {
+      sunny: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+      clear_night: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+      cloudy: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+      partlycloudy: '<path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/>',
+      rainy: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/>',
+      pouring: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/>',
+      snowy: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M8 15h.01"/><path d="M8 19h.01"/><path d="M12 17h.01"/><path d="M12 21h.01"/><path d="M16 15h.01"/><path d="M16 19h.01"/>',
+      snowy_rainy: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M11 20v2"/><path d="M8 18h.01"/><path d="M16 18h.01"/>',
+      fog: '<path d="M3 5h18"/><path d="M3 10h18"/><path d="M3 15h18"/><path d="M3 20h18"/>',
+      windy: '<path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>',
+      windy_variant: '<path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>',
+      lightning: '<path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"/><path d="m13 12-3 5h4l-3 5"/>',
+      lightning_rainy: '<path d="M16 14v6"/><path d="M8 14v6"/><path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"/><path d="m13 12-3 5h4l-3 5"/>',
+      hail: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v2"/><path d="M8 14v2"/><path d="M16 20h.01"/><path d="M8 20h.01"/><path d="M12 16v2"/><path d="M12 22h.01"/>',
+      exceptional: '<path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/>'
+    };
+    const key = String(state || "").replace(/-/g, "_");
+    const p = paths[key] || paths.cloudy;
+    return '<svg class="info-bar-icon" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="' + a + '">' + p + '</svg>';
   }
 
   // Lucide-style inline SVG icons for settings sections
@@ -1884,12 +2052,12 @@ class CoverAutomaticPanel extends HTMLElement {
       return html + `<div class="empty-state">${this._t("none")}</div>`;
     }
 
-    html += '<div class="card"><div style="overflow-x:auto"><table class="data-table">';
+    html += '<div class="card"><div class="table-scroll"><table class="data-table">';
     html += '<thead><tr>';
     const sk = this._coverSort.key, sd = this._coverSort.dir;
     const sth = (key, label) => {
       const active = sk === key;
-      const arrow = active ? (sd === "asc" ? "\u25B2" : "\u25BC") : "\u25B2";
+      const arrow = active ? (sd === "asc" ? "\u25B2" : "\u25BC") : "\u2195";
       return `<th class="sortable${active ? " sorted" : ""}" data-action="cover-sort" data-sort="${key}">${label}<span class="sort-arrow">${arrow}</span></th>`;
     };
     html += sth("name", this._t("name"));
@@ -1900,6 +2068,7 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<th>${this._t("cover_target_pos")}</th>`;
     html += `<th>${this._t("cover_rule")}</th>`;
     html += `<th>${this._t("cover_last_change")}</th>`;
+    html += '<th class="row-chevron-head" aria-hidden="true"></th>';
     html += '</tr></thead><tbody>';
 
     // Sort entries
@@ -1962,7 +2131,8 @@ class CoverAutomaticPanel extends HTMLElement {
       html += `<td data-live-current="${this._esc(c.entity_id)}">${this._posBar(currentPos)}</td>`;
       html += `<td data-live-target="${this._esc(c.entity_id)}" style="white-space:nowrap">${this._posBar(targetPos)}${infoIcon}</td>`;
       html += `<td data-live-rule="${this._esc(c.entity_id)}">${this._esc(ruleName)}</td>`;
-      html += `<td data-live-lastchange="${this._esc(c.entity_id)}" style="font-size:12px;color:var(--ca-secondary-text);white-space:nowrap">${lastChange}</td>`;
+      html += `<td class="last-change" data-live-lastchange="${this._esc(c.entity_id)}">${lastChange}</td>`;
+      html += '<td class="row-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></td>';
       html += '</tr>';
     }
 
