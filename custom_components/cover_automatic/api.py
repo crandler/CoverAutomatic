@@ -31,6 +31,7 @@ _UPDATABLE_COVER_FIELDS = (
     "lock_sensor", "lock_position", "vent_sensor", "vent_position",
     "inverted", "supports_tilt", "lock_tilt_position", "vent_tilt_position",
     "inverted_tilt", "indoor_temp_sensor", "comfort_temp_min", "comfort_temp_max",
+    "preemptive_shading",
     "min_position_change", "min_time_between_changes",
 )
 
@@ -671,6 +672,7 @@ def async_setup_api(
                 vol.Optional("indoor_temp_sensor"): vol.Any(str, None),
                 vol.Optional("comfort_temp_min"): vol.Any(vol.Coerce(float), None),
                 vol.Optional("comfort_temp_max"): vol.Any(vol.Coerce(float), None),
+                vol.Optional("preemptive_shading"): bool,
                 vol.Optional("min_position_change"): vol.Any(vol.All(int, vol.Range(min=1, max=50)), None),
                 vol.Optional("min_time_between_changes"): vol.Any(vol.All(int, vol.Range(min=60, max=3600)), None),
             },

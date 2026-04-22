@@ -965,6 +965,48 @@ class TestSunOnFacadeCondition:
         condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
         assert engine._eval_sun_on_facade(condition, cover) is False
 
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_eval_sun_on_facade_preemptive_shading_disabled_per_cover(
+        self, mock_is_sun_on_facade, engine, mock_storage
+    ) -> None:
+        """Cover with preemptive_shading=False must not shade in NEUTRAL mode even when solar exceeds threshold."""
+        facade = Facade(id="south", name="South", azimuth_start=135.0, azimuth_end=225.0, direction="south")
+        mock_storage.facades = {"south": facade}
+        mock_is_sun_on_facade.return_value = True
+        mock_storage.solar_sensor = "sensor.pv_power"
+        mock_storage.solar_threshold = 5000.0
+        temp_state = MagicMock()
+        temp_state.state = "23.0"
+        solar_state = MagicMock()
+        solar_state.state = "6000.0"
+        engine.hass.states.get = lambda eid: {"sensor.indoor_temp": temp_state, "sensor.pv_power": solar_state}.get(eid)
+        cover = CoverConfig(
+            entity_id="cover.bath", name="Bath", facade_id="south", preemptive_shading=False,
+        )
+        condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
+        assert engine._eval_sun_on_facade(condition, cover) is False
+
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_eval_sun_on_facade_preemptive_shading_disabled_still_shades_in_cooling(
+        self, mock_is_sun_on_facade, engine, mock_storage
+    ) -> None:
+        """preemptive_shading=False must NOT block shading in COOLING mode (comfort exceeded)."""
+        facade = Facade(id="south", name="South", azimuth_start=135.0, azimuth_end=225.0, direction="south")
+        mock_storage.facades = {"south": facade}
+        mock_is_sun_on_facade.return_value = True
+        mock_storage.solar_sensor = "sensor.pv_power"
+        mock_storage.solar_threshold = 5000.0
+        temp_state = MagicMock()
+        temp_state.state = "26.0"  # above comfort_max 25.0 -> COOLING
+        solar_state = MagicMock()
+        solar_state.state = "1000.0"  # below threshold, irrelevant in COOLING
+        engine.hass.states.get = lambda eid: {"sensor.indoor_temp": temp_state, "sensor.pv_power": solar_state}.get(eid)
+        cover = CoverConfig(
+            entity_id="cover.bath", name="Bath", facade_id="south", preemptive_shading=False,
+        )
+        condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
+        assert engine._eval_sun_on_facade(condition, cover) is True
+
 
 class TestTimeAfterSunriseCondition:
     """Tests for time_after_sunrise condition evaluation."""

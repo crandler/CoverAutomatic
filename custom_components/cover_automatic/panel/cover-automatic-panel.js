@@ -46,6 +46,8 @@ const I18N = {
     cover_comfort_min: "Comfort temp min",
     cover_comfort_max: "Comfort temp max",
     cover_comfort_hint: "Per-room comfort range. Empty = use global values from settings.",
+    cover_preemptive_shading: "Preemptive shading enabled",
+    cover_preemptive_shading_hint: "When enabled, the global solar sensor can trigger shading inside the comfort zone. Disable for rooms where fast warm-up is desired (e.g. bathroom).",
     cover_inverted: "Inverted",
     cover_inverted_hint: "Enable if 100% means closed (reversed motor direction).",
     cover_lock_tilt: "Lock tilt position",
@@ -265,6 +267,8 @@ const I18N = {
     cover_comfort_min: "Komfort-Temp. min",
     cover_comfort_max: "Komfort-Temp. max",
     cover_comfort_hint: "Komfortbereich pro Raum. Leer = globale Werte aus Einstellungen.",
+    cover_preemptive_shading: "Präventive Beschattung aktiv",
+    cover_preemptive_shading_hint: "Wenn aktiv, kann der globale Solarsensor innerhalb der Komfortzone beschatten. Für Räume deaktivieren, in denen die Komforttemperatur schnell erreicht werden soll (z. B. Bad).",
     cover_inverted: "Invertiert",
     cover_inverted_hint: "Aktivieren, wenn 100 % geschlossen bedeutet (umgekehrte Motorrichtung).",
     cover_lock_tilt: "Sperr-Tiltposition",
@@ -2008,6 +2012,9 @@ class CoverAutomaticPanel extends HTMLElement {
         </div>`;
         s += '</div>';
         s += this._hint("cover_comfort_hint");
+        const preemptiveOn = cover.preemptive_shading !== false;
+        s += this._renderToggle("cover_preemptive_shading", preemptiveOn, "cover-toggle", cover.entity_id, "preemptive_shading");
+        s += this._hint("cover_preemptive_shading_hint");
         s += `<div class="form-group">
           <label>${this._t("cover_lock_sensor")}</label>
           ${this._renderCoverEntitySelect("lock_sensor", cover.lock_sensor, cover.entity_id, "binary_sensor", null)}

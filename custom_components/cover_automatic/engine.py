@@ -188,7 +188,11 @@ class RuleEngine:
                 return False
             if comfort_mode == ComfortMode.COOLING:
                 return True
-            if comfort_mode == ComfortMode.NEUTRAL and self._check_solar_intensity():
+            if (
+                comfort_mode == ComfortMode.NEUTRAL
+                and cover.preemptive_shading
+                and self._check_solar_intensity()
+            ):
                 _LOGGER.debug(
                     "[%s] sun_on_facade: preemptive shading (solar above threshold)",
                     cover.entity_id,

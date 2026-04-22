@@ -224,6 +224,7 @@ class CoverConfig:
     indoor_temp_sensor: str | None = None
     comfort_temp_min: float | None = None
     comfort_temp_max: float | None = None
+    preemptive_shading: bool = True
     min_position_change: int | None = None
     min_time_between_changes: int | None = None
     last_position_change: float | None = None
@@ -250,6 +251,7 @@ class CoverConfig:
             "indoor_temp_sensor": self.indoor_temp_sensor,
             "comfort_temp_min": self.comfort_temp_min,
             "comfort_temp_max": self.comfort_temp_max,
+            "preemptive_shading": self.preemptive_shading,
             "min_position_change": self.min_position_change,
             "min_time_between_changes": self.min_time_between_changes,
             "last_position_change": self.last_position_change,
@@ -292,6 +294,7 @@ class CoverConfig:
             indoor_temp_sensor=data.get("indoor_temp_sensor"),
             comfort_temp_min=data.get("comfort_temp_min"),
             comfort_temp_max=data.get("comfort_temp_max"),
+            preemptive_shading=data.get("preemptive_shading", True),
             min_position_change=data.get("min_position_change"),
             min_time_between_changes=data.get("min_time_between_changes"),
             last_position_change=data.get("last_position_change"),

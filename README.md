@@ -154,6 +154,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.41.0 (2026-04-22)
+
+- Feature: per-cover opt-out for preemptive (solar-triggered) shading. New "Preemptive shading enabled" toggle in the Sensors section of each cover. When disabled, the global solar sensor no longer triggers shading inside the comfort zone for that cover -- useful for rooms that should reach comfort temperature quickly (e.g. bathroom). Default is enabled (backward compatible).
+
 ### 1.40.0 (2026-04-19)
 
 - Feature: write cover movements, lock/unlock, pause/resume and wind protection events to Home Assistant's built-in logbook. New setting `Write logbook entries` (default on) in the System card of the panel.
