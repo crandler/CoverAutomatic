@@ -54,6 +54,7 @@ TODO.md
 docs/
 *.local.yaml
 *.local.json
+.claude/
 
 # Brand source assets (originals, not deployed)
 CoverAutomatic.png
