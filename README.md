@@ -154,6 +154,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.41.2 (2026-04-22)
+
+- UX: merged version number and update badge in the panel header into a single element to avoid duplication. When an update is available, the badge now shows both versions ("v1.41.1 -> v1.41.2") and links to the release notes of the new version.
+
 ### 1.41.1 (2026-04-22)
 
 - UX: version number in the panel header is now a link to the release notes of the installed version on GitHub.
