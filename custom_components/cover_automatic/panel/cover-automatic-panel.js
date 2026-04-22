@@ -10,6 +10,7 @@
 const I18N = {
   en: {
     title: "CoverAutomatic",
+    version_link_title: "Open release notes on GitHub",
     tabs: { covers: "Covers", facades: "Facades", rules: "Rules", scenarios: "Scenarios", settings: "Settings", log: "Log" },
     loading: "Loading configuration...",
     error_load: "Failed to load configuration.",
@@ -232,6 +233,7 @@ const I18N = {
   },
   de: {
     title: "CoverAutomatic",
+    version_link_title: "Release Notes auf GitHub öffnen",
     tabs: { covers: "Behänge", facades: "Fassaden", rules: "Regeln", scenarios: "Szenarien", settings: "Einstellungen", log: "Protokoll" },
     loading: "Konfiguration wird geladen...",
     error_load: "Konfiguration konnte nicht geladen werden.",
@@ -567,6 +569,11 @@ const PANEL_STYLES = `
     color: var(--ca-secondary-text);
     opacity: 0.7;
     margin-left: 8px;
+    text-decoration: none;
+  }
+  a.version-info:hover {
+    opacity: 1;
+    text-decoration: underline;
   }
   .update-badge {
     display: inline-flex;
@@ -1721,7 +1728,10 @@ class CoverAutomaticPanel extends HTMLElement {
     let html = '<div style="display:flex;align-items:center">';
     html += '<button class="menu-btn" data-action="toggle-menu"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor"/></svg></button>';
     html += '<h1 style="display:inline">' + this._t("title") + '</h1>';
-    if (version) html += ' <span class="version-info">v' + this._esc(version) + '</span>';
+    if (version) {
+      const v = this._esc(version);
+      html += ' <a class="version-info" href="https://github.com/crandler/CoverAutomatic/releases/tag/v' + v + '" target="_blank" rel="noopener noreferrer" title="' + this._t("version_link_title") + '">v' + v + '</a>';
+    }
     if (this._latestVersion) {
       html += ' <a class="update-badge" href="https://github.com/crandler/CoverAutomatic/releases/tag/v' + this._esc(this._latestVersion) + '" target="_blank" rel="noopener">v' + this._esc(this._latestVersion) + '</a>';
     }

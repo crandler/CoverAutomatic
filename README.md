@@ -154,6 +154,10 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Changelog
 
+### 1.41.1 (2026-04-22)
+
+- UX: version number in the panel header is now a link to the release notes of the installed version on GitHub.
+
 ### 1.41.0 (2026-04-22)
 
 - Feature: per-cover opt-out for preemptive (solar-triggered) shading. New "Preemptive shading enabled" toggle in the Sensors section of each cover. When disabled, the global solar sensor no longer triggers shading inside the comfort zone for that cover -- useful for rooms that should reach comfort temperature quickly (e.g. bathroom). Default is enabled (backward compatible).
