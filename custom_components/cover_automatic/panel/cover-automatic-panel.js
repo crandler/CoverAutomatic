@@ -67,6 +67,8 @@ const I18N = {
     cover_temp: "Temp",
     cover_current_pos: "Current",
     cover_target_pos: "Target",
+    cover_position: "Position",
+    cover_position_target_label: "Target",
     cover_hysteresis_position: "Position change too small",
     cover_hysteresis_time: "Too soon since last change",
     cover_rule: "Rule",
@@ -312,6 +314,8 @@ const I18N = {
     cover_temp: "Temp",
     cover_current_pos: "Ist",
     cover_target_pos: "Soll",
+    cover_position: "Position",
+    cover_position_target_label: "Soll",
     cover_hysteresis_position: "Positionsänderung zu gering",
     cover_hysteresis_time: "Zu kurz seit letzter Änderung",
     cover_rule: "Regel",
@@ -555,7 +559,14 @@ const PANEL_STYLES = `
     --ca-border: var(--divider-color, #e0e0e0);
     --ca-secondary-text: var(--secondary-text-color, #727272);
     --ca-error: var(--error-color, #db4437);
-    --ca-success: #43a047;
+    --ca-success: var(--success-color, #43a047);
+    --ca-success-strong: #4caf50;
+    --ca-warning: var(--warning-color, #e67e22);
+    --ca-info: var(--info-color, #2196f3);
+    --ca-danger: var(--state-icon-error-color, #c62828);
+    --ca-danger-bg: #fce4ec;
+    --ca-sun: var(--ca-sun-color, #f9a825);
+    --ca-sun-outline: var(--ca-sun-outline-color, #F57F17);
     --ca-radius: 12px;
     --ca-shadow: 0 2px 8px rgba(0,0,0,0.08);
     --ca-transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -643,17 +654,21 @@ const PANEL_STYLES = `
     color: var(--ca-secondary-text);
   }
   .info-widget.info-widget-highlight {
-    background: color-mix(in srgb, #e67e22 18%, transparent);
-    border-color: color-mix(in srgb, #e67e22 40%, transparent);
-    color: #e67e22;
+    background: color-mix(in srgb, var(--ca-warning) 18%, transparent);
+    border-color: color-mix(in srgb, var(--ca-warning) 40%, transparent);
+    color: var(--ca-warning);
   }
   .info-widget.info-widget-highlight .info-widget-value,
   .info-widget.info-widget-highlight .info-widget-label {
-    color: #e67e22;
+    color: var(--ca-warning);
     font-weight: 600;
   }
   .info-bar-icon {
     flex-shrink: 0;
+  }
+  .sun-icon-svg {
+    color: var(--ca-sun);
+    vertical-align: -2px;
   }
   .scenario-badge {
     display: inline-flex;
@@ -864,9 +879,9 @@ const PANEL_STYLES = `
   .status-auto { background: #e8f5e9; color: #2e7d32; }
   .status-paused { background: #fff3e0; color: #e65100; }
   .status-manual { background: #e3f2fd; color: #1565c0; }
-  .status-locked { background: #fce4ec; color: #c62828; }
+  .status-locked { background: var(--ca-danger-bg); color: var(--ca-danger); }
   .status-venting { background: #e8eaf6; color: #283593; }
-  .status-wind_protected { background: #fce4ec; color: #c62828; }
+  .status-wind_protected { background: var(--ca-danger-bg); color: var(--ca-danger); }
 
   /* Slide-out panel */
   .slide-overlay {
@@ -1094,6 +1109,57 @@ const PANEL_STYLES = `
     font-size: 12px;
     min-width: 32px;
   }
+  .pos-bar-track {
+    position: relative;
+  }
+  .pos-bar.pos-bar-diverges {
+    min-width: 110px;
+  }
+  .pos-bar.pos-bar-diverges .pos-bar-track {
+    width: 70px;
+  }
+  .pos-bar-target {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 2px;
+    background: var(--ca-primary);
+    transform: translateX(-50%);
+    border-radius: 1px;
+    pointer-events: none;
+  }
+  .pos-bar-target::before,
+  .pos-bar-target::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    background: var(--ca-primary);
+    border-radius: 50%;
+    transform: translate(-50%, 0);
+  }
+  .pos-bar-target::before { top: -3px; }
+  .pos-bar-target::after { bottom: -3px; }
+  .pos-bar-diverges .pos-bar-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    min-width: 0;
+  }
+  .pos-bar-diverges .pos-bar-current-val {
+    color: var(--primary-text-color);
+    font-weight: 500;
+  }
+  .pos-bar-diverges .pos-bar-arrow,
+  .pos-bar-diverges .pos-bar-target-val {
+    color: var(--ca-primary);
+    font-weight: 600;
+  }
+  .data-table .pos-cell {
+    white-space: nowrap;
+  }
   .pos-bar.pos-bar-compact {
     min-width: 0;
     gap: 6px;
@@ -1148,7 +1214,7 @@ const PANEL_STYLES = `
   .live-icon-sun {
     font-size: 14px;
     margin-left: 4px;
-    color: #f9a825;
+    color: var(--ca-sun);
   }
 
   /* Toggle switch */
@@ -1389,8 +1455,8 @@ const PANEL_STYLES = `
     transition: all var(--ca-transition);
   }
   .rule-row.rule-active {
-    border-left-color: #4caf50;
-    background: color-mix(in srgb, #4caf50 6%, var(--ca-card-bg));
+    border-left-color: var(--ca-success-strong);
+    background: color-mix(in srgb, var(--ca-success-strong) 6%, var(--ca-card-bg));
   }
   .rule-row:hover { box-shadow: var(--ca-shadow); }
   .rule-row.drag-over {
@@ -1405,7 +1471,7 @@ const PANEL_STYLES = `
     background: var(--ca-divider, #e0e0e0);
     transition: background 0.2s, box-shadow 0.2s;
   }
-  .rule-active-dot.active { background: #4caf50; box-shadow: 0 0 6px rgba(76, 175, 80, 0.5); }
+  .rule-active-dot.active { background: var(--ca-success-strong); box-shadow: 0 0 6px color-mix(in srgb, var(--ca-success-strong) 50%, transparent); }
   .rule-meta {
     font-size: 12px;
     color: var(--ca-secondary-text);
@@ -1663,6 +1729,152 @@ const PANEL_STYLES = `
     padding: 40px 20px;
     color: var(--ca-secondary-text);
     font-size: 14px;
+  }
+
+  /* Utilities */
+  .nowrap { white-space: nowrap; }
+  .mt-6 { margin-top: 6px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-16 { margin-top: 16px; }
+  .mb-8 { margin-bottom: 8px; }
+  .mb-12 { margin-bottom: 12px; }
+  .mb-16 { margin-bottom: 16px; }
+
+  /* State/error message icon */
+  .state-msg-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
+
+  /* Add-cover form */
+  .add-cover-select {
+    width: 100%;
+    min-height: 80px;
+    padding: 8px;
+    border: 1px solid var(--divider-color);
+    border-radius: 6px;
+    background: var(--ha-card-background, var(--card-background-color));
+    color: var(--primary-text-color);
+  }
+
+  /* Slide-out delete block */
+  .slide-delete-wrap {
+    padding: 16px 0;
+    border-top: 1px solid var(--ca-border);
+    margin-top: 16px;
+  }
+
+  /* Facade card */
+  .facade-dir-label {
+    font-size: 12px;
+    color: var(--ca-secondary-text);
+  }
+  .facade-meta-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--ca-secondary-text);
+  }
+  .facade-covers-intro {
+    font-size: 13px;
+    color: var(--ca-secondary-text);
+    margin-bottom: 8px;
+  }
+  .facade-covers-list-wrap {
+    margin-bottom: 12px;
+  }
+  .facade-covers-label {
+    font-size: 12px;
+    color: var(--ca-secondary-text);
+    margin-bottom: 4px;
+  }
+  .facade-no-covers {
+    font-size: 12px;
+    color: var(--ca-secondary-text);
+  }
+  .facade-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  /* Rules */
+  .rule-reorder-hint {
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: var(--ca-secondary-text);
+  }
+  .rule-conditions-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ca-secondary-text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 16px 0 8px;
+  }
+  .rule-no-conditions {
+    font-size: 13px;
+    color: var(--ca-secondary-text);
+    margin-bottom: 8px;
+  }
+  .rule-condition-add {
+    margin-top: 8px;
+  }
+  .rule-condition-type-select {
+    padding: 8px;
+    border: 1px solid var(--ca-border);
+    border-radius: 8px;
+    background: var(--primary-background-color, #fafafa);
+    color: var(--primary-text-color);
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .rule-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
+  }
+
+  /* Scenario card extras */
+  .scenario-card-icon {
+    --mdc-icon-size: 20px;
+    margin-right: 6px;
+  }
+  .sc-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .scenario-no-rules {
+    font-size: 13px;
+    color: var(--ca-secondary-text);
+  }
+  .sc-rule-disabled {
+    text-decoration: line-through;
+    opacity: 0.5;
+  }
+
+  /* Log filter bar */
+  .log-filter-bar {
+    margin-bottom: 12px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  /* Compass */
+  .compass-svg-root {
+    display: block;
+  }
+
+  /* Hysteresis badge size tweak */
+  .hysteresis-badge {
+    font-size: 11px;
+  }
+
+  /* Temperature cell -- mode color is still inline because it's dynamic, but weight is consistent */
+  .data-table td.temp-mode {
+    font-weight: 600;
   }
 
   /* Responsive */
@@ -1967,9 +2179,9 @@ class CoverAutomaticPanel extends HTMLElement {
 
     if (this._error) {
       html += '<div class="state-msg">';
-      html += '<div style="font-size:32px;margin-bottom:12px">!</div>';
+      html += '<div class="state-msg-icon">!</div>';
       html += '<div>' + this._t("error_load") + '</div>';
-      html += '<button class="btn btn-primary" style="margin-top:16px" data-action="retry">' + this._t("retry") + '</button>';
+      html += '<button class="btn btn-primary mt-16" data-action="retry">' + this._t("retry") + '</button>';
       html += '</div></div>';
       root.innerHTML = html;
       this._setupDelegation();
@@ -2083,8 +2295,28 @@ class CoverAutomaticPanel extends HTMLElement {
     return '<span class="pos-bar' + cls + '"><span class="pos-bar-track"><span class="pos-bar-fill" style="width:' + p + '%"></span></span><span class="pos-bar-label">' + pos + '%</span></span>';
   }
 
+  // Combined position bar: single column shows current + target with a marker when they differ
+  _posBarCombined(current, target) {
+    if (current == null && target == null) return '\u2013';
+    const diverges = current != null && target != null && Math.abs(current - target) >= 1;
+    if (!diverges) {
+      const p = current != null ? current : target;
+      return this._posBar(p);
+    }
+    const c = Math.max(0, Math.min(100, current));
+    const t = Math.max(0, Math.min(100, target));
+    const title = this._t("cover_position_target_label") + ": " + target + "%";
+    return '<span class="pos-bar pos-bar-diverges">'
+      + '<span class="pos-bar-track">'
+        + '<span class="pos-bar-fill" style="width:' + c + '%"></span>'
+        + '<span class="pos-bar-target" style="left:' + t + '%" title="' + this._esc(title) + '"></span>'
+      + '</span>'
+      + '<span class="pos-bar-label"><span class="pos-bar-current-val">' + current + '%</span><span class="pos-bar-arrow">\u2192</span><span class="pos-bar-target-val">' + target + '%</span></span>'
+    + '</span>';
+  }
+
   _sunIconSvg(size = 14) {
-    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" style="vertical-align:-2px"><circle cx="12" cy="12" r="5" fill="#f9a825"/><g stroke="#f9a825" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/></g></svg>';
+    return '<svg class="sun-icon-svg" width="' + size + '" height="' + size + '" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/></g></svg>';
   }
 
   // Lucide-based weather icon by HA weather state
@@ -2167,20 +2399,20 @@ class CoverAutomaticPanel extends HTMLElement {
     // Collapsible add covers section
     if (available.length > 0) {
       if (this._addingCover) {
-        html += '<div class="card" style="margin-bottom:16px"><div class="card-header">';
+        html += '<div class="card mb-16"><div class="card-header">';
         html += `<span>${this._t("cover_add")}</span>`;
         html += `<button class="btn-icon" data-action="cover-add-cancel" title="${this._t("cancel")}">&#10005;</button>`;
         html += '</div>';
         html += '<div class="card-body"><div class="form-row">';
-        html += `<select id="cover-add-select" multiple style="width:100%;min-height:80px;padding:8px;border:1px solid var(--divider-color);border-radius:6px;background:var(--ha-card-background,var(--card-background-color));color:var(--primary-text-color)">`;
+        html += `<select id="cover-add-select" class="add-cover-select" multiple>`;
         for (const a of available) {
           html += `<option value="${this._esc(a.entity_id)}">${this._esc(a.name)} (${this._esc(a.entity_id)})</option>`;
         }
         html += '</select></div>';
-        html += `<div class="form-row" style="margin-top:8px"><button class="btn btn-primary" data-action="cover-add">${this._t("add")}</button></div>`;
+        html += `<div class="form-row mt-8"><button class="btn btn-primary" data-action="cover-add">${this._t("add")}</button></div>`;
         html += '</div></div>';
       } else {
-        html += `<div style="margin-bottom:12px"><button class="btn btn-sm" data-action="cover-add-start">+ ${this._t("cover_add")}</button></div>`;
+        html += `<div class="mb-12"><button class="btn btn-sm" data-action="cover-add-start">+ ${this._t("cover_add")}</button></div>`;
       }
     }
 
@@ -2200,8 +2432,7 @@ class CoverAutomaticPanel extends HTMLElement {
     html += sth("facade", this._t("cover_facade"));
     html += sth("status", this._t("cover_status"));
     html += sth("temp", this._t("cover_temp"));
-    html += `<th>${this._t("cover_current_pos")}</th>`;
-    html += `<th>${this._t("cover_target_pos")}</th>`;
+    html += `<th>${this._t("cover_position")}</th>`;
     html += `<th>${this._t("cover_rule")}</th>`;
     html += `<th>${this._t("cover_last_change")}</th>`;
     html += '<th class="row-chevron-head" aria-hidden="true"></th>';
@@ -2239,9 +2470,9 @@ class CoverAutomaticPanel extends HTMLElement {
       const hysteresis = live.hysteresis;
       let infoIcon = '';
       if (hysteresis === "position") {
-        infoIcon = ' <span class="status-badge status-paused hysteresis-badge" title="' + this._esc(this._t("cover_hysteresis_position")) + '" style="font-size:11px">&#8597;</span>';
+        infoIcon = ' <span class="status-badge status-paused hysteresis-badge" title="' + this._esc(this._t("cover_hysteresis_position")) + '">&#8597;</span>';
       } else if (hysteresis === "time") {
-        infoIcon = ' <span class="status-badge status-paused hysteresis-badge" title="' + this._esc(this._t("cover_hysteresis_time")) + '" style="font-size:11px">&#9202;</span>';
+        infoIcon = ' <span class="status-badge status-paused hysteresis-badge" title="' + this._esc(this._t("cover_hysteresis_time")) + '">&#9202;</span>';
       }
       const cm = live.comfort_mode;
       // Rule name
@@ -2256,16 +2487,15 @@ class CoverAutomaticPanel extends HTMLElement {
       const resumeBtn = c.status === "paused" ? '<button class="btn-icon resume-x" data-action="cover-resume" data-id="' + this._esc(c.entity_id) + '" title="' + this._esc(this._t("cover_resume")) + '">&#10005;</button>' : '';
       html += `<tr class="${selected}" data-action="select-cover" data-id="${this._esc(c.entity_id)}">`;
       html += `<td data-live-name="${this._esc(c.entity_id)}">${this._esc(c.name)}</td>`;
-      html += `<td data-live-facade="${this._esc(c.entity_id)}" style="white-space:nowrap">${this._esc(facadeName)}${sunIcon}</td>`;
-      html += `<td data-live-status="${this._esc(c.entity_id)}" style="white-space:nowrap"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining">' + pauseLeft + '</span>' : ''}${resumeBtn}</td>`;
+      html += `<td class="nowrap" data-live-facade="${this._esc(c.entity_id)}">${this._esc(facadeName)}${sunIcon}</td>`;
+      html += `<td class="nowrap" data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining">' + pauseLeft + '</span>' : ''}${resumeBtn}</td>`;
       const tempSensor = c.indoor_temp_sensor || (this._config.settings || {}).indoor_temp_sensor;
       const tempState = tempSensor && this._hass && this._hass.states ? this._hass.states[tempSensor] : null;
       const tempVal = tempState && tempState.state !== "unavailable" && tempState.state !== "unknown" ? parseFloat(tempState.state) : null;
-      const tempColor = cm === "cooling" ? "var(--info-color, #2196f3)" : cm === "heating" ? "#c62828" : "";
+      const tempColor = cm === "cooling" ? "var(--ca-info)" : cm === "heating" ? "var(--ca-danger)" : "";
       const tempTitle = cm ? this._t("comfort_" + cm) : "";
-      html += `<td data-live-temp="${this._esc(c.entity_id)}" style="white-space:nowrap;${tempColor ? 'color:' + tempColor + ';font-weight:600' : ''}"${tempTitle ? ' title="' + this._esc(tempTitle) + '"' : ''}>${tempVal != null ? tempVal.toFixed(1) + " °C" : "–"}</td>`;
-      html += `<td data-live-current="${this._esc(c.entity_id)}">${this._posBar(currentPos)}</td>`;
-      html += `<td data-live-target="${this._esc(c.entity_id)}" style="white-space:nowrap">${this._posBar(targetPos)}${infoIcon}</td>`;
+      html += `<td class="nowrap${tempColor ? ' temp-mode' : ''}" data-live-temp="${this._esc(c.entity_id)}"${tempColor ? ' style="color:' + tempColor + '"' : ''}${tempTitle ? ' title="' + this._esc(tempTitle) + '"' : ''}>${tempVal != null ? tempVal.toFixed(1) + " °C" : "–"}</td>`;
+      html += `<td class="pos-cell" data-live-position="${this._esc(c.entity_id)}">${this._posBarCombined(currentPos, targetPos)}${infoIcon}</td>`;
       html += `<td data-live-rule="${this._esc(c.entity_id)}">${this._esc(ruleName)}</td>`;
       html += `<td class="last-change" data-live-lastchange="${this._esc(c.entity_id)}">${lastChange}</td>`;
       html += '<td class="row-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></td>';
@@ -2396,8 +2626,8 @@ class CoverAutomaticPanel extends HTMLElement {
         });
       }
 
-      html += `<div style="padding:16px 0;border-top:1px solid var(--ca-border);margin-top:16px">
-        <button class="btn" style="color:#c62828" data-action="cover-delete" data-id="${this._esc(cover.entity_id)}">${this._t("cover_remove")}</button>
+      html += `<div class="slide-delete-wrap">
+        <button class="btn btn-danger" data-action="cover-delete" data-id="${this._esc(cover.entity_id)}">${this._t("cover_remove")}</button>
       </div>`;
       html += '</div>'; // slide-body
     }
@@ -2485,21 +2715,21 @@ class CoverAutomaticPanel extends HTMLElement {
     let html = `<div class="card">
       <div class="card-header">
         <span>${this._esc(f.name)}${sunBadge}</span>
-        <span style="font-size:12px;color:var(--ca-secondary-text)">${arrow} ${this._esc(dirLabel)}</span>
+        <span class="facade-dir-label">${arrow} ${this._esc(dirLabel)}</span>
       </div>
       <div class="card-body">
-        <div style="display:flex;gap:16px;margin-bottom:12px;font-size:13px;color:var(--ca-secondary-text)">
+        <div class="facade-meta-row">
           <span>${this._t("facade_azimuth_start")}: ${f.azimuth_start}&#176;</span>
           <span>${this._t("facade_azimuth_end")}: ${f.azimuth_end}&#176;</span>
         </div>
-        <div style="font-size:13px;color:var(--ca-secondary-text);margin-bottom:8px">
+        <div class="facade-covers-intro">
           ${this._t("facade_min_elevation")}: ${f.min_elevation}&#176;
         </div>
-        <div style="margin-bottom:12px">
-          <div style="font-size:12px;color:var(--ca-secondary-text);margin-bottom:4px">${this._t("facade_covers")}</div>
+        <div class="facade-covers-list-wrap">
+          <div class="facade-covers-label">${this._t("facade_covers")}</div>
           <div class="chip-group">`;
     if (covers.length === 0) {
-      html += `<span style="font-size:12px;color:var(--ca-secondary-text)">${this._t("facade_no_covers")}</span>`;
+      html += `<span class="facade-no-covers">${this._t("facade_no_covers")}</span>`;
     } else {
       for (const c of covers) {
         html += `<span class="chip">${this._esc(c.name)}</span>`;
@@ -2507,7 +2737,7 @@ class CoverAutomaticPanel extends HTMLElement {
     }
     html += `</div>
         </div>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
+        <div class="facade-actions">
           <button class="btn btn-secondary btn-sm" data-action="facade-edit" data-id="${this._esc(f.id)}">${this._t("edit")}</button>
           <button class="btn btn-danger btn-sm" data-action="facade-delete" data-id="${this._esc(f.id)}">${this._t("delete")}</button>
         </div>
@@ -2619,7 +2849,7 @@ class CoverAutomaticPanel extends HTMLElement {
     const rules = this._config.rules || {};
     const sorted = Object.values(rules).sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
-    let html = `<div style="margin-bottom:12px;font-size:12px;color:var(--ca-secondary-text)">${this._t("rule_reorder_hint")}</div>`;
+    let html = `<div class="rule-reorder-hint">${this._t("rule_reorder_hint")}</div>`;
 
     if (sorted.length === 0 && !this._addingRule) {
       html += `<div class="empty-state">${this._t("none")}</div>`;
@@ -2652,7 +2882,7 @@ class CoverAutomaticPanel extends HTMLElement {
       html += '</div>';
       // Condition chips
       if (r.conditions && r.conditions.length > 0) {
-        html += '<div class="chip-group" style="margin-top:6px">';
+        html += '<div class="chip-group mt-6">';
         for (const c of r.conditions) {
           html += `<span class="chip">${this._t("cond_" + c.type)}</span>`;
         }
@@ -2681,7 +2911,7 @@ class CoverAutomaticPanel extends HTMLElement {
     if (this._addingRule) {
       html += this._renderRuleAddForm();
     } else {
-      html += `<button class="btn btn-primary" style="margin-top:16px" data-action="rule-add-start">+ ${this._t("rule_add")}</button>`;
+      html += `<button class="btn btn-primary mt-16" data-action="rule-add-start">+ ${this._t("rule_add")}</button>`;
     }
 
     return html;
@@ -2743,26 +2973,26 @@ class CoverAutomaticPanel extends HTMLElement {
     html += this._hint("rule_assignment_hint");
 
     // Conditions
-    html += `<div style="font-size:13px;font-weight:600;color:var(--ca-secondary-text);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px">${this._t("rule_conditions")}</div>`;
+    html += `<div class="rule-conditions-label">${this._t("rule_conditions")}</div>`;
 
     if (rule.conditions && rule.conditions.length > 0) {
       for (let i = 0; i < rule.conditions.length; i++) {
         html += this._renderConditionCard(rule, i);
       }
     } else {
-      html += `<div style="font-size:13px;color:var(--ca-secondary-text);margin-bottom:8px">${this._t("rule_no_conditions")}</div>`;
+      html += `<div class="rule-no-conditions">${this._t("rule_no_conditions")}</div>`;
     }
 
     // Add condition
-    html += `<div style="margin-top:8px">
-      <select data-action="rule-add-condition-type" data-rule="${this._esc(rule.id)}" style="padding:8px;border:1px solid var(--ca-border);border-radius:8px;background:var(--primary-background-color,#fafafa);color:var(--primary-text-color);font-size:13px;font-family:inherit">
+    html += `<div class="rule-condition-add">
+      <select class="rule-condition-type-select" data-action="rule-add-condition-type" data-rule="${this._esc(rule.id)}">
         <option value="">${this._t("rule_add_condition")}...</option>
         ${CONDITION_TYPES.map(t => `<option value="${t}">${this._t("cond_" + t)}</option>`).join("")}
       </select>
     </div>`;
 
     // Save button
-    html += `<div style="display:flex;justify-content:flex-end;margin-top:16px">
+    html += `<div class="rule-editor-actions">
       <button class="btn btn-primary" data-action="rule-save" data-id="${this._esc(rule.id)}">${this._t("save")}</button>
     </div>`;
 
@@ -2826,7 +3056,7 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   _renderRuleAddForm() {
-    let html = `<div class="inline-form" style="margin-top:16px">
+    let html = `<div class="inline-form mt-16">
       <div class="form-group">
         <label>${this._t("name")}</label>
         <input type="text" value="" data-rule-new-field="name" placeholder="${this._t("name")}">
@@ -2887,10 +3117,10 @@ class CoverAutomaticPanel extends HTMLElement {
     let html = `<div class="scenario-card${isActive ? " active-scenario" : ""}">
       <div class="sc-header">
         <div class="sc-name">
-          ${sc.icon ? `<ha-icon icon="${this._esc(sc.icon)}" style="--mdc-icon-size:20px;margin-right:6px"></ha-icon>` : ""}${this._esc(sc.name)}
+          ${sc.icon ? `<ha-icon icon="${this._esc(sc.icon)}" class="scenario-card-icon"></ha-icon>` : ""}${this._esc(sc.name)}
           ${isActive ? `<span class="chip">${this._t("active")}</span>` : ""}
         </div>
-        <div style="display:flex;gap:6px">
+        <div class="sc-actions">
           ${!isActive ? `<button class="btn btn-primary btn-sm" data-action="scenario-activate" data-id="${this._esc(sc.id)}">${this._t("activate")}</button>` : ""}
           <button class="btn btn-secondary btn-sm" data-action="scenario-edit" data-id="${this._esc(sc.id)}">${this._t("edit")}</button>
           <button class="btn btn-danger btn-sm" data-action="scenario-delete" data-id="${this._esc(sc.id)}">${this._t("delete")}</button>
@@ -2900,12 +3130,12 @@ class CoverAutomaticPanel extends HTMLElement {
     // Rules list with enabled/disabled toggles
     html += '<div class="sc-rules">';
     if (ruleEntries.length === 0) {
-      html += `<div style="font-size:13px;color:var(--ca-secondary-text)">${this._t("scenario_no_rules")}</div>`;
+      html += `<div class="scenario-no-rules">${this._t("scenario_no_rules")}</div>`;
     } else {
       for (const r of ruleEntries) {
         const disabled = (sc.rules_disabled || []).includes(r.id);
         html += `<div class="sc-rule-row">
-          <span${disabled ? ' style="text-decoration:line-through;opacity:0.5"' : ""}>${this._esc(r.name)}</span>
+          <span${disabled ? ' class="sc-rule-disabled"' : ""}>${this._esc(r.name)}</span>
           <label class="toggle">
             <input type="checkbox" ${!disabled ? "checked" : ""} data-action="scenario-rule-toggle" data-scenario="${this._esc(sc.id)}" data-rule="${this._esc(r.id)}">
             <span class="toggle-slider"></span>
@@ -3044,7 +3274,7 @@ class CoverAutomaticPanel extends HTMLElement {
         const rr = d * Math.PI / 180;
         const x1 = sx + 10 * Math.cos(rr), y1 = sy + 10 * Math.sin(rr);
         const x2 = sx + 15 * Math.cos(rr), y2 = sy + 15 * Math.sin(rr);
-        return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#FFC107" stroke-width="2" stroke-linecap="round"/>`;
+        return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--ca-sun)" stroke-width="2" stroke-linecap="round"/>`;
       }).join("");
       // Light cone toward house facade (trapezoid: narrow at sun, wide at house)
       const dx = cx - sx, dy = cy - sy;
@@ -3055,9 +3285,9 @@ class CoverAutomaticPanel extends HTMLElement {
       const facadeW = hr + 20;
       const facadeDist = dist + hr * 0.5 + 20;
       const fx = sx + ndx * facadeDist, fy = sy + ndy * facadeDist;
-      sunBeams = `<polygon points="${sx + perpX * sunW},${sy + perpY * sunW} ${sx - perpX * sunW},${sy - perpY * sunW} ${fx - perpX * facadeW},${fy - perpY * facadeW} ${fx + perpX * facadeW},${fy + perpY * facadeW}" fill="#FFC107" opacity="0.08"/>`;
-      sunMarker = `${symbolRays}<circle cx="${sx}" cy="${sy}" r="8" fill="#FFC107" stroke="#F57F17" stroke-width="1.5"/>
-        <text x="${sx}" y="${sy + 26}" text-anchor="middle" font-size="9" fill="#FFC107" font-weight="700">\u2220${Math.round(sunEl)}\u00B0</text>`;
+      sunBeams = `<polygon points="${sx + perpX * sunW},${sy + perpY * sunW} ${sx - perpX * sunW},${sy - perpY * sunW} ${fx - perpX * facadeW},${fy - perpY * facadeW} ${fx + perpX * facadeW},${fy + perpY * facadeW}" fill="var(--ca-sun)" opacity="0.08"/>`;
+      sunMarker = `${symbolRays}<circle cx="${sx}" cy="${sy}" r="8" fill="var(--ca-sun)" stroke="var(--ca-sun-outline)" stroke-width="1.5"/>
+        <text x="${sx}" y="${sy + 26}" text-anchor="middle" font-size="9" fill="var(--ca-sun)" font-weight="700">\u2220${Math.round(sunEl)}\u00B0</text>`;
     }
 
     // Outdoor temperature info text at bottom of SVG
@@ -3074,7 +3304,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
     const svgW = 280, svgH = infoText ? 302 : 288;
     const infoSvg = infoText ? `<text x="${cx}" y="${svgH - 4}" text-anchor="middle" font-size="11" fill="var(--ca-secondary-text)">${infoText}</text>` : "";
-    return `<svg id="compass-svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" style="display:block">
+    return `<svg id="compass-svg" class="compass-svg-root" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
       <!-- Compass circle -->
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--divider-color)" stroke-width="1.5"/>
       <circle cx="${cx}" cy="${cy}" r="${r - 20}" fill="none" stroke="var(--divider-color)" stroke-width="0.5" stroke-dasharray="3,3"/>
@@ -3298,7 +3528,7 @@ class CoverAutomaticPanel extends HTMLElement {
         <div class="settings-backup-actions">
           <button class="btn" data-action="backup-export">${this._t("settings_export")}</button>
           <button class="btn" data-action="backup-import">${this._t("settings_import")}</button>
-          <input type="file" accept=".json" data-action="backup-file" style="display:none">
+          <input type="file" accept=".json" data-action="backup-file" hidden>
         </div>
       </div>
     </div>`;
@@ -3317,7 +3547,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
     // Filter buttons
     const filters = [null, "position", "status", "rule", "wind"];
-    html += '<div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap">';
+    html += '<div class="log-filter-bar">';
     for (const f of filters) {
       const active = this._logFilter === f ? " active" : "";
       const label = f ? this._t("log_type_" + f) : this._t("log_filter_all");
@@ -3335,7 +3565,7 @@ class CoverAutomaticPanel extends HTMLElement {
       return html + '<div class="empty-state">' + this._t("log_empty") + '</div>';
     }
 
-    html += '<div class="card"><div style="overflow-x:auto"><table class="data-table">';
+    html += '<div class="card"><div class="table-scroll"><table class="data-table">';
     html += '<thead><tr>';
     html += '<th>' + this._t("log_time") + '</th>';
     html += '<th>' + this._t("log_event") + '</th>';
@@ -3349,7 +3579,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const coverName = e.entity_id ? this._getCoverName(e.entity_id) : "–";
       const typeClass = e.type === "wind" ? "status-wind_protected" : e.type === "status" ? "status-paused" : "";
       html += '<tr>';
-      html += '<td style="white-space:nowrap">' + this._esc(time) + '</td>';
+      html += '<td class="nowrap">' + this._esc(time) + '</td>';
       html += '<td><span class="status-badge ' + typeClass + '">' + this._esc(typeLabel) + '</span></td>';
       html += '<td>' + this._esc(coverName) + '</td>';
       html += '<td>' + this._esc(e.message) + '</td>';
@@ -3375,53 +3605,19 @@ class CoverAutomaticPanel extends HTMLElement {
     const covers = this._config.covers || {};
     const liveCvrs = this._config.live_covers || {};
     for (const eid of Object.keys(covers)) {
-      // Current position from HA state
+      // Combined position cell: current + target with optional divergence marker, plus hysteresis badge
       const haState = this._hass && this._hass.states ? this._hass.states[eid] : null;
       const curPos = haState && haState.attributes ? haState.attributes.current_position : null;
-      const cell = root.querySelector('[data-live-current="' + eid + '"]');
-      if (cell) {
-        const fill = cell.querySelector(".pos-bar-fill");
-        const label = cell.querySelector(".pos-bar-label");
-        if (fill && label && curPos != null) {
-          fill.style.width = Math.max(0, Math.min(100, curPos)) + "%";
-          label.textContent = curPos + "%";
-        } else {
-          // Fallback: no bar exists yet, set innerHTML
-          cell.innerHTML = this._posBar(curPos);
-        }
-      }
-      // Target position + hysteresis from coordinator
       const live = liveCvrs[eid] || {};
       const tgtPos = live.target_position;
       const hyst = live.hysteresis;
-      const tCell = root.querySelector('[data-live-target="' + eid + '"]');
-      if (tCell) {
-        const fill = tCell.querySelector(".pos-bar-fill");
-        const label = tCell.querySelector(".pos-bar-label");
-        if (fill && label && tgtPos != null) {
-          fill.style.width = Math.max(0, Math.min(100, tgtPos)) + "%";
-          label.textContent = tgtPos + "%";
-        } else {
-          // Rebuild bar + hysteresis badge via innerHTML
-          let barHtml = this._posBar(tgtPos);
-          if (hyst === "position" || hyst === "time") {
-            barHtml += ' <span class="status-badge status-paused hysteresis-badge" title="' + this._esc(this._t(hyst === "position" ? "cover_hysteresis_position" : "cover_hysteresis_time")) + '">' + (hyst === "position" ? "\u2195" : "\u23F2") + '</span>';
-          }
-          tCell.innerHTML = barHtml;
-        }
-        // Update hysteresis badge visibility
-        const existingBadge = tCell.querySelector(".hysteresis-badge");
+      const posCell = root.querySelector('[data-live-position="' + eid + '"]');
+      if (posCell) {
+        let barHtml = this._posBarCombined(curPos, tgtPos);
         if (hyst === "position" || hyst === "time") {
-          if (!existingBadge) {
-            const badge = document.createElement("span");
-            badge.className = "status-badge status-paused hysteresis-badge";
-            badge.textContent = hyst === "position" ? "\u2195" : "\u23F2";
-            badge.title = this._t(hyst === "position" ? "cover_hysteresis_position" : "cover_hysteresis_time");
-            tCell.appendChild(badge);
-          }
-        } else if (existingBadge) {
-          existingBadge.remove();
+          barHtml += ' <span class="status-badge status-paused hysteresis-badge" title="' + this._esc(this._t(hyst === "position" ? "cover_hysteresis_position" : "cover_hysteresis_time")) + '">' + (hyst === "position" ? "\u2195" : "\u23F2") + '</span>';
         }
+        posCell.innerHTML = barHtml;
       }
       // Status + pause remaining + resume button
       const c = covers[eid];
@@ -3497,7 +3693,7 @@ class CoverAutomaticPanel extends HTMLElement {
         const tv = tst && tst.state !== "unavailable" && tst.state !== "unknown" ? parseFloat(tst.state) : null;
         tempCell.textContent = tv != null ? tv.toFixed(1) + " \u00B0C" : "\u2013";
         const cm2 = live.comfort_mode;
-        tempCell.style.color = cm2 === "cooling" ? "var(--info-color, #2196f3)" : cm2 === "heating" ? "#c62828" : "";
+        tempCell.style.color = cm2 === "cooling" ? "var(--ca-info)" : cm2 === "heating" ? "var(--ca-danger)" : "";
         tempCell.style.fontWeight = (cm2 === "cooling" || cm2 === "heating") ? "600" : "";
         tempCell.title = cm2 ? this._t("comfort_" + cm2) : "";
       }

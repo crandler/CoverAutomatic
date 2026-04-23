@@ -150,9 +150,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.43.1
+1.44.0
 
 ## Changelog
+
+### 1.44.0 (2026-04-23)
+
+- UX: the "current" and "target" position columns in the cover table are merged into a single "Position" column. When current and target differ, the bar shows the current fill, a primary-colored marker at the target position, and a compact "30% → 60%" label. When they match, a normal single bar is shown.
+- UX: hardcoded accent colors (sun, warning, info, danger, success) are now CSS custom properties (`--ca-sun`, `--ca-warning`, `--ca-info`, `--ca-danger`, `--ca-success-strong`). Custom HA themes can override them.
+- Chore: reduced inline `style=` attributes from 41 down to 4 (remaining ones are legitimately dynamic). Replaced with a set of utility and semantic CSS classes (`.nowrap`, `.mt-16`, `.facade-meta-row`, `.rule-conditions-label`, `.sc-actions`, etc.).
 
 ### 1.43.1 (2026-04-23)
 
