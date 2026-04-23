@@ -47,6 +47,54 @@ In no event shall the author be liable for any claim, damages or other liability
 - **UI-first configuration** - Full setup via Home Assistant UI
 - **Device agnostic** - Works with any cover entity (Homematic IP, Shelly, etc.)
 
+## Screenshots
+
+The integration ships with a custom sidebar panel that replaces the traditional Options Flow. All configuration happens inside Home Assistant, no YAML required. Click any thumbnail for the full-size view.
+
+<table>
+  <tr>
+    <td width="33%">
+      <a href=".github/screenshots/covers-desktop.png"><img src=".github/screenshots/covers-desktop.png" alt="Covers overview" /></a>
+      <p align="center"><sub><b>Covers</b> - widget header, merged position column, status badges</sub></p>
+    </td>
+    <td width="33%">
+      <a href=".github/screenshots/rules-desktop.png"><img src=".github/screenshots/rules-desktop.png" alt="Rules" /></a>
+      <p align="center"><sub><b>Rules</b> - priority ordering, active indicators, condition chips</sub></p>
+    </td>
+    <td width="33%">
+      <a href=".github/screenshots/scenarios-desktop.png"><img src=".github/screenshots/scenarios-desktop.png" alt="Scenarios" /></a>
+      <p align="center"><sub><b>Scenarios</b> - rule sets with active highlight and per-rule toggles</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="33%">
+      <a href=".github/screenshots/cover-editor.png"><img src=".github/screenshots/cover-editor.png" alt="Cover editor" /></a>
+      <p align="center"><sub><b>Cover editor</b> - slide-out with sections, inline toggles, collapsed hints</sub></p>
+    </td>
+    <td width="33%">
+      <a href=".github/screenshots/settings-house.png"><img src=".github/screenshots/settings-house.png" alt="Settings - House" /></a>
+      <p align="center"><sub><b>Settings - House</b> - rotation input with visual compass</sub></p>
+    </td>
+    <td width="33%">
+      <a href=".github/screenshots/settings-automation.png"><img src=".github/screenshots/settings-automation.png" alt="Settings - Automation" /></a>
+      <p align="center"><sub><b>Settings - Automation</b> - global defaults, sidebar navigation</sub></p>
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <a href=".github/screenshots/mobile-covers.png"><img src=".github/screenshots/mobile-covers.png" alt="Mobile - Covers" width="320" /></a>
+      <p><sub><b>Mobile - Covers</b> - stacked header, sticky name column</sub></p>
+    </td>
+    <td width="50%" align="center">
+      <a href=".github/screenshots/mobile-settings.png"><img src=".github/screenshots/mobile-settings.png" alt="Mobile - Settings" width="320" /></a>
+      <p><sub><b>Mobile - Settings</b> - sidebar collapses to horizontal pills</sub></p>
+    </td>
+  </tr>
+</table>
+
 ## Requirements
 
 - Home Assistant 2026.3.0 or newer
