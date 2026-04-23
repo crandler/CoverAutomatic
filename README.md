@@ -198,9 +198,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.45.1
+1.45.2
 
 ## Changelog
+
+### 1.45.2 (2026-04-23)
+
+- UX: settings sidebar sun icon for "Preemptive shading" now inherits the button text color like the other nav icons, instead of rendering in the accent sun yellow. The yellow sun remains in the header info bar, live indicators and the section card header where it carries semantic meaning.
 
 ### 1.45.1 (2026-04-23)
 
