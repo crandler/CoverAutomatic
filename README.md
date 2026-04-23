@@ -150,9 +150,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.45.0
+1.45.1
 
 ## Changelog
+
+### 1.45.1 (2026-04-23)
+
+- UX: the position bar now uses a two-stop fill when current and target differ. The solid portion represents the position that is guaranteed reached (min of current/target), the striped portion represents the range in motion (min to max). Replaces the previous thin vertical target marker for a more honest and direction-agnostic visualization.
 
 ### 1.45.0 (2026-04-23)
 

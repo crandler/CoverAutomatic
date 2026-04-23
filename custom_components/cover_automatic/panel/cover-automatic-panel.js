@@ -1183,29 +1183,21 @@ const PANEL_STYLES = `
   .pos-bar.pos-bar-diverges .pos-bar-track {
     width: 70px;
   }
-  .pos-bar-target {
+  .pos-bar-range {
     position: absolute;
-    top: -3px;
-    bottom: -3px;
-    width: 2px;
-    background: var(--ca-primary);
-    transform: translateX(-50%);
-    border-radius: 1px;
+    top: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+      135deg,
+      var(--ca-primary) 0,
+      var(--ca-primary) 3px,
+      transparent 3px,
+      transparent 6px
+    );
+    opacity: 0.7;
     pointer-events: none;
+    transition: left var(--ca-transition), width var(--ca-transition);
   }
-  .pos-bar-target::before,
-  .pos-bar-target::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    width: 6px;
-    height: 6px;
-    background: var(--ca-primary);
-    border-radius: 50%;
-    transform: translate(-50%, 0);
-  }
-  .pos-bar-target::before { top: -3px; }
-  .pos-bar-target::after { bottom: -3px; }
   .pos-bar-diverges .pos-bar-label {
     display: inline-flex;
     align-items: center;
@@ -2392,13 +2384,18 @@ class CoverAutomaticPanel extends HTMLElement {
       const p = current != null ? current : target;
       return this._posBar(p);
     }
+    // Two-stop fill: solid up to min(current,target), striped from min to max, empty beyond.
+    // The solid portion is the position that is "guaranteed" reached; the striped portion is the delta in flux.
     const c = Math.max(0, Math.min(100, current));
     const t = Math.max(0, Math.min(100, target));
+    const lo = Math.min(c, t);
+    const hi = Math.max(c, t);
+    const rangeWidth = hi - lo;
     const title = this._t("cover_position_target_label") + ": " + target + "%";
-    return '<span class="pos-bar pos-bar-diverges">'
+    return '<span class="pos-bar pos-bar-diverges" title="' + this._esc(title) + '">'
       + '<span class="pos-bar-track">'
-        + '<span class="pos-bar-fill" style="width:' + c + '%"></span>'
-        + '<span class="pos-bar-target" style="left:' + t + '%" title="' + this._esc(title) + '"></span>'
+        + '<span class="pos-bar-fill" style="width:' + lo + '%"></span>'
+        + '<span class="pos-bar-range" style="left:' + lo + '%;width:' + rangeWidth + '%"></span>'
       + '</span>'
       + '<span class="pos-bar-label"><span class="pos-bar-current-val">' + current + '%</span><span class="pos-bar-arrow">\u2192</span><span class="pos-bar-target-val">' + target + '%</span></span>'
     + '</span>';
