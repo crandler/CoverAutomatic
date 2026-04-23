@@ -150,9 +150,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.43.0
+1.43.1
 
 ## Changelog
+
+### 1.43.1 (2026-04-23)
+
+- UX: hint texts under settings and cover fields are now collapsed behind a small info icon. Click the icon to reveal the hint. The page is much easier to scan once configured.
+- UX: "last change" time is now formatted naturally ("vor 1 Std. 53 Min." / "1 h 53 min ago") instead of the previous "1:53 Std." notation.
+- UX: on mobile, the first column of the cover table stays visible while scrolling horizontally, so you always see which cover a row belongs to.
 
 ### 1.43.0 (2026-04-23)
 

@@ -75,8 +75,10 @@ const I18N = {
     cover_remove: "Remove cover",
     cover_last_change: "Last change",
     cover_just_now: "just now",
-    cover_minutes_ago: "min ago",
-    cover_hours_ago: "h ago",
+    time_ago_min: "{n} min ago",
+    time_ago_h: "{n} h ago",
+    time_ago_h_m: "{h} h {m} min ago",
+    show_hint: "Show hint",
     comfort_cooling: "Cooling",
     comfort_heating: "Heating",
     comfort_neutral: "Neutral",
@@ -317,9 +319,11 @@ const I18N = {
     cover_resume: "Fortsetzen",
     cover_remove: "Behang entfernen",
     cover_last_change: "Letzte Änderung",
-    cover_just_now: "gerade",
-    cover_minutes_ago: "Min.",
-    cover_hours_ago: "Std.",
+    cover_just_now: "gerade eben",
+    time_ago_min: "vor {n} Min.",
+    time_ago_h: "vor {n} Std.",
+    time_ago_h_m: "vor {h} Std. {m} Min.",
+    show_hint: "Hilfe anzeigen",
     comfort_cooling: "Kühlen",
     comfort_heating: "Heizen",
     comfort_neutral: "Neutral",
@@ -975,7 +979,7 @@ const PANEL_STYLES = `
     flex-shrink: 0;
     opacity: 0.7;
   }
-  /* Hint text below a field */
+  /* Hint text below a field (legacy, still used in a few places) */
   .settings-hint {
     font-size: 12px;
     color: var(--ca-secondary-text);
@@ -988,6 +992,41 @@ const PANEL_STYLES = `
     color: var(--ca-secondary-text);
     margin-bottom: 12px;
     line-height: 1.4;
+  }
+  /* Field-level collapsible hint */
+  .field-hint {
+    margin-top: 4px;
+  }
+  .field-hint summary {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    border-radius: 6px;
+    color: var(--ca-secondary-text);
+    list-style: none;
+    user-select: none;
+    transition: background var(--ca-transition), color var(--ca-transition);
+  }
+  .field-hint summary::-webkit-details-marker { display: none; }
+  .field-hint summary::marker { content: ""; }
+  .field-hint summary:hover {
+    background: color-mix(in srgb, var(--primary-text-color) 8%, transparent);
+    color: var(--ca-primary);
+  }
+  .field-hint[open] summary {
+    color: var(--ca-primary);
+  }
+  .field-hint .hint-body {
+    padding: 8px 10px;
+    margin-top: 4px;
+    background: color-mix(in srgb, var(--primary-text-color) 4%, transparent);
+    border-left: 2px solid color-mix(in srgb, var(--ca-primary) 50%, transparent);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--ca-secondary-text);
+    line-height: 1.5;
   }
   /* Sensor live value */
   .sensor-current-value {
@@ -1635,6 +1674,23 @@ const PANEL_STYLES = `
     .tab-bar button { padding: 10px 14px; font-size: 13px; }
     .data-table th, .data-table td { padding: 10px 12px; font-size: 13px; }
     .data-table td.row-chevron { display: none; }
+    .data-table th.row-chevron-head { display: none; }
+    /* Sticky first column so the cover name stays visible when scrolling horizontally */
+    .data-table th:first-child,
+    .data-table td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: var(--ca-card-bg);
+      box-shadow: 2px 0 4px rgba(0, 0, 0, 0.15);
+    }
+    .data-table thead th:first-child {
+      z-index: 2;
+    }
+    .data-table tbody tr:hover td:first-child,
+    .data-table tbody tr.selected td:first-child {
+      background: color-mix(in srgb, var(--ca-primary) 12%, var(--ca-card-bg));
+    }
     .condition-card .cond-params { grid-template-columns: 1fr; }
     .panel-header {
       flex-direction: column;
@@ -1747,7 +1803,8 @@ class CoverAutomaticPanel extends HTMLElement {
 
   _hint(key) {
     const text = this._t(key);
-    return text !== key ? `<div class="settings-hint">${this._esc(text)}</div>` : "";
+    if (text === key) return "";
+    return `<details class="field-hint"><summary title="${this._t("show_hint")}" aria-label="${this._t("show_hint")}">${this._lucideIcon("info", 14)}</summary><div class="hint-body">${this._esc(text)}</div></details>`;
   }
 
   /* ---------- Lifecycle ---------- */
@@ -3454,10 +3511,11 @@ class CoverAutomaticPanel extends HTMLElement {
     const sec = Math.max(0, Math.round(Date.now() / 1000 - ts));
     if (sec < 60) return this._t("cover_just_now");
     const min = Math.floor(sec / 60);
-    if (min < 60) return min + " " + this._t("cover_minutes_ago");
+    if (min < 60) return this._t("time_ago_min").replace("{n}", min);
     const h = Math.floor(min / 60);
     const m = min % 60;
-    return h + ":" + (m < 10 ? "0" : "") + m + " " + this._t("cover_hours_ago");
+    if (m === 0) return this._t("time_ago_h").replace("{n}", h);
+    return this._t("time_ago_h_m").replace("{h}", h).replace("{m}", m);
   }
 
   _formatPauseRemaining(pauseUntil) {
