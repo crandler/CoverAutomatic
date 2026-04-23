@@ -1029,6 +1029,25 @@ const PANEL_STYLES = `
     font-size: 12px;
     min-width: 32px;
   }
+  .pos-bar.pos-bar-compact {
+    min-width: 0;
+    gap: 6px;
+    vertical-align: middle;
+  }
+  .pos-bar.pos-bar-compact .pos-bar-track {
+    width: 44px;
+    height: 4px;
+  }
+  .pos-bar.pos-bar-compact .pos-bar-label {
+    font-size: 11px;
+    min-width: 0;
+    color: var(--ca-secondary-text);
+  }
+  .rule-meta .rule-target {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
 
   .resume-x {
     display: inline;
@@ -1169,21 +1188,44 @@ const PANEL_STYLES = `
   .section {
     margin-bottom: 8px;
   }
+  .section {
+    border-top: 1px solid var(--ca-border);
+  }
+  .section:first-child {
+    border-top: none;
+  }
   .section-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 0;
+    gap: 10px;
+    padding: 14px 0 10px;
     cursor: pointer;
     user-select: none;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
-    color: var(--ca-secondary-text);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: var(--primary-text-color);
+    letter-spacing: 0.2px;
+  }
+  .section-header:hover {
+    color: var(--ca-primary);
+  }
+  .section-header .section-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--ca-primary) 12%, transparent);
+    color: var(--ca-primary);
+    flex-shrink: 0;
+  }
+  .section-header .section-title {
+    flex: 1;
   }
   .section-header .arrow {
     font-size: 10px;
+    color: var(--ca-secondary-text);
     transition: transform var(--ca-transition);
     display: inline-block;
   }
@@ -1868,7 +1910,7 @@ class CoverAutomaticPanel extends HTMLElement {
     const version = this._config ? this._config.version : "";
     const enabled = this._config ? this._config.enabled !== false : true;
     let html = '<div class="header-left">';
-    html += '<button class="menu-btn" data-action="toggle-menu"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor"/></svg></button>';
+    html += '<button class="menu-btn" data-action="toggle-menu" aria-label="' + this._t("title") + '">' + this._lucideIcon("menu", 24) + '</button>';
     html += '<h1>' + this._t("title") + '</h1>';
     if (this._latestVersion) {
       const v = this._esc(version);
@@ -1946,10 +1988,11 @@ class CoverAutomaticPanel extends HTMLElement {
     return '<span class="info-bar">' + parts.join('<span class="info-bar-sep">\u2502</span>') + '</span>';
   }
 
-  _posBar(pos) {
+  _posBar(pos, variant) {
     if (pos == null) return '\u2013';
     const p = Math.max(0, Math.min(100, pos));
-    return '<span class="pos-bar"><span class="pos-bar-track"><span class="pos-bar-fill" style="width:' + p + '%"></span></span><span class="pos-bar-label">' + pos + '%</span></span>';
+    const cls = variant ? ' pos-bar-' + variant : '';
+    return '<span class="pos-bar' + cls + '"><span class="pos-bar-track"><span class="pos-bar-fill" style="width:' + p + '%"></span></span><span class="pos-bar-label">' + pos + '%</span></span>';
   }
 
   _sunIconSvg(size = 14) {
@@ -1990,7 +2033,12 @@ class CoverAutomaticPanel extends HTMLElement {
       thermometer: '<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>',
       wind: '<path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>',
       cog: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
-      archive: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>'
+      archive: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+      menu: '<line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/>',
+      info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+      sliders: '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
+      move_vertical: '<polyline points="8 18 12 22 16 18"/><polyline points="8 6 12 2 16 6"/><line x1="12" x2="12" y1="2" y2="22"/>',
+      activity: '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.5.5 0 0 1-.96 0L9.24 2.18a.5.5 0 0 0-.96 0l-2.35 8.36A2 2 0 0 1 4 12H2"/>'
     };
     return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="' + a + '">' + (paths[name] || '') + '</svg>';
   }
@@ -2273,9 +2321,13 @@ class CoverAutomaticPanel extends HTMLElement {
   _renderSection(id, title, contentFn) {
     const expanded = this._expandedSections[id];
     const arrowClass = expanded ? "arrow expanded" : "arrow";
+    const iconMap = { base: "info", sensors: "gauge", advanced: "sliders", tilt: "move_vertical" };
+    const iconName = iconMap[id];
+    const icon = iconName ? `<span class="section-icon">${this._lucideIcon(iconName, 16)}</span>` : "";
     return `<div class="section">
       <div class="section-header" data-action="toggle-section" data-section="${id}">
-        <span class="${arrowClass}">&#9654;</span> ${this._esc(title)}
+        ${icon}<span class="section-title">${this._esc(title)}</span>
+        <span class="${arrowClass}">&#9654;</span>
       </div>
       <div class="section-body${expanded ? " expanded" : ""}">
         ${contentFn()}
@@ -2505,9 +2557,9 @@ class CoverAutomaticPanel extends HTMLElement {
       html += '<div class="rule-meta">';
       html += `<span class="priority-badge">#${idx + 1}</span>`;
       html += `<span>${r.condition_operator === "or" ? "OR" : "AND"}</span>`;
-      html += `<span>${this._t("rule_target_pos")}: ${r.target_position}%</span>`;
+      html += `<span class="rule-target">${this._t("rule_target_pos")}:${this._posBar(r.target_position, "compact")}</span>`;
       if (r.target_tilt_position != null) {
-        html += `<span>${this._t("rule_target_tilt")}: ${r.target_tilt_position}%</span>`;
+        html += `<span class="rule-target">${this._t("rule_target_tilt")}:${this._posBar(r.target_tilt_position, "compact")}</span>`;
       }
       html += '</div>';
       // Condition chips

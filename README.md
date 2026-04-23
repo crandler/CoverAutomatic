@@ -150,9 +150,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.42.0
+1.42.1
 
 ## Changelog
+
+### 1.42.1 (2026-04-23)
+
+- UX: rule cards now show the target position as a small inline progress bar instead of a percent text, matching the cover table.
+- UX: slide-out section headers in the cover editor now have a distinctive icon, accent color and a divider between sections for clearer hierarchy.
+- UX: replaced the Material-style hamburger icon in the panel header with the matching Lucide icon for consistency with other icons.
 
 ### 1.42.0 (2026-04-22)
 
