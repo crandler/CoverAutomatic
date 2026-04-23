@@ -198,9 +198,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.45.2
+1.46.0
 
 ## Changelog
+
+### 1.46.0 (2026-04-24)
+
+- Fix: the `min_time_between_changes` hysteresis no longer blocks position updates when the matching rule has changed since the last move. A rule transition (e.g. "Day" -> "Night") is a semantic state change, not rate-limitable noise, so the new target is applied immediately. The position-change hysteresis (`min_position_change`) remains active as a noise filter. Prevents delayed shutter closing when a high-priority night rule kicks in shortly after a daytime rule last moved the covers.
 
 ### 1.45.2 (2026-04-23)
 

@@ -93,6 +93,7 @@ def coordinator(mock_hass, mock_storage):
         coord._wind_protected = False
         coord._hysteresis_info = {}
         coord._last_matching_rules = {}
+        coord._last_move_rule = {}
         coord._startup_time = -999.0
         coord._startup_skip = False
         coord._grace_synced = True
@@ -468,6 +469,77 @@ class TestHysteresis:
 
             # Should not call because 100 < 300 seconds
             mock_hass.services.async_call.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_time_hysteresis_bypassed_on_rule_change(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Time hysteresis is bypassed when the matching rule changed since last move."""
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 0,
+                    "matching_rule_id": "night",
+                }
+            }
+        }
+        coordinator._last_move_rule["cover.test"] = "day"
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+            "min_time_between_changes": 300,
+            "last_position_change": 900,  # 100s ago, still within hysteresis window
+            "inverted": False,
+        }
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 80}
+        )
+
+        with patch("homeassistant.util.dt.now") as mock_now:
+            mock_now.return_value.timestamp.return_value = 1000
+
+            await coordinator.async_apply_positions()
+
+            mock_hass.services.async_call.assert_called_once_with(
+                "cover",
+                "set_cover_position",
+                {"entity_id": "cover.test", "position": 0},
+                blocking=False,
+            )
+            assert coordinator._last_move_rule["cover.test"] == "night"
+
+    @pytest.mark.asyncio
+    async def test_time_hysteresis_still_blocks_same_rule(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Time hysteresis still blocks when the matching rule is unchanged."""
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 60,
+                    "matching_rule_id": "day",
+                }
+            }
+        }
+        coordinator._last_move_rule["cover.test"] = "day"
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+            "min_time_between_changes": 300,
+            "last_position_change": 900,
+            "inverted": False,
+        }
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 50}
+        )
+
+        with patch("homeassistant.util.dt.now") as mock_now:
+            mock_now.return_value.timestamp.return_value = 1000
+
+            await coordinator.async_apply_positions()
+
+            mock_hass.services.async_call.assert_not_called()
+            assert coordinator._hysteresis_info.get("cover.test") == "time"
 
     @pytest.mark.asyncio
     async def test_inverted_cover_position_is_flipped(

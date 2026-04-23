@@ -78,6 +78,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._wind_protected: bool = False
         self._hysteresis_info: dict[str, str | None] = {}
         self._last_matching_rules: dict[str, str | None] = {}
+        self._last_move_rule: dict[str, str | None] = {}
         self._startup_time: float = time_mod.monotonic()
         self._startup_skip: bool = True
         self._grace_synced: bool = False
@@ -1213,10 +1214,22 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._sync_tilt_from_state(entity_id, state)
                 continue
 
-            # Check hysteresis: minimum time between changes
+            # Check hysteresis: minimum time between changes.
+            # Skipped on rule change: a different matching rule is a semantic
+            # state change (e.g. "Day" -> "Night"), not rate-limitable noise.
             min_time = self._cover_val(cover_raw, "min_time_between_changes")
             last_change = cover_raw.get("last_position_change")
-            if position_diff > 0 and last_change and (now - last_change) < min_time:
+            current_rule = cover_data.get("matching_rule_id")
+            rule_changed = (
+                entity_id in self._last_move_rule
+                and current_rule != self._last_move_rule[entity_id]
+            )
+            if (
+                position_diff > 0
+                and last_change
+                and (now - last_change) < min_time
+                and not rule_changed
+            ):
                 _LOGGER.debug(
                     "Skipping %s: only %ds since last change (min %ds)",
                     entity_id, int(now - last_change), min_time
@@ -1243,6 +1256,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._hysteresis_info[entity_id] = None
                 self._last_positions[entity_id] = target
                 self._last_command_time[entity_id] = time_mod.monotonic()
+                self._last_move_rule[entity_id] = cover_data.get("matching_rule_id")
                 self._pending_settle.add(entity_id)
                 self._log(
                     LOG_EVENT_POSITION, entity_id, f"{current}% -> {target}%",
