@@ -970,6 +970,71 @@ const PANEL_STYLES = `
     align-items: start;
   }
 
+  /* Settings shell: sidebar + content */
+  .settings-shell {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+  .settings-nav {
+    flex: 0 0 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: sticky;
+    top: 16px;
+    padding: 8px;
+    background: var(--ca-card-bg);
+    border: 1px solid var(--ca-border);
+    border-radius: var(--ca-radius);
+  }
+  .settings-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ca-secondary-text);
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition: background var(--ca-transition), color var(--ca-transition);
+  }
+  .settings-nav-btn:hover {
+    background: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
+    color: var(--primary-text-color);
+  }
+  .settings-nav-btn.active {
+    background: color-mix(in srgb, var(--ca-primary) 14%, transparent);
+    color: var(--ca-primary);
+  }
+  .settings-nav-btn .settings-nav-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+  .settings-nav-btn .settings-nav-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+  .settings-nav-btn .settings-nav-label {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .settings-content {
+    flex: 1;
+    min-width: 0;
+  }
+
   /* Settings card stack */
   .settings-stack {
     display: flex;
@@ -1887,6 +1952,29 @@ const PANEL_STYLES = `
     .data-table th, .data-table td { padding: 10px 12px; font-size: 13px; }
     .data-table td.row-chevron { display: none; }
     .data-table th.row-chevron-head { display: none; }
+    /* Settings: sidebar collapses to horizontal scrollable pill strip */
+    .settings-shell {
+      flex-direction: column;
+      gap: 12px;
+    }
+    .settings-nav {
+      flex: 0 0 auto;
+      flex-direction: row;
+      position: static;
+      padding: 6px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      gap: 4px;
+    }
+    .settings-nav-btn {
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+    .settings-nav-btn .settings-nav-label {
+      overflow: visible;
+      text-overflow: unset;
+    }
     /* Sticky first column so the cover name stays visible when scrolling horizontally */
     .data-table th:first-child,
     .data-table td:first-child {
@@ -1963,6 +2051,7 @@ class CoverAutomaticPanel extends HTMLElement {
     this._eventUnsub = null;
     this._eventDebounce = null;
     this._expandedSections = { base: true, sensors: true, advanced: false, tilt: false };
+    this._activeSettingsSection = "house";
 
 
     this.attachShadow({ mode: "open" });
@@ -3337,12 +3426,39 @@ class CoverAutomaticPanel extends HTMLElement {
     const s = this._config.settings || {};
     const hint = (text) => `<div class="settings-hint">${text}</div>`;
     const hintIntro = (text) => `<div class="settings-hint-intro">${text}</div>`;
+    const active = this._activeSettingsSection || "house";
 
-    let html = '<div class="settings-stack">';
+    const sections = [
+      { id: "house", labelKey: "settings_section_house", icon: this._lucideIcon("house", 16) },
+      { id: "sensors", labelKey: "settings_section_sensors", icon: this._lucideIcon("gauge", 16) },
+      { id: "comfort", labelKey: "settings_section_comfort", icon: this._lucideIcon("thermometer", 16) },
+      { id: "wind", labelKey: "settings_section_wind", icon: this._lucideIcon("wind", 16) },
+      { id: "solar", labelKey: "settings_section_solar", icon: this._sunIconSvg(16) },
+      { id: "automation", labelKey: "settings_section_automation", icon: this._lucideIcon("cog", 16) },
+      { id: "backup", labelKey: "settings_section_backup", icon: this._lucideIcon("archive", 16) }
+    ];
 
-    // Card 1: House
-    const rot = s.house_rotation != null ? s.house_rotation : 0;
-    html += `<div class="card">
+    let html = '<div class="settings-shell">';
+
+    // Sidebar navigation
+    html += '<aside class="settings-nav" role="tablist" aria-label="' + this._esc(this._t("tabs") && typeof this._t("tabs") === "object" ? "Settings" : "Settings") + '">';
+    for (const sec of sections) {
+      const isActive = sec.id === active;
+      const cls = "settings-nav-btn" + (isActive ? " active" : "");
+      html += '<button class="' + cls + '" role="tab" aria-selected="' + (isActive ? "true" : "false") + '" data-action="settings-section" data-section="' + sec.id + '">';
+      html += '<span class="settings-nav-icon">' + sec.icon + '</span>';
+      html += '<span class="settings-nav-label">' + this._esc(this._t(sec.labelKey)) + '</span>';
+      html += '</button>';
+    }
+    html += '</aside>';
+
+    // Content column
+    html += '<div class="settings-content"><div class="settings-stack">';
+
+    // House section
+    if (active === "house") {
+      const rot = s.house_rotation != null ? s.house_rotation : 0;
+      html += `<div class="card">
       <div class="card-header">${this._lucideIcon("house")} ${this._t("settings_section_house")}</div>
       <div class="card-body">
         <div class="settings-house-layout">
@@ -3355,9 +3471,11 @@ class CoverAutomaticPanel extends HTMLElement {
         </div>
       </div>
     </div>`;
+    }
 
-    // Card 2: Sensors (incl. workday)
-    html += `<div class="card">
+    // Sensors section (outdoor/indoor/weather/workday)
+    if (active === "sensors") {
+      html += `<div class="card">
       <div class="card-header">${this._lucideIcon("gauge")} ${this._t("settings_section_sensors")}</div>
       <div class="card-body">
         <div class="form-row">
@@ -3390,9 +3508,11 @@ class CoverAutomaticPanel extends HTMLElement {
         </div>
       </div>
     </div>`;
+    }
 
-    // Card 3: Comfort
-    html += `<div class="card">
+    // Comfort section
+    if (active === "comfort") {
+      html += `<div class="card">
       <div class="card-header">${this._lucideIcon("thermometer")} ${this._t("settings_section_comfort")}</div>
       <div class="card-body">
         ${hintIntro(this._t("settings_comfort_hint"))}
@@ -3413,9 +3533,11 @@ class CoverAutomaticPanel extends HTMLElement {
         </div>
       </div>
     </div>`;
+    }
 
-    // Card 4: Wind protection
-    html += `<div class="card">
+    // Wind section
+    if (active === "wind") {
+      html += `<div class="card">
       <div class="card-header">${this._lucideIcon("wind")} ${this._t("settings_section_wind")}</div>
       <div class="card-body">
         ${hintIntro(this._t("settings_wind_hint"))}
@@ -3436,9 +3558,11 @@ class CoverAutomaticPanel extends HTMLElement {
         </div>
       </div>
     </div>`;
+    }
 
-    // Card 5: Preemptive shading (solar intensity)
-    html += `<div class="card">
+    // Solar section
+    if (active === "solar") {
+      html += `<div class="card">
       <div class="card-header">${this._sunIconSvg(18)} ${this._t("settings_section_solar")}</div>
       <div class="card-body">
         ${hintIntro(this._t("settings_solar_hint"))}
@@ -3454,9 +3578,11 @@ class CoverAutomaticPanel extends HTMLElement {
         </div>
       </div>
     </div>`;
+    }
 
-    // Card 6: Automation behavior
-    html += `<div class="card">
+    // Automation section
+    if (active === "automation") {
+      html += `<div class="card">
       <div class="card-header">${this._lucideIcon("cog")} ${this._t("settings_section_automation")}</div>
       <div class="card-body">
         <div class="form-group">
@@ -3514,14 +3640,18 @@ class CoverAutomaticPanel extends HTMLElement {
         </div>
       </div>
     </div>`;
+    }
 
-    // Save bar: scoped to all config cards above (Cards 1-6), before Backup
-    html += `<div class="settings-save-bar">
+    // Save bar - for all sections except backup
+    if (active !== "backup") {
+      html += `<div class="settings-save-bar">
       <button class="btn btn-primary" data-action="settings-save">${this._t("save")}</button>
     </div>`;
+    }
 
-    // Card 7: Backup (not part of settings-save scope)
-    html += `<div class="card">
+    // Backup section
+    if (active === "backup") {
+      html += `<div class="card">
       <div class="card-header">${this._lucideIcon("archive")} ${this._t("settings_section_backup")}</div>
       <div class="card-body">
         ${hintIntro(this._t("settings_backup_hint"))}
@@ -3532,8 +3662,9 @@ class CoverAutomaticPanel extends HTMLElement {
         </div>
       </div>
     </div>`;
+    }
 
-    html += '</div>';
+    html += '</div></div></div>'; // close settings-stack, settings-content, settings-shell
     return html;
   }
 
@@ -3869,6 +4000,10 @@ class CoverAutomaticPanel extends HTMLElement {
         break;
       case "toggle-section":
         this._expandedSections[actionEl.dataset.section] = !this._expandedSections[actionEl.dataset.section];
+        this._render();
+        break;
+      case "settings-section":
+        this._activeSettingsSection = actionEl.dataset.section;
         this._render();
         break;
       case "facade-add-start": this._addingFacade = true; this._render(); break;

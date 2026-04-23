@@ -150,9 +150,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.44.0
+1.45.0
 
 ## Changelog
+
+### 1.45.0 (2026-04-23)
+
+- UX: Settings tab is redesigned with a vertical sidebar navigation. The seven sections (House, Sensors, Comfort, Wind, Preemptive shading, Automation, Backup) can now be selected individually without scrolling through the whole page. The active section stays sticky on the left on desktop.
+- UX: on mobile (< 768px) the sidebar collapses into a horizontal scrollable pill strip above the section content.
+- UX: the save button now appears at the bottom of the active section only (except Backup, which has its own export/import actions).
 
 ### 1.44.0 (2026-04-23)
 
