@@ -150,9 +150,14 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.42.1
+1.43.0
 
 ## Changelog
+
+### 1.43.0 (2026-04-23)
+
+- UX: redesigned the panel header info bar as a widget strip. Sun position, outdoor temperature, weather state and solar intensity each get their own pill-shaped widget with icon and tooltip, replacing the previous pipe-separated text line. Solar widget turns orange when preemptive shading is active.
+- UX: individual widgets wrap cleanly on narrow viewports without breaking the layout.
 
 ### 1.42.1 (2026-04-23)
 

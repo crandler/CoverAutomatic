@@ -221,6 +221,10 @@ const I18N = {
     weather_exceptional: "Severe weather",
     weather_clear_night: "Clear night",
     weather_unknown: "Unknown",
+    info_sun_title: "Sun position (azimuth / elevation)",
+    info_outdoor_title: "Outdoor temperature",
+    info_solar_title: "Solar intensity",
+    info_solar_exceeded_title: "Solar above threshold - preemptive shading active",
     rule_active_for: "Active for",
     rule_covers_count: "cover(s)",
     rule_inactive: "Not matching",
@@ -454,6 +458,10 @@ const I18N = {
     weather_exceptional: "Extremwetter",
     weather_clear_night: "Klare Nacht",
     weather_unknown: "Unbekannt",
+    info_sun_title: "Sonnenposition (Azimut / Elevation)",
+    info_outdoor_title: "Außentemperatur",
+    info_solar_title: "Solarintensität",
+    info_solar_exceeded_title: "Solar über Schwellwert – präventive Beschattung aktiv",
     rule_active_for: "Aktiv für",
     rule_covers_count: "Behang/Behänge",
     rule_inactive: "Nicht aktiv",
@@ -603,27 +611,45 @@ const PANEL_STYLES = `
   .info-bar {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     font-size: 12px;
     color: var(--ca-secondary-text);
     flex-wrap: wrap;
   }
-  .info-bar-sep {
-    opacity: 0.25;
-    user-select: none;
-  }
-  .info-bar .weather-chunk {
+  .info-widget {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--primary-text-color) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary-text-color) 8%, transparent);
+    white-space: nowrap;
+    line-height: 1.3;
+    transition: background var(--ca-transition), border-color var(--ca-transition), color var(--ca-transition);
   }
-  .info-bar-icon {
-    vertical-align: -2px;
-    flex-shrink: 0;
+  .info-widget:hover {
+    background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
   }
-  .info-bar-solar-active {
+  .info-widget-value {
+    color: var(--primary-text-color);
+    font-weight: 500;
+  }
+  .info-widget-label {
+    color: var(--ca-secondary-text);
+  }
+  .info-widget.info-widget-highlight {
+    background: color-mix(in srgb, #e67e22 18%, transparent);
+    border-color: color-mix(in srgb, #e67e22 40%, transparent);
+    color: #e67e22;
+  }
+  .info-widget.info-widget-highlight .info-widget-value,
+  .info-widget.info-widget-highlight .info-widget-label {
     color: #e67e22;
     font-weight: 600;
+  }
+  .info-bar-icon {
+    flex-shrink: 0;
   }
   .scenario-badge {
     display: inline-flex;
@@ -1962,30 +1988,35 @@ class CoverAutomaticPanel extends HTMLElement {
     const solarVal = solarState && solarState.state !== "unavailable" && solarState.state !== "unknown" ? parseFloat(solarState.state) : null;
     if (az == null && el == null && tempVal == null && weatherVal == null && solarVal == null) return '';
     const belowHorizon = el != null && el < 0;
-    const icon = belowHorizon
-      ? '<svg class="info-bar-icon" width="14" height="14" viewBox="0 0 24 24"><path d="M12 2a9.9 9.9 0 00-3.24.53A7 7 0 0015 9a7 7 0 01-6.47 6.97A9.98 9.98 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="var(--ca-secondary-text)" opacity="0.5"/></svg>'
+    const sunIcon = belowHorizon
+      ? '<svg class="info-bar-icon" width="14" height="14" viewBox="0 0 24 24"><path d="M12 2a9.9 9.9 0 00-3.24.53A7 7 0 0015 9a7 7 0 01-6.47 6.97A9.98 9.98 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="currentColor" opacity="0.65"/></svg>'
       : this._sunIconSvg(14);
-    let parts = [];
+    let widgets = [];
     if (az != null && el != null) {
-      parts.push(icon + ' ' + Number(az).toFixed(1) + '\u00B0 / ' + Number(el).toFixed(1) + '\u00B0');
+      const sunTitle = this._t("info_sun_title") || "Sonnenposition";
+      widgets.push('<span class="info-widget" title="' + this._esc(sunTitle) + '">' + sunIcon + '<span class="info-widget-value">' + Number(az).toFixed(1) + '\u00B0 / ' + Number(el).toFixed(1) + '\u00B0</span></span>');
     }
     if (tempVal != null) {
-      parts.push(this._t("settings_outdoor_temp_short") + ' ' + tempVal.toFixed(1) + ' \u00B0C');
+      const tempTitle = this._t("info_outdoor_title") || "Au\u00DFentemperatur";
+      const thermoIcon = '<svg class="info-bar-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg>';
+      widgets.push('<span class="info-widget" title="' + this._esc(tempTitle) + '">' + thermoIcon + '<span class="info-widget-value">' + tempVal.toFixed(1) + ' \u00B0C</span></span>');
     }
     if (weatherVal != null) {
       const weatherKey = "weather_" + String(weatherVal).replace(/-/g, "_");
       const translated = this._t(weatherKey);
       const weatherLabel = translated && translated !== weatherKey ? translated : String(weatherVal);
-      parts.push('<span class="weather-chunk">' + this._weatherIconSvg(weatherVal) + this._esc(weatherLabel) + '</span>');
+      widgets.push('<span class="info-widget" title="' + this._esc(weatherLabel) + '">' + this._weatherIconSvg(weatherVal) + '<span class="info-widget-value">' + this._esc(weatherLabel) + '</span></span>');
     }
     if (solarVal != null) {
       const threshold = settings.solar_threshold != null ? settings.solar_threshold : 0;
       const exceeded = threshold > 0 && solarVal > threshold;
       const unit = solarState.attributes && solarState.attributes.unit_of_measurement ? ' ' + solarState.attributes.unit_of_measurement : '';
-      const cls = exceeded ? ' class="info-bar-solar-active"' : '';
-      parts.push('<span' + cls + '>' + this._t("settings_solar_short") + ' ' + solarVal.toFixed(0) + unit + (exceeded ? ' \u25B2' : '') + '</span>');
+      const solarTitle = exceeded ? (this._t("info_solar_exceeded_title") || "Solar \u00FCber Schwellwert \u2013 Beschattung aktiv") : (this._t("info_solar_title") || "Solarintensit\u00E4t");
+      const activityIcon = '<svg class="info-bar-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.5.5 0 0 1-.96 0L9.24 2.18a.5.5 0 0 0-.96 0l-2.35 8.36A2 2 0 0 1 4 12H2"/></svg>';
+      const cls = exceeded ? 'info-widget info-widget-highlight' : 'info-widget';
+      widgets.push('<span class="' + cls + '" title="' + this._esc(solarTitle) + '">' + activityIcon + '<span class="info-widget-value">' + solarVal.toFixed(0) + unit + (exceeded ? ' \u25B2' : '') + '</span></span>');
     }
-    return '<span class="info-bar">' + parts.join('<span class="info-bar-sep">\u2502</span>') + '</span>';
+    return '<span class="info-bar">' + widgets.join('') + '</span>';
   }
 
   _posBar(pos, variant) {
