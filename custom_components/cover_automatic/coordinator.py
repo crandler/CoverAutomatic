@@ -79,6 +79,11 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._hysteresis_info: dict[str, str | None] = {}
         self._last_matching_rules: dict[str, str | None] = {}
         self._last_move_rule: dict[str, str | None] = {}
+        # Covers that just exited a protective status (LOCKED / VENTING) and
+        # need to bypass the time hysteresis once -- otherwise a long
+        # min_time_between_changes leaves the cover at vent/lock position
+        # long after the sensor has cleared.
+        self._post_protective_exit: set[str] = set()
         self._startup_time: float = time_mod.monotonic()
         self._startup_skip: bool = True
         self._grace_synced: bool = False
@@ -588,8 +593,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._cover_states[cover_id] = CoverStatus.AUTO
                 self.storage.update_cover_status(cover_id, CoverStatus.AUTO.value, None)
                 self._update_last_position_from_state(cover_id)
+                # Mark for one-shot time-hysteresis bypass so the next apply
+                # cycle re-applies the matching rule even when
+                # min_time_between_changes has not elapsed.
+                self._post_protective_exit.add(cover_id)
                 if self.data is not None:
                     self.async_set_updated_data(self.data)
+                self.hass.async_create_task(self.async_request_refresh())
 
     def _get_current_position(self, entity_id: str) -> int | None:
         """Get current cover position (handles inverted covers)."""
@@ -705,6 +715,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
         # Update expected position to current to prevent false override
         self._update_last_position_from_state(entity_id)
+        # One-shot time-hysteresis bypass for the next apply cycle.
+        self._post_protective_exit.add(entity_id)
         self.hass.async_create_task(self.async_request_refresh())
 
     def _update_last_position_from_state(self, entity_id: str) -> None:
@@ -1215,8 +1227,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
 
             # Check hysteresis: minimum time between changes.
-            # Skipped on rule change: a different matching rule is a semantic
-            # state change (e.g. "Day" -> "Night"), not rate-limitable noise.
+            # Skipped on rule change (semantic state change like Day -> Night)
+            # OR when the cover just exited a protective status (LOCKED /
+            # VENTING) -- otherwise a long min_time_between_changes leaves
+            # the cover at vent/lock position long after the sensor cleared.
             min_time = self._cover_val(cover_raw, "min_time_between_changes")
             last_change = cover_raw.get("last_position_change")
             current_rule = cover_data.get("matching_rule_id")
@@ -1224,11 +1238,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 entity_id in self._last_move_rule
                 and current_rule != self._last_move_rule[entity_id]
             )
+            status_just_reset = entity_id in self._post_protective_exit
             if (
                 position_diff > 0
                 and last_change
                 and (now - last_change) < min_time
                 and not rule_changed
+                and not status_just_reset
             ):
                 _LOGGER.debug(
                     "Skipping %s: only %ds since last change (min %ds)",
@@ -1238,6 +1254,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._last_positions[entity_id] = current
                 self._sync_tilt_from_state(entity_id, state)
                 continue
+            # Past the time-hysteresis check: consume the one-shot bypass.
+            self._post_protective_exit.discard(entity_id)
 
             # Determine target tilt (if applicable)
             target_tilt = cover_data.get("target_tilt_position")

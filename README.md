@@ -198,9 +198,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.48.0
+1.49.0
 
 ## Changelog
+
+### 1.49.0 (2026-04-26)
+
+- Fix: closing a window after ventilation now applies the matching rule's target position immediately, instead of waiting for `min_time_between_changes` to elapse. The bug was twofold: (a) the vent-sensor-close branch in `_handle_contact_sensor_change` only pushed an updated-data event, not an actual refresh, so the next apply cycle waited for the polling interval; and (b) the time hysteresis treated the prior vent move as a normal apply move, blocking the rule re-apply for up to `min_time_between_changes` (a 30-min config could leave covers at 15% for almost half an hour after the window closed). VENTING -> AUTO and LOCKED -> AUTO transitions now schedule an immediate refresh and grant a one-shot bypass for the time hysteresis on the next apply cycle, analogous to the existing rule-change bypass. New `_post_protective_exit` set tracks the one-shot grant. +5 tests.
 
 ### 1.48.0 (2026-04-26)
 

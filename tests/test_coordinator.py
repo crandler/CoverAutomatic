@@ -94,6 +94,7 @@ def coordinator(mock_hass, mock_storage):
         coord._hysteresis_info = {}
         coord._last_matching_rules = {}
         coord._last_move_rule = {}
+        coord._post_protective_exit = set()
         coord._startup_time = -999.0
         coord._startup_skip = False
         coord._grace_synced = True
@@ -3173,3 +3174,238 @@ class TestLogbookHelper:
         mock_log.assert_called_once()
         _, kwargs = mock_log.call_args
         assert kwargs["entity_id"] is None
+
+
+class TestProtectiveStatusExitFreshApply:
+    """Vent-close and lock-close must trigger an immediate apply cycle that
+    bypasses the time hysteresis once -- otherwise a long
+    `min_time_between_changes` (e.g. 1800s) keeps the cover at vent_position
+    long after the window has been closed.
+
+    Regression: user reported a 25-30 minute delay after closing a window
+    while the night rule wanted the cover at 0%.
+    """
+
+    def _make_cover(self):
+        from custom_components.cover_automatic.models import CoverConfig
+        cover = MagicMock(spec=CoverConfig)
+        cover.entity_id = "cover.test"
+        cover.auto_enabled = True
+        cover.pause_duration = 30
+        return cover
+
+    def test_vent_close_schedules_async_request_refresh(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Closing the vent sensor must trigger an immediate refresh, not just
+        an updated-data push. The lock-close path already does this via
+        _unlock_cover; the vent-close path was inconsistent."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.VENTING
+
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": "binary_sensor.vent",
+            "vent_position": 15,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 85}  # at vent_position (inverted)
+        )
+
+        coordinator._handle_contact_sensor_change(
+            "binary_sensor.vent",
+            [],
+            ["cover.test"],
+            MockState("on"),
+            MockState("off"),
+        )
+
+        # Status flipped to AUTO and a refresh was scheduled
+        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
+        coordinator.hass.async_create_task.assert_called()
+
+    def test_vent_close_marks_cover_for_hysteresis_bypass(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """After a vent-close transition AUTO, the cover is marked for a
+        one-shot time-hysteresis bypass."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.VENTING
+
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": "binary_sensor.vent",
+            "vent_position": 15,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 85}
+        )
+
+        coordinator._handle_contact_sensor_change(
+            "binary_sensor.vent",
+            [],
+            ["cover.test"],
+            MockState("on"),
+            MockState("off"),
+        )
+
+        assert "cover.test" in coordinator._post_protective_exit
+
+    def test_unlock_to_auto_marks_cover_for_hysteresis_bypass(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """After a lock-close transition AUTO, the cover is marked for a
+        one-shot time-hysteresis bypass too."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._pre_lock_states["cover.test"] = CoverStatus.AUTO
+        coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
+
+        cover_raw = {
+            "lock_sensor": "binary_sensor.lock",
+            "vent_sensor": None,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.return_value = MockState(
+            "closed", {"current_position": 0}
+        )
+
+        coordinator._unlock_cover("cover.test")
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
+        assert "cover.test" in coordinator._post_protective_exit
+
+    @pytest.mark.asyncio
+    async def test_apply_cycle_bypasses_time_hysteresis_after_protective_exit(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """A cover that just exited VENTING must move to its rule target even
+        when min_time_between_changes has not elapsed (1800s = 30min config).
+
+        This is the user's actual bug: vent at 15% during ventilation, window
+        closed, but night rule's 0% target was blocked by time hysteresis."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        mock_storage.command_stagger = 0.0
+
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._post_protective_exit.add("cover.test")
+        coordinator._last_positions["cover.test"] = 15
+        coordinator._last_command_time["cover.test"] = 0.0
+
+        # data with target_position from a "Night" rule
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 0,
+                    "matching_rule_id": "night",
+                }
+            }
+        }
+
+        # last_position_change is FRESH (10 minutes ago); without the bypass
+        # the apply cycle would skip with "time" hysteresis.
+        now_wall = 1_000_000.0  # arbitrary stable wall-clock value
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": None,
+            "lock_position": 100,
+            "vent_position": 15,
+            "min_position_change": 1,
+            "min_time_between_changes": 1800,  # 30 minutes -- user's config
+            "last_position_change": now_wall - 600.0,  # 10 minutes ago
+            "inverted": False,
+            "auto_enabled": True,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 15}
+        )
+
+        with patch(
+            "custom_components.cover_automatic.coordinator.dt_util"
+        ) as mock_dt:
+            mock_dt.now.return_value.timestamp.return_value = now_wall
+            with patch(
+                "custom_components.cover_automatic.coordinator.time_mod"
+            ) as mock_time:
+                mock_time.monotonic.return_value = 9999.0
+                await coordinator.async_apply_positions()
+
+        # set_cover_position was called with position=0
+        position_calls = [
+            call for call in mock_hass.services.async_call.call_args_list
+            if call.args[:2] == ("cover", "set_cover_position")
+            and call.args[2].get("position") == 0
+        ]
+        assert position_calls, (
+            f"expected move to 0, services called: "
+            f"{mock_hass.services.async_call.call_args_list}"
+        )
+        # Bypass is one-shot: consumed after pass
+        assert "cover.test" not in coordinator._post_protective_exit
+
+    @pytest.mark.asyncio
+    async def test_apply_cycle_still_respects_time_hysteresis_without_flag(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Regression guard: time hysteresis still blocks moves in regular
+        AUTO operation when no protective-exit happened."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        mock_storage.command_stagger = 0.0
+
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 60
+        coordinator._last_command_time["cover.test"] = 0.0
+        # No _post_protective_exit flag
+
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 0,
+                    "matching_rule_id": "night",
+                }
+            }
+        }
+
+        now_wall = 1_000_000.0
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": None,
+            "lock_position": 100,
+            "vent_position": 15,
+            "min_position_change": 1,
+            "min_time_between_changes": 1800,
+            "last_position_change": now_wall - 600.0,  # 10 min ago
+            "inverted": False,
+            "auto_enabled": True,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.return_value = MockState(
+            "open", {"current_position": 60}
+        )
+
+        with patch(
+            "custom_components.cover_automatic.coordinator.dt_util"
+        ) as mock_dt:
+            mock_dt.now.return_value.timestamp.return_value = now_wall
+            with patch(
+                "custom_components.cover_automatic.coordinator.time_mod"
+            ) as mock_time:
+                mock_time.monotonic.return_value = 9999.0
+                await coordinator.async_apply_positions()
+
+        # No move, time hysteresis recorded
+        position_calls = [
+            call for call in mock_hass.services.async_call.call_args_list
+            if call.args[:2] == ("cover", "set_cover_position")
+        ]
+        assert position_calls == []
+        assert coordinator._hysteresis_info.get("cover.test") == "time"
