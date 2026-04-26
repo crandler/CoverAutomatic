@@ -190,7 +190,8 @@ const I18N = {
     settings_comfort_hysteresis: "Hysteresis",
     settings_comfort_hysteresis_hint: "Temperature buffer at comfort boundaries to prevent oscillation between modes (e.g. 1.0 = mode only changes 1 degree past threshold).",
     settings_house_rotation: "House rotation (degrees)",
-    settings_house_rotation_hint: "Offset from true north (-180 to 180, positive = clockwise). Applied automatically when selecting a facade direction.",
+    settings_house_rotation_hint: "Offset from true north (-180 to 180, positive = clockwise). Applied automatically when selecting a facade direction. Drag the house in the compass, hold Shift to snap to 45°.",
+    settings_house_rotation_reset: "Reset",
     settings_section_house: "House",
     settings_section_sensors: "Sensors",
     settings_section_comfort: "Comfort",
@@ -434,7 +435,8 @@ const I18N = {
     settings_comfort_hysteresis: "Hysterese",
     settings_comfort_hysteresis_hint: "Temperaturpuffer an Komfortgrenzen, um Pendeln zwischen Modi zu verhindern (z. B. 1,0 = Moduswechsel erst 1 Grad jenseits des Schwellwerts).",
     settings_house_rotation: "Hausrotation (Grad)",
-    settings_house_rotation_hint: "Abweichung von exakt Nord (-180 bis 180, positiv = im Uhrzeigersinn). Wird automatisch bei der Fassaden-Richtungswahl angewendet.",
+    settings_house_rotation_hint: "Abweichung von exakt Nord (-180 bis 180, positiv = im Uhrzeigersinn). Wird automatisch bei der Fassaden-Richtungswahl angewendet. Haus im Kompass ziehen, mit Shift auf 45° einrasten.",
+    settings_house_rotation_reset: "Zurücksetzen",
     settings_section_house: "Haus",
     settings_section_sensors: "Sensoren",
     settings_section_comfort: "Komfort",
@@ -1196,6 +1198,40 @@ const PANEL_STYLES = `
   .settings-house-compass {
     flex: 0 0 auto;
   }
+  /* Quick rotate buttons next to the rotation input */
+  .rotation-quick {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .rotation-quick-btn {
+    background: color-mix(in srgb, var(--primary-text-color) 5%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary-text-color) 10%, transparent);
+    color: var(--primary-text-color);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background var(--ca-transition), border-color var(--ca-transition), color var(--ca-transition);
+  }
+  .rotation-quick-btn:hover {
+    background: color-mix(in srgb, var(--ca-action) 12%, transparent);
+    border-color: color-mix(in srgb, var(--ca-action) 35%, transparent);
+    color: var(--ca-action);
+  }
+  .rotation-quick-btn.rotation-quick-reset {
+    color: var(--ca-secondary-text);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.6px;
+  }
+  /* House SVG: ensure the house group has a proper drag affordance */
+  #compass-house { transition: filter var(--ca-transition); }
+  #compass-house:hover rect { stroke-width: 2.5; }
   /* Save action bar below all config cards */
   .settings-save-bar {
     display: flex;
@@ -3525,10 +3561,10 @@ class CoverAutomaticPanel extends HTMLElement {
     const sunEl = sunState ? parseFloat(sunState.attributes.elevation) : null;
     const belowHorizon = sunEl != null && sunEl < 0;
 
-    // Facade arcs
+    // Facade arcs -- muted, harmonized palette (same saturation, varying hue)
     const facades = this._config ? Object.values(this._config.facades || {}) : [];
     let facadeArcs = "";
-    const facadeColors = ["#4CAF50", "#2196F3", "#FF9800", "#9C27B0", "#F44336", "#00BCD4"];
+    const facadeColors = ["#7da7c8", "#7fb89e", "#c4a979", "#c98969", "#b878a1", "#8a7eb5"];
     facades.forEach((f, i) => {
       const startDeg = (f.azimuth_start - 90) * Math.PI / 180;
       const endDeg = (f.azimuth_end - 90) * Math.PI / 180;
@@ -3588,6 +3624,11 @@ class CoverAutomaticPanel extends HTMLElement {
     const svgW = 280, svgH = infoText ? 302 : 288;
     const infoSvg = infoText ? `<text x="${cx}" y="${svgH - 4}" text-anchor="middle" font-size="11" fill="var(--ca-secondary-text)">${infoText}</text>` : "";
     return `<svg id="compass-svg" class="compass-svg-root" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
+      <defs>
+        <filter id="ca-house-shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.45"/>
+        </filter>
+      </defs>
       <!-- Compass circle -->
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--divider-color)" stroke-width="1.5"/>
       <circle cx="${cx}" cy="${cy}" r="${r - 20}" fill="none" stroke="var(--divider-color)" stroke-width="0.5" stroke-dasharray="3,3"/>
@@ -3601,11 +3642,12 @@ class CoverAutomaticPanel extends HTMLElement {
       <!-- Sun beams (behind house) -->
       ${sunBeams}
       <!-- House (rotated, on top of beams) -->
-      <g transform="rotate(${rotation}, ${cx}, ${cy})">
-        <rect x="${cx - hr}" y="${cy - hr}" width="${hr * 2}" height="${hr * 2}" fill="var(--primary-background-color, #1c1c1c)" stroke="var(--primary-color)" stroke-width="2"/>
+      <g id="compass-house" transform="rotate(${rotation}, ${cx}, ${cy})" data-action="house-drag-start" style="cursor: grab; touch-action: none;" filter="url(#ca-house-shadow)">
+        <rect x="${cx - hr}" y="${cy - hr}" width="${hr * 2}" height="${hr * 2}" rx="3" fill="var(--primary-background-color, #1c1c1c)" stroke="var(--primary-color)" stroke-width="2"/>
+        <rect x="${cx - hr + 1.5}" y="${cy - hr + 1.5}" width="${hr * 2 - 3}" height="${hr * 2 - 3}" rx="2" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1" pointer-events="none"/>
         <!-- Roof indicator (front = south of house before rotation) -->
-        <line x1="${cx - hr + 6}" y1="${cy + hr}" x2="${cx + hr - 6}" y2="${cy + hr}" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round"/>
-        <text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="var(--primary-text-color)" opacity="0.6">${rotation}°</text>
+        <line x1="${cx - hr + 6}" y1="${cy + hr}" x2="${cx + hr - 6}" y2="${cy + hr}" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round" pointer-events="none"/>
+        <text id="compass-degree-label" x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="var(--primary-text-color)" opacity="0.6" pointer-events="none">${rotation}°</text>
       </g>
       <!-- Facade arcs -->
       ${facadeArcs}
@@ -3659,6 +3701,13 @@ class CoverAutomaticPanel extends HTMLElement {
           <div class="form-group settings-house-input">
             <label>${this._t("settings_house_rotation")}</label>
             <input type="number" step="0.5" min="-180" max="180" value="${rot}" data-settings-field="house_rotation" id="house-rotation-input">
+            <div class="rotation-quick">
+              <button type="button" class="rotation-quick-btn" data-action="rotate-by" data-delta="-45">−45°</button>
+              <button type="button" class="rotation-quick-btn" data-action="rotate-by" data-delta="-5">−5°</button>
+              <button type="button" class="rotation-quick-btn rotation-quick-reset" data-action="rotate-by" data-set="0">${this._t("settings_house_rotation_reset")}</button>
+              <button type="button" class="rotation-quick-btn" data-action="rotate-by" data-delta="5">+5°</button>
+              <button type="button" class="rotation-quick-btn" data-action="rotate-by" data-delta="45">+45°</button>
+            </div>
             ${hint(this._t("settings_house_rotation_hint"))}
           </div>
           <div class="settings-house-compass">${this._renderCompassSVG(rot)}</div>
@@ -4140,6 +4189,7 @@ class CoverAutomaticPanel extends HTMLElement {
     root.addEventListener("dragover", (e) => this._handleDragOver(e));
     root.addEventListener("dragleave", (e) => this._handleDragLeave(e));
     root.addEventListener("drop", (e) => this._handleDrop(e));
+    root.addEventListener("pointerdown", (e) => this._handleHouseDragStart(e));
   }
 
   /* ---------- Click delegation ---------- */
@@ -4236,6 +4286,25 @@ class CoverAutomaticPanel extends HTMLElement {
         this._activeSettingsSection = actionEl.dataset.section;
         this._render();
         break;
+      case "rotate-by": {
+        const input = this.shadowRoot.querySelector("#house-rotation-input");
+        if (!input) break;
+        const setRaw = actionEl.dataset.set;
+        if (setRaw !== undefined) {
+          input.value = parseFloat(setRaw);
+        } else {
+          const cur = parseFloat(input.value);
+          const base = Number.isFinite(cur) ? cur : 0;
+          const delta = parseFloat(actionEl.dataset.delta || "0");
+          let next = base + delta;
+          // Normalize into -180..180
+          while (next > 180) next -= 360;
+          while (next < -180) next += 360;
+          input.value = next;
+        }
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        break;
+      }
       case "facade-add-start": this._addingFacade = true; this._render(); break;
       case "facade-add-cancel": this._addingFacade = false; this._render(); break;
       case "facade-edit": this._editingFacade = actionEl.dataset.id; this._render(); break;
@@ -4464,6 +4533,73 @@ class CoverAutomaticPanel extends HTMLElement {
     }
     this._dragRuleId = null;
     this._dragOverId = null;
+  }
+
+  /* ---------- House compass drag-rotation ---------- */
+  _handleHouseDragStart(e) {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    const target = e.target.closest('[data-action="house-drag-start"]');
+    if (!target) return;
+    e.preventDefault();
+    const svg = this.shadowRoot.querySelector("#compass-svg");
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const vb = (svg.getAttribute("viewBox") || "0 0 280 288").split(" ").map(parseFloat);
+    const compassCxLogical = 140; // matches _renderCompassSVG cx/cy
+    const compassCyLogical = 140;
+    const cxPx = rect.left + (compassCxLogical / vb[2]) * rect.width;
+    const cyPx = rect.top + (compassCyLogical / vb[3]) * rect.height;
+    this._houseDragState = { cxPx, cyPx };
+    target.style.cursor = "grabbing";
+    this._houseDragMoveBound = (ev) => this._handleHouseDragMove(ev);
+    this._houseDragEndBound = (ev) => this._handleHouseDragEnd(ev);
+    window.addEventListener("pointermove", this._houseDragMoveBound);
+    window.addEventListener("pointerup", this._houseDragEndBound);
+    window.addEventListener("pointercancel", this._houseDragEndBound);
+  }
+
+  _handleHouseDragMove(e) {
+    if (!this._houseDragState) return;
+    e.preventDefault();
+    const { cxPx, cyPx } = this._houseDragState;
+    const dx = e.clientX - cxPx;
+    const dy = e.clientY - cyPx;
+    // SVG rotate(0) keeps the house upright (north-pointing). atan2(dy, dx)
+    // returns 0 for the +x axis (east), so add 90° to align with north.
+    let angle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+    while (angle > 180) angle -= 360;
+    while (angle < -180) angle += 360;
+    if (e.shiftKey) {
+      angle = Math.round(angle / 45) * 45;
+    } else {
+      angle = Math.round(angle * 2) / 2; // 0.5° steps
+    }
+    // Update transform inline (avoid full SVG re-render during drag)
+    const houseG = this.shadowRoot.querySelector("#compass-house");
+    if (houseG) {
+      houseG.setAttribute("transform", `rotate(${angle}, 140, 140)`);
+    }
+    const degLabel = this.shadowRoot.querySelector("#compass-degree-label");
+    if (degLabel) degLabel.textContent = `${angle}°`;
+    const input = this.shadowRoot.querySelector("#house-rotation-input");
+    if (input) input.value = angle;
+  }
+
+  _handleHouseDragEnd(e) {
+    if (!this._houseDragState) return;
+    this._houseDragState = null;
+    if (this._houseDragMoveBound) {
+      window.removeEventListener("pointermove", this._houseDragMoveBound);
+      window.removeEventListener("pointerup", this._houseDragEndBound);
+      window.removeEventListener("pointercancel", this._houseDragEndBound);
+      this._houseDragMoveBound = null;
+      this._houseDragEndBound = null;
+    }
+    const houseG = this.shadowRoot.querySelector("#compass-house");
+    if (houseG) houseG.style.cursor = "grab";
+    // Trigger the existing live-update path so facade arcs etc. re-render.
+    const input = this.shadowRoot.querySelector("#house-rotation-input");
+    if (input) input.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
   /* ---------- Action handlers ---------- */

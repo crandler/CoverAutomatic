@@ -198,9 +198,15 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.49.0
+1.50.0
 
 ## Changelog
+
+### 1.50.0 (2026-04-26)
+
+- UX: settings/house compass is now drag-rotatable. Click and drag the central house square to set the rotation directly; hold Shift to snap to 45° increments. The numeric input and the existing live-preview path stay in sync.
+- UX: quick-rotate buttons next to the rotation input (`−45° / −5° / Reset / +5° / +45°`) for keyboard-free fine and coarse adjustments.
+- UX: facade arc palette switched from saturated rainbow to a harmonized muted hue family that no longer competes with the orange action accent. House square gets a proper SVG drop-shadow and a subtle inner stroke for depth, instead of the flat outline. View-mode stays calm — no animations, no glow — keeping the settings tab a configuration tool, not an ambient cockpit.
 
 ### 1.49.0 (2026-04-26)
 
