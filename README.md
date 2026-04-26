@@ -198,9 +198,16 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.47.0
+1.48.0
 
 ## Changelog
+
+### 1.48.0 (2026-04-26)
+
+- UX: status badges (Auto / Paused / Manual / Locked / Venting / Wind protected) now use the panel's semantic color tokens instead of hardcoded hex values, so they follow custom Home Assistant themes consistently. Auto picks up the green "active" tone, Paused the warning orange, Locked / Wind the danger red, Manual / Venting the neutral info blue.
+- UX: the active-scenario card now uses the same green accent as the active-rule highlight, making "what is running right now?" readable at a glance. Orange remains reserved for interactive controls (buttons, tabs, toggles) so action and status no longer share a color.
+- UX: the Rule cell on the covers table is now a clickable link. Clicking the rule name jumps to the Rules tab and pulses the matching rule for two seconds, so you can inspect why a cover is at its current position without searching.
+- UX: the Settings sub-navigation pill strip on mobile now fades out at both edges, signalling that more sections are reachable by horizontal scrolling.
 
 ### 1.47.0 (2026-04-26)
 

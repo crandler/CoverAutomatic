@@ -96,6 +96,7 @@ const I18N = {
     cover_rule: "Rule",
     cover_no_rule: "–",
     cover_resume: "Resume",
+    cover_goto_rule: "Open rule",
     cover_remove: "Remove cover",
     cover_last_change: "Last change",
     cover_just_now: "just now",
@@ -345,6 +346,7 @@ const I18N = {
     cover_rule: "Regel",
     cover_no_rule: "–",
     cover_resume: "Fortsetzen",
+    cover_goto_rule: "Regel öffnen",
     cover_remove: "Behang entfernen",
     cover_last_change: "Letzte Änderung",
     cover_just_now: "gerade eben",
@@ -581,6 +583,14 @@ const PANEL_STYLES = `
     color: var(--primary-text-color, #212121);
     background: var(--primary-background-color, #fafafa);
     --ca-primary: var(--primary-color, #03a9f4);
+    /* Semantic role aliases (do not change values, just clarify intent at call site):
+       --ca-action  = interactive UI (buttons, tabs, toggles, links) -> follows HA theme primary
+       --ca-active  = "this is running right now" status (active rule, active scenario) -> green
+       --ca-warning = transient warning (paused, threshold exceeded) -> orange
+       --ca-danger  = blocked/protective state (locked, wind protection) -> red
+       --ca-info    = neutral info / cool indicator (manual, venting, cooling) -> blue */
+    --ca-action: var(--ca-primary);
+    --ca-active: var(--ca-success-strong, #4caf50);
     --ca-card-bg: var(--ha-card-background, var(--card-background-color, #fff));
     --ca-border: var(--divider-color, #e0e0e0);
     --ca-secondary-text: var(--secondary-text-color, #727272);
@@ -818,6 +828,20 @@ const PANEL_STYLES = `
     color: var(--ca-secondary-text);
     white-space: nowrap;
   }
+  /* Inline rule link inside cover table -- jumps to Rules tab and highlights the rule */
+  .data-table .rule-link {
+    color: var(--ca-action);
+    text-decoration: none;
+    border-bottom: 1px dashed color-mix(in srgb, var(--ca-action) 40%, transparent);
+    cursor: pointer;
+    transition: color var(--ca-transition), border-bottom-color var(--ca-transition);
+  }
+  .data-table .rule-link:hover,
+  .data-table .rule-link:focus-visible {
+    color: var(--ca-action);
+    border-bottom-color: var(--ca-action);
+    outline: none;
+  }
   .data-table th.row-chevron-head {
     width: 24px;
     padding-left: 0;
@@ -902,12 +926,30 @@ const PANEL_STYLES = `
     font-weight: 500;
     text-transform: capitalize;
   }
-  .status-auto { background: #e8f5e9; color: #2e7d32; }
-  .status-paused { background: #fff3e0; color: #e65100; }
-  .status-manual { background: #e3f2fd; color: #1565c0; }
-  .status-locked { background: var(--ca-danger-bg); color: var(--ca-danger); }
-  .status-venting { background: #e8eaf6; color: #283593; }
-  .status-wind_protected { background: var(--ca-danger-bg); color: var(--ca-danger); }
+  .status-auto {
+    background: color-mix(in srgb, var(--ca-active) 14%, transparent);
+    color: var(--ca-active);
+  }
+  .status-paused {
+    background: color-mix(in srgb, var(--ca-warning) 16%, transparent);
+    color: var(--ca-warning);
+  }
+  .status-manual {
+    background: color-mix(in srgb, var(--ca-info) 14%, transparent);
+    color: var(--ca-info);
+  }
+  .status-locked {
+    background: color-mix(in srgb, var(--ca-danger) 14%, transparent);
+    color: var(--ca-danger);
+  }
+  .status-venting {
+    background: color-mix(in srgb, var(--ca-info) 12%, transparent);
+    color: var(--ca-info);
+  }
+  .status-wind_protected {
+    background: color-mix(in srgb, var(--ca-danger) 14%, transparent);
+    color: var(--ca-danger);
+  }
 
   /* Slide-out panel */
   .slide-overlay {
@@ -1538,10 +1580,19 @@ const PANEL_STYLES = `
     transition: all var(--ca-transition);
   }
   .rule-row.rule-active {
-    border-left-color: var(--ca-success-strong);
-    background: color-mix(in srgb, var(--ca-success-strong) 6%, var(--ca-card-bg));
+    border-left-color: var(--ca-active);
+    background: color-mix(in srgb, var(--ca-active) 6%, var(--ca-card-bg));
   }
   .rule-row:hover { box-shadow: var(--ca-shadow); }
+  /* Pulsing highlight when a rule is opened from the cover table */
+  .rule-row.rule-highlight {
+    animation: ca-rule-pulse 1.6s ease-out;
+  }
+  @keyframes ca-rule-pulse {
+    0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ca-action) 60%, transparent); }
+    40%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--ca-action) 30%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ca-action) 0%, transparent); }
+  }
   .rule-row.drag-over {
     border-color: var(--ca-primary);
     box-shadow: 0 0 0 2px rgba(var(--rgb-primary-color, 3, 169, 244), 0.3);
@@ -1554,7 +1605,7 @@ const PANEL_STYLES = `
     background: var(--ca-divider, #e0e0e0);
     transition: background 0.2s, box-shadow 0.2s;
   }
-  .rule-active-dot.active { background: var(--ca-success-strong); box-shadow: 0 0 6px color-mix(in srgb, var(--ca-success-strong) 50%, transparent); }
+  .rule-active-dot.active { background: var(--ca-active); box-shadow: 0 0 6px color-mix(in srgb, var(--ca-active) 50%, transparent); }
   .rule-meta {
     font-size: 12px;
     color: var(--ca-secondary-text);
@@ -1635,14 +1686,14 @@ const PANEL_STYLES = `
     transition: all var(--ca-transition);
   }
   .scenario-card.active-scenario {
-    border-color: var(--ca-primary);
-    background: color-mix(in srgb, var(--ca-primary) 6%, var(--ca-card-bg));
+    border-color: var(--ca-active);
+    background: color-mix(in srgb, var(--ca-active) 6%, var(--ca-card-bg));
     box-shadow:
-      0 0 0 2px color-mix(in srgb, var(--ca-primary) 35%, transparent),
-      0 4px 16px color-mix(in srgb, var(--ca-primary) 18%, transparent);
+      0 0 0 2px color-mix(in srgb, var(--ca-active) 35%, transparent),
+      0 4px 16px color-mix(in srgb, var(--ca-active) 18%, transparent);
   }
   .scenario-card.active-scenario .sc-name {
-    color: var(--ca-primary);
+    color: var(--ca-active);
   }
   .scenario-card .sc-header {
     display: flex;
@@ -2054,7 +2105,24 @@ const PANEL_STYLES = `
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       gap: 4px;
+      /* Edge fade so users see there is more content to the side */
+      -webkit-mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black 18px,
+        black calc(100% - 28px),
+        transparent 100%
+      );
+      mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        black 18px,
+        black calc(100% - 28px),
+        transparent 100%
+      );
+      scrollbar-width: none;
     }
+    .settings-nav::-webkit-scrollbar { display: none; }
     .settings-nav-btn {
       flex: 0 0 auto;
       padding: 8px 12px;
@@ -2498,6 +2566,15 @@ class CoverAutomaticPanel extends HTMLElement {
     + '</span>';
   }
 
+  _renderRuleCell(live) {
+    const ruleId = live && live.rule_id;
+    const ruleName = (live && live.rule_name) || this._t("cover_no_rule");
+    if (ruleId && this._config && this._config.rules && this._config.rules[ruleId]) {
+      return '<a class="rule-link" data-action="goto-rule" data-rule-id="' + this._esc(ruleId) + '" title="' + this._esc(this._t("cover_goto_rule")) + '">' + this._esc(ruleName) + '</a>';
+    }
+    return this._esc(ruleName);
+  }
+
   _sunIconSvg(size = 14) {
     return '<svg class="sun-icon-svg" width="' + size + '" height="' + size + '" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/></g></svg>';
   }
@@ -2659,8 +2736,9 @@ class CoverAutomaticPanel extends HTMLElement {
         infoIcon = ' <span class="status-badge status-paused hysteresis-badge" title="' + this._esc(this._t("cover_hysteresis_time")) + '">&#9202;</span>';
       }
       const cm = live.comfort_mode;
-      // Rule name
+      // Rule name -- if a rule is matching, render as link to Rules tab
       const ruleName = live.rule_name || this._t("cover_no_rule");
+      const ruleCellHtml = this._renderRuleCell(live);
       // Sun on facade
       const liveFacade = c.facade_id ? ((this._config.live_facades || {})[c.facade_id] || {}) : {};
       const sunIcon = liveFacade.sun_on_facade ? ' <span class="live-icon-sun" title="' + this._esc(this._t("facade_sun_active")) + '">' + this._sunIconSvg(12) + '</span>' : '';
@@ -2680,7 +2758,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const tempTitle = cm ? this._t("comfort_" + cm) : "";
       html += `<td class="nowrap${tempColor ? ' temp-mode' : ''}" data-live-temp="${this._esc(c.entity_id)}"${tempColor ? ' style="color:' + tempColor + '"' : ''}${tempTitle ? ' title="' + this._esc(tempTitle) + '"' : ''}>${tempVal != null ? tempVal.toFixed(1) + " °C" : "–"}</td>`;
       html += `<td class="pos-cell" data-live-position="${this._esc(c.entity_id)}">${this._posBarCombined(currentPos, targetPos)}${infoIcon}</td>`;
-      html += `<td data-live-rule="${this._esc(c.entity_id)}">${this._esc(ruleName)}</td>`;
+      html += `<td data-live-rule="${this._esc(c.entity_id)}">${ruleCellHtml}</td>`;
       html += `<td class="last-change" data-live-lastchange="${this._esc(c.entity_id)}">${lastChange}</td>`;
       html += '<td class="row-chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></td>';
       html += '</tr>';
@@ -3928,9 +4006,24 @@ class CoverAutomaticPanel extends HTMLElement {
           fCell.appendChild(sun);
         }
       }
-      // Rule name
+      // Rule name -- preserve clickable rule-link markup via DOM API (avoids innerHTML)
       const rCell = root.querySelector('[data-live-rule="' + eid + '"]');
-      if (rCell) rCell.textContent = live.rule_name || this._t("cover_no_rule");
+      if (rCell) {
+        rCell.textContent = "";
+        const ruleId = live.rule_id;
+        const ruleName = live.rule_name || this._t("cover_no_rule");
+        if (ruleId && this._config && this._config.rules && this._config.rules[ruleId]) {
+          const a = document.createElement("a");
+          a.className = "rule-link";
+          a.dataset.action = "goto-rule";
+          a.dataset.ruleId = ruleId;
+          a.title = this._t("cover_goto_rule");
+          a.textContent = ruleName;
+          rCell.appendChild(a);
+        } else {
+          rCell.textContent = ruleName;
+        }
+      }
       // Temperature with comfort color
       const tempCell = root.querySelector('[data-live-temp="' + eid + '"]');
       if (tempCell) {
@@ -4108,6 +4201,27 @@ class CoverAutomaticPanel extends HTMLElement {
         this._expandedSections = { base: true, sensors: true, advanced: false, tilt: false };
         this._render();
         break;
+      case "goto-rule": {
+        e.preventDefault();
+        e.stopPropagation();
+        const ruleId = actionEl.dataset.ruleId;
+        this._activeTab = "rules";
+        this._slideOpen = false;
+        this._selectedCover = null;
+        this._expandedRule = null;
+        this._stopLiveRefresh();
+        this._render();
+        // Scroll-to + highlight after the new tab has rendered
+        setTimeout(() => {
+          if (!ruleId) return;
+          const rEl = this.shadowRoot.querySelector('.rule-row[data-rule-id="' + CSS.escape(ruleId) + '"]');
+          if (!rEl) return;
+          rEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          rEl.classList.add("rule-highlight");
+          setTimeout(() => rEl.classList.remove("rule-highlight"), 2000);
+        }, 60);
+        break;
+      }
       case "close-slide":
         if (e.target === actionEl || actionEl.classList.contains("btn-icon")) {
           this._slideOpen = false;
