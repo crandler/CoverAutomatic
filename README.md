@@ -198,9 +198,14 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.46.0
+1.47.0
 
 ## Changelog
+
+### 1.47.0 (2026-04-26)
+
+- UX: scenario icon picker. The free-text `mdi:...` field is replaced by a curated grid of 32 common scenario icons (home, sun, snowflake, plane, TV, sofa, coffee, gamepad, etc.) with a click-to-select interface. A collapsible "Custom MDI icon" section preserves the freeform input for any other Material Design Icon.
+- UX: the "Preemptive shading" settings card header sun icon now uses the neutral Lucide outline (matches the other section headers) instead of the filled yellow accent sun, which was reserved for live state indicators.
 
 ### 1.46.0 (2026-04-24)
 

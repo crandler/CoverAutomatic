@@ -5,6 +5,28 @@
  */
 
 /* ============================================================
+ * Curated scenario icon choices (Material Design Icons)
+ * ============================================================ */
+const SCENARIO_ICON_CHOICES = [
+  "mdi:home", "mdi:home-variant",
+  "mdi:white-balance-sunny", "mdi:weather-sunny",
+  "mdi:weather-night", "mdi:moon-waning-crescent",
+  "mdi:weather-sunset", "mdi:weather-sunset-up",
+  "mdi:snowflake", "mdi:weather-partly-cloudy",
+  "mdi:airplane", "mdi:beach",
+  "mdi:car", "mdi:office-building",
+  "mdi:television", "mdi:movie-open",
+  "mdi:gamepad-variant", "mdi:music",
+  "mdi:sofa", "mdi:bed",
+  "mdi:silverware-fork-knife", "mdi:coffee",
+  "mdi:account-group", "mdi:party-popper",
+  "mdi:sleep", "mdi:shield-home",
+  "mdi:fire", "mdi:weather-windy",
+  "mdi:gesture-tap", "mdi:cog",
+  "mdi:star", "mdi:heart",
+];
+
+/* ============================================================
  * i18n translations
  * ============================================================ */
 const I18N = {
@@ -149,7 +171,9 @@ const I18N = {
     opt_cooling: "Cooling", opt_heating: "Heating",
     // Scenarios
     scenario_add: "Add scenario",
-    scenario_icon: "Icon (mdi:...)",
+    scenario_icon: "Icon",
+    scenario_icon_custom: "Custom MDI icon",
+    scenario_icon_custom_hint: "Enter any Material Design Icon name (e.g. mdi:lightbulb). See materialdesignicons.com for the full list.",
     scenario_no_rules: "No rules configured",
     // Settings
     settings_outdoor_temp: "Outdoor temperature sensor",
@@ -391,7 +415,9 @@ const I18N = {
     opt_on: "An (Arbeitstag)", opt_off: "Aus (kein Arbeitstag)",
     opt_cooling: "Kühlung", opt_heating: "Heizung",
     scenario_add: "Szenario hinzufügen",
-    scenario_icon: "Icon (mdi:...)",
+    scenario_icon: "Icon",
+    scenario_icon_custom: "Eigenes MDI-Icon",
+    scenario_icon_custom_hint: "Beliebigen Material-Design-Icon-Namen eingeben (z. B. mdi:lightbulb). Vollständige Liste auf materialdesignicons.com.",
     scenario_no_rules: "Keine Regeln konfiguriert",
     settings_outdoor_temp: "Außentemperatur-Sensor",
     settings_outdoor_temp_short: "Außen:",
@@ -1911,6 +1937,77 @@ const PANEL_STYLES = `
     opacity: 0.5;
   }
 
+  /* Scenario icon picker */
+  .icon-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--ca-border);
+    border-radius: 8px;
+    background: var(--primary-background-color, #fafafa);
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .icon-picker-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--primary-text-color);
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    --mdc-icon-size: 22px;
+  }
+  .icon-picker-btn:hover {
+    background: color-mix(in srgb, var(--ca-primary) 10%, transparent);
+    border-color: color-mix(in srgb, var(--ca-primary) 30%, transparent);
+  }
+  .icon-picker-btn.selected {
+    background: color-mix(in srgb, var(--ca-primary) 18%, transparent);
+    border-color: var(--ca-primary);
+    color: var(--ca-primary);
+  }
+  .icon-picker-custom {
+    margin-top: 8px;
+  }
+  .icon-picker-custom > summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--ca-secondary-text);
+    padding: 4px 0;
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .icon-picker-custom > summary::-webkit-details-marker { display: none; }
+  .icon-picker-custom[open] > summary { color: var(--ca-primary); }
+  .icon-picker-custom-body {
+    margin-top: 6px;
+  }
+  .icon-picker-custom-body input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--ca-border);
+    border-radius: 6px;
+    background: var(--primary-background-color, #fafafa);
+    color: var(--primary-text-color);
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .icon-picker-custom-hint {
+    font-size: 11px;
+    color: var(--ca-secondary-text);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+
   /* Log filter bar */
   .log-filter-bar {
     margin-bottom: 12px;
@@ -3234,6 +3331,27 @@ class CoverAutomaticPanel extends HTMLElement {
     return html;
   }
 
+  _renderScenarioIconPicker(currentIcon) {
+    const selected = (currentIcon || "").trim();
+    const inGrid = SCENARIO_ICON_CHOICES.includes(selected);
+    const customValue = inGrid ? "" : selected;
+    let grid = "";
+    for (const ic of SCENARIO_ICON_CHOICES) {
+      const cls = ic === selected ? "icon-picker-btn selected" : "icon-picker-btn";
+      grid += `<button type="button" class="${cls}" data-action="scenario-icon-pick" data-icon="${this._esc(ic)}" title="${this._esc(ic)}"><ha-icon icon="${this._esc(ic)}"></ha-icon></button>`;
+    }
+    return `
+      <input type="hidden" data-scenario-field="icon" value="${this._esc(selected)}">
+      <div class="icon-picker-grid">${grid}</div>
+      <details class="icon-picker-custom"${customValue ? " open" : ""}>
+        <summary>${this._t("scenario_icon_custom")}</summary>
+        <div class="icon-picker-custom-body">
+          <input type="text" data-scenario-icon-custom value="${this._esc(customValue)}" placeholder="mdi:lightbulb">
+          <div class="icon-picker-custom-hint">${this._t("scenario_icon_custom_hint")}</div>
+        </div>
+      </details>`;
+  }
+
   _renderScenarioEditForm(sc, rules, isActive) {
     let html = `<div class="inline-form">
       <div class="form-group">
@@ -3242,7 +3360,7 @@ class CoverAutomaticPanel extends HTMLElement {
       </div>
       <div class="form-group">
         <label>${this._t("scenario_icon")}</label>
-        <input type="text" value="${this._esc(sc.icon || "")}" data-scenario-field="icon" placeholder="mdi:home">
+        ${this._renderScenarioIconPicker(sc.icon || "")}
       </div>
       <div class="form-actions">
         <button class="btn btn-secondary" data-action="scenario-edit-cancel">${this._t("cancel")}</button>
@@ -3260,7 +3378,7 @@ class CoverAutomaticPanel extends HTMLElement {
       </div>
       <div class="form-group">
         <label>${this._t("scenario_icon")}</label>
-        <input type="text" value="mdi:home" data-scenario-field="icon" placeholder="mdi:home">
+        ${this._renderScenarioIconPicker("mdi:home")}
       </div>
       <div class="form-actions">
         <button class="btn btn-secondary" data-action="scenario-add-cancel">${this._t("cancel")}</button>
@@ -3561,7 +3679,7 @@ class CoverAutomaticPanel extends HTMLElement {
     // Solar section
     if (active === "solar") {
       html += `<div class="card">
-      <div class="card-header">${this._sunIconSvg(18)} ${this._t("settings_section_solar")}</div>
+      <div class="card-header">${this._lucideIcon("sun", 18)} ${this._t("settings_section_solar")}</div>
       <div class="card-body">
         ${hintIntro(this._t("settings_solar_hint"))}
         <div class="form-group">
@@ -4034,6 +4152,7 @@ class CoverAutomaticPanel extends HTMLElement {
       case "scenario-add-save": this._onScenarioAddSave(actionEl); break;
       case "scenario-edit-save": this._onScenarioEditSave(actionEl); break;
       case "scenario-delete": this._onScenarioDelete(actionEl.dataset.id); break;
+      case "scenario-icon-pick": this._onScenarioIconPick(actionEl); break;
       case "settings-save": this._onSettingsSave(); break;
       case "backup-export": this._onBackupExport(); break;
       case "backup-import": { const fi = this.shadowRoot.querySelector('[data-action="backup-file"]'); if (fi) fi.click(); break; }
@@ -4472,12 +4591,32 @@ class CoverAutomaticPanel extends HTMLElement {
     } catch (e) { console.error(e); }
   }
 
+  _onScenarioIconPick(btn) {
+    const form = btn.closest(".inline-form");
+    if (!form) return;
+    const icon = btn.dataset.icon || "";
+    const hidden = form.querySelector('[data-scenario-field="icon"]');
+    if (hidden) hidden.value = icon;
+    const custom = form.querySelector('[data-scenario-icon-custom]');
+    if (custom) custom.value = "";
+    form.querySelectorAll('[data-action="scenario-icon-pick"]').forEach(el => {
+      el.classList.toggle("selected", el === btn);
+    });
+  }
+
+  _readScenarioIcon(form, fallback) {
+    const custom = (form.querySelector('[data-scenario-icon-custom]') || {}).value || "";
+    if (custom.trim()) return custom.trim();
+    const picked = (form.querySelector('[data-scenario-field="icon"]') || {}).value || "";
+    return picked.trim() || fallback;
+  }
+
   async _onScenarioAddSave(btn) {
     const form = btn.closest(".inline-form");
     if (!form) return;
     const name = (form.querySelector('[data-scenario-field="name"]') || {}).value || "";
     if (!name.trim()) return;
-    const icon = (form.querySelector('[data-scenario-field="icon"]') || {}).value || "mdi:home";
+    const icon = this._readScenarioIcon(form, "mdi:home");
     try {
       const result = await this._ws("cover_automatic/scenario/add", { name: name.trim(), icon: icon });
       this._addingScenario = false;
@@ -4491,7 +4630,7 @@ class CoverAutomaticPanel extends HTMLElement {
     if (!form) return;
     const name = (form.querySelector('[data-scenario-field="name"]') || {}).value || "";
     if (!name.trim()) return;
-    const icon = (form.querySelector('[data-scenario-field="icon"]') || {}).value || "mdi:home";
+    const icon = this._readScenarioIcon(form, "mdi:home");
     try {
       const result = await this._ws("cover_automatic/scenario/update", { scenario_id: scenarioId, name: name.trim(), icon: icon });
       this._editingScenario = null;
