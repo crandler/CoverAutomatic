@@ -51,6 +51,7 @@ htmlcov/
 # Local development
 CLAUDE.md
 TODO.md
+SECURITY_AUDIT.md
 docs/
 *.local.yaml
 *.local.json

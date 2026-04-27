@@ -198,9 +198,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.50.0
+1.51.0
 
 ## Changelog
+
+### 1.51.0 (2026-04-27)
+
+- Security: WebSocket API now requires admin privileges for every write, log-clear, export, import and resume command. The sidebar panel was already admin-only via `require_admin=True`, but the underlying WS endpoints accepted any authenticated HA user (including Long-Lived Tokens or non-admin household members). A non-admin user could call `cover_automatic/cover/update`, `settings/update`, `import` etc. directly and bypass the UI gate. The fix wraps `_make_handler` with `websocket_api.require_admin` for every command except the two read-only ones (`config`, `log`). Identified by an OWASP-style audit on 2026-04-27, no known exploitation in the wild but the gap was real for multi-user installations.
 
 ### 1.50.0 (2026-04-26)
 

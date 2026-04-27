@@ -860,9 +860,15 @@ def async_setup_api(
         ),
     ]
 
+    # Read-only commands stay accessible to all authenticated HA users.
+    # Every other command (writes, log clear, export, import, resume) requires
+    # admin privileges -- the sidebar panel is admin-only, so the WS API must
+    # mirror that gate to prevent privilege escalation via Long-Lived Tokens.
+    read_only_commands = frozenset({f"{DOMAIN}/config", f"{DOMAIN}/log"})
+
     for command_type, handler_fn, extra_schema in commands:
         # Closure to bind storage and coordinator with async_response decorator
-        def _make_handler(fn: Any) -> Any:
+        def _make_handler(fn: Any, ct: str) -> Any:
             @websocket_api.async_response
             async def _handler(
                 hass: HomeAssistant,
@@ -870,11 +876,13 @@ def async_setup_api(
                 msg: dict[str, Any],
             ) -> None:
                 await fn(hass, connection, msg, storage, coordinator)
+            if ct not in read_only_commands:
+                return websocket_api.require_admin(_handler)
             return _handler
 
         schema = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
             {vol.Required("type"): command_type, **extra_schema}
         )
         websocket_api.async_register_command(
-            hass, command_type, _make_handler(handler_fn), schema
+            hass, command_type, _make_handler(handler_fn, command_type), schema
         )
