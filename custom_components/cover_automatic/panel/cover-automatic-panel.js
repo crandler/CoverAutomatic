@@ -2314,6 +2314,8 @@ class CoverAutomaticPanel extends HTMLElement {
       }, 500);
     }, "cover_automatic_updated").then((unsub) => {
       this._eventUnsub = unsub;
+    }).catch((err) => {
+      console.warn("CoverAutomatic: failed to subscribe to update events", err);
     });
   }
 
