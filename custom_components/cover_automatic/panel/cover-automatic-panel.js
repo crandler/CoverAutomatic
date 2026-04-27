@@ -2381,7 +2381,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
   /* ---------- Debounced save for covers ---------- */
   _debouncedCoverSave(entityId, field, value) {
-    const key = entityId + "." + field;
+    const key = `${entityId}.${field}`;
     if (this._saveTimers[key]) clearTimeout(this._saveTimers[key]);
     this._saveTimers[key] = setTimeout(async () => {
       try {
@@ -2438,18 +2438,18 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   _updateRegion(shell, name, html) {
-    const el = shell.querySelector('[data-region="' + name + '"]');
+    const el = shell.querySelector(`[data-region="${name}"]`);
     if (el) el.innerHTML = html;
   }
 
   _fullRender() {
     const root = this.shadowRoot;
 
-    let html = '<style>' + PANEL_STYLES + '</style>';
+    let html = `<style>${PANEL_STYLES}</style>`;
     html += '<div class="panel-container">';
 
     if (!this._config && !this._error) {
-      html += '<div class="state-msg"><div class="spinner"></div><div>' + this._t("loading") + '</div></div>';
+      html += `<div class="state-msg"><div class="spinner"></div><div>${this._t("loading")}</div></div>`;
       html += '</div>';
       root.innerHTML = html;
       this._setupDelegation();
@@ -2459,21 +2459,21 @@ class CoverAutomaticPanel extends HTMLElement {
     if (this._error) {
       html += '<div class="state-msg">';
       html += '<div class="state-msg-icon">!</div>';
-      html += '<div>' + this._t("error_load") + '</div>';
-      html += '<button class="btn btn-primary mt-16" data-action="retry">' + this._t("retry") + '</button>';
+      html += `<div>${this._t("error_load")}</div>`;
+      html += `<button class="btn btn-primary mt-16" data-action="retry">${this._t("retry")}</button>`;
       html += '</div></div>';
       root.innerHTML = html;
       this._setupDelegation();
       return;
     }
 
-    html += '<div class="panel-header" data-region="header">' + this._renderHeaderContent() + '</div>';
-    html += '<div class="tab-bar" data-region="tabs">' + this._renderTabsContent() + '</div>';
-    html += '<div class="tab-content" data-region="content">' + this._renderContent() + '</div>';
-    html += '<div data-region="slideout">' + this._renderSlideOut() + '</div>';
-    html += '<div data-region="confirm">' + this._renderConfirmDialog() + '</div>';
+    html += `<div class="panel-header" data-region="header">${this._renderHeaderContent()}</div>`;
+    html += `<div class="tab-bar" data-region="tabs">${this._renderTabsContent()}</div>`;
+    html += `<div class="tab-content" data-region="content">${this._renderContent()}</div>`;
+    html += `<div data-region="slideout">${this._renderSlideOut()}</div>`;
+    html += `<div data-region="confirm">${this._renderConfirmDialog()}</div>`;
     html += '</div>';
-    html += '<div class="toast">' + this._t("saved") + '</div>';
+    html += `<div class="toast">${this._t("saved")}</div>`;
 
     root.innerHTML = html;
     this._setupDelegation();
