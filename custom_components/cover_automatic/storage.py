@@ -669,6 +669,18 @@ class ActivityLogStorage:
         async with self._save_lock:
             await self._store.async_save({"entries": self._entries})
 
+    async def async_save(self) -> None:
+        """Save log entries to storage immediately.
+
+        Cancels any pending debounced save first so the in-memory state wins.
+        Used during shutdown to flush pending entries before the loop stops.
+        """
+        if self._save_task is not None:
+            self._save_task.cancel()
+            self._save_task = None
+        async with self._save_lock:
+            await self._store.async_save({"entries": self._entries})
+
     def get_entries(
         self,
         event_type: str | None = None,

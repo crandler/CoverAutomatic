@@ -986,3 +986,51 @@ class TestActivityLogStorage:
 
         assert log._save_task is None
         assert log._entries == []
+
+    @pytest.mark.asyncio
+    async def test_async_save_persists_entries(self):
+        """async_save flushes the in-memory entries to the store immediately."""
+        hass = self._make_log_hass()
+        mock_store = MagicMock()
+        mock_store.async_load = AsyncMock(return_value=None)
+        mock_store.async_save = AsyncMock()
+
+        with patch(
+            "custom_components.cover_automatic.storage.Store",
+            return_value=mock_store,
+        ):
+            log = ActivityLogStorage(hass)
+            log._store = mock_store
+
+        log.add_entry("position", "cover.test", "moved")
+        log.add_entry("status", "cover.test", "locked")
+
+        await log.async_save()
+
+        assert log._save_task is None
+        mock_store.async_save.assert_called_once()
+        saved_payload = mock_store.async_save.call_args[0][0]
+        assert len(saved_payload["entries"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_async_save_cancels_pending_debounced_task(self):
+        """async_save cancels any pending debounced save (no double write)."""
+        hass = self._make_log_hass()
+        mock_store = MagicMock()
+        mock_store.async_load = AsyncMock(return_value=None)
+        mock_store.async_save = AsyncMock()
+
+        with patch(
+            "custom_components.cover_automatic.storage.Store",
+            return_value=mock_store,
+        ):
+            log = ActivityLogStorage(hass)
+            log._store = mock_store
+
+        log.add_entry("position", "cover.test", "moved")
+        assert log._save_task is not None
+
+        await log.async_save()
+
+        assert log._save_task is None
+        mock_store.async_save.assert_called_once()
