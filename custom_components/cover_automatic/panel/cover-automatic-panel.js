@@ -2562,7 +2562,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const solarTitle = exceeded ? (this._t("info_solar_exceeded_title") || "Solar \u00FCber Schwellwert \u2013 Beschattung aktiv") : (this._t("info_solar_title") || "Solarintensit\u00E4t");
       const activityIcon = '<svg class="info-bar-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.5.5 0 0 1-.96 0L9.24 2.18a.5.5 0 0 0-.96 0l-2.35 8.36A2 2 0 0 1 4 12H2"/></svg>';
       const cls = exceeded ? 'info-widget info-widget-highlight' : 'info-widget';
-      widgets.push('<span class="' + cls + '" title="' + this._esc(solarTitle) + '">' + activityIcon + '<span class="info-widget-value">' + solarVal.toFixed(0) + unit + (exceeded ? ' \u25B2' : '') + '</span></span>');
+      widgets.push('<span class="' + cls + '" title="' + this._esc(solarTitle) + '">' + activityIcon + '<span class="info-widget-value">' + solarVal.toFixed(0) + this._esc(unit) + (exceeded ? ' \u25B2' : '') + '</span></span>');
     }
     return '<span class="info-bar">' + widgets.join('') + '</span>';
   }
