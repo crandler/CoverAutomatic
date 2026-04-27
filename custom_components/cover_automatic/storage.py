@@ -35,7 +35,7 @@ class CoverAutomaticStorage:
             hass, STORAGE_VERSION, STORAGE_KEY
         )
         self._data: dict[str, Any] = {}
-        self._save_task: asyncio.Task | None = None
+        self._save_task: asyncio.Task[None] | None = None
         self._save_lock = asyncio.Lock()
         # Deserialization cache
         self._cache_facades: dict[str, Facade] | None = None
@@ -623,7 +623,7 @@ class ActivityLogStorage:
         self.hass = hass
         self._store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, LOG_STORAGE_KEY)
         self._entries: list[dict[str, Any]] = []
-        self._save_task: asyncio.Task | None = None
+        self._save_task: asyncio.Task[None] | None = None
         self._save_lock = asyncio.Lock()
 
     async def async_load(self) -> None:
