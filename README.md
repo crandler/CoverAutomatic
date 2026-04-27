@@ -198,13 +198,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.51.2
+1.51.3
 
 ## Changelog
 
 Full version history is maintained in [CHANGELOG.md](CHANGELOG.md), formatted per [Keep a Changelog](https://keepachangelog.com/).
 
-Latest release: [v1.51.2](https://github.com/crandler/CoverAutomatic/releases/tag/v1.51.2) (2026-04-27).
+Latest release: [v1.51.3](https://github.com/crandler/CoverAutomatic/releases/tag/v1.51.3) (2026-04-27).
 
 ## License
 

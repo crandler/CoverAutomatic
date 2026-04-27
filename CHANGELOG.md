@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.51.3] - 2026-04-27
+
+### Fixed
+
+- `ws_settings_update` is now atomic: an invalid `active_scenario` rejects the entire update instead of leaving partial mutations in memory while disk still has the old values. Previous behaviour wrote each accepted field straight into in-memory state during the loop, then validated `active_scenario` at the end and returned an error -- the rejected field stayed unchanged but every prior field was already mutated and would leak to disk on the next debounced save. Validation now runs up front before any mutation. +1 regression test.
+
 ## [1.51.2] - 2026-04-27
 
 ### Fixed

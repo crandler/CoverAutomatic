@@ -1081,6 +1081,36 @@ class TestWsSettingsUpdate:
         storage.async_save.assert_awaited_once()
         conn.send_result.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_invalid_scenario_does_not_apply_other_fields(self) -> None:
+        """Settings update is atomic: an invalid active_scenario must not
+        leak partial mutations of other fields into memory.
+        """
+        from custom_components.cover_automatic.api import ws_settings_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage(comfort_temp_max=24.0, enabled=True)
+        storage._data = {"scenarios": {"day": {}, "night": {}}}
+        coordinator = _make_coordinator()
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/settings/update",
+            "comfort_temp_max": 26.0,
+            "enabled": False,
+            "active_scenario": "evening",  # does not exist
+        }
+
+        await ws_settings_update(hass, conn, msg, storage, coordinator)
+
+        # Error sent, no partial mutation, no save
+        conn.send_error.assert_called_once()
+        conn.send_result.assert_not_called()
+        assert storage.comfort_temp_max == 24.0
+        assert storage.enabled is True
+        storage.async_save.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # _unique_id

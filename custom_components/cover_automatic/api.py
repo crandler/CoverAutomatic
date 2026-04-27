@@ -540,12 +540,18 @@ async def ws_settings_update(
     coordinator: CoverAutomaticCoordinator,
 ) -> None:
     """Handle cover_automatic/settings/update."""
+    # Validate ALL fields up front so a single rejection does not leave the
+    # in-memory state half-updated while disk still has the old values.
+    if "active_scenario" in msg and msg["active_scenario"]:
+        if msg["active_scenario"] not in storage._data.get("scenarios", {}):
+            connection.send_error(
+                msg["id"], "not_found", f"Scenario '{msg['active_scenario']}' not found"
+            )
+            return
+
+    # All validations passed -- now apply atomically.
     for key in _SETTINGS_FIELDS:
         if key in msg:
-            if key == "active_scenario" and msg[key]:
-                if msg[key] not in storage._data.get("scenarios", {}):
-                    connection.send_error(msg["id"], "not_found", f"Scenario '{msg[key]}' not found")
-                    return
             setattr(storage, key, msg[key])
 
     await storage.async_save()
