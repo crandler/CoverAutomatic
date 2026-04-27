@@ -1226,7 +1226,7 @@ const PANEL_STYLES = `
     letter-spacing: 0.6px;
   }
   /* House SVG: ensure the house group has a proper drag affordance */
-  #compass-house { transition: filter var(--ca-transition); }
+  #compass-house { transition: filter var(--ca-transition); cursor: grab; touch-action: none; }
   #compass-house:hover rect { stroke-width: 2.5; }
   /* Save action bar below all config cards */
   .settings-save-bar {
@@ -3637,7 +3637,7 @@ class CoverAutomaticPanel extends HTMLElement {
       <!-- Sun beams (behind house) -->
       ${sunBeams}
       <!-- House (rotated, on top of beams) -->
-      <g id="compass-house" transform="rotate(${rotation}, ${cx}, ${cy})" data-action="house-drag-start" style="cursor: grab; touch-action: none;" filter="url(#ca-house-shadow)">
+      <g id="compass-house" transform="rotate(${rotation}, ${cx}, ${cy})" data-action="house-drag-start" filter="url(#ca-house-shadow)">
         <rect x="${cx - hr}" y="${cy - hr}" width="${hr * 2}" height="${hr * 2}" rx="3" fill="var(--primary-background-color, #1c1c1c)" stroke="var(--primary-color)" stroke-width="2"/>
         <rect x="${cx - hr + 1.5}" y="${cy - hr + 1.5}" width="${hr * 2 - 3}" height="${hr * 2 - 3}" rx="2" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1" pointer-events="none"/>
         <!-- Roof indicator (front = south of house before rotation) -->
