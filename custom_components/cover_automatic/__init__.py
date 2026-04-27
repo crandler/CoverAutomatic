@@ -22,7 +22,7 @@ from .storage import ActivityLogStorage, CoverAutomaticStorage
 _LOGGER = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class CoverAutomaticRuntimeData:
     """Runtime data for CoverAutomatic integration."""
 
