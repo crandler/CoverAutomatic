@@ -1902,7 +1902,6 @@ const PANEL_STYLES = `
   .mt-6 { margin-top: 6px; }
   .mt-8 { margin-top: 8px; }
   .mt-16 { margin-top: 16px; }
-  .mb-8 { margin-bottom: 8px; }
   .mb-12 { margin-bottom: 12px; }
   .mb-16 { margin-bottom: 16px; }
 
