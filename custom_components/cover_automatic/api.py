@@ -614,6 +614,9 @@ async def ws_export_config(
     connection.send_result(msg["id"], {"data": storage.get_raw_data()})
 
 
+_MAX_IMPORT_ENTRIES = 1000
+
+
 async def ws_import_config(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
@@ -623,6 +626,14 @@ async def ws_import_config(
 ) -> None:
     """Handle cover_automatic/import -- replace config from JSON."""
     data = msg["data"]
+    # Guard against oversized payloads that would block the event loop in deepcopy.
+    total_entries = sum(
+        len(data.get(k, {})) if isinstance(data.get(k), dict) else 0
+        for k in ("covers", "rules", "scenarios", "facades")
+    )
+    if total_entries > _MAX_IMPORT_ENTRIES:
+        connection.send_error(msg["id"], "too_large", "Import payload exceeds entry limits")
+        return
     try:
         await storage.async_import_data(data)
     except (ValueError, TypeError) as err:
