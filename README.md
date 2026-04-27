@@ -198,9 +198,17 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.51.0
+1.51.1
 
 ## Changelog
+
+### 1.51.1 (2026-04-27)
+
+- Security: solar widget now escapes the `unit_of_measurement` HA state attribute and `_esc()` covers single-quotes too (defense-in-depth against future refactors).
+- Security: WS `import` rejects payloads with more than 1000 cover/rule/scenario/facade entries before the synchronous deepcopy can block the event loop.
+- Hardening: CI workflow declares `permissions: contents: read` so `GITHUB_TOKEN` no longer inherits write defaults.
+- Modernization: subscribeEvents promise now has a `.catch()` (no more unhandled rejections on WS reconnect), `CoverAutomaticRuntimeData` uses `slots=True`, `asyncio.Task` carries its generic parameter, and the render path uses template literals consistently.
+- Cleanup: compass-house cursor/touch-action moved from inline style to the `#compass-house` selector, two unused CSS classes (`.info-widget-label`, `.mb-8`) removed.
 
 ### 1.51.0 (2026-04-27)
 
