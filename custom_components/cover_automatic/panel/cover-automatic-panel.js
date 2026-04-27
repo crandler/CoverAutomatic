@@ -688,16 +688,12 @@ const PANEL_STYLES = `
     color: var(--primary-text-color);
     font-weight: 500;
   }
-  .info-widget-label {
-    color: var(--ca-secondary-text);
-  }
   .info-widget.info-widget-highlight {
     background: color-mix(in srgb, var(--ca-warning) 18%, transparent);
     border-color: color-mix(in srgb, var(--ca-warning) 40%, transparent);
     color: var(--ca-warning);
   }
-  .info-widget.info-widget-highlight .info-widget-value,
-  .info-widget.info-widget-highlight .info-widget-label {
+  .info-widget.info-widget-highlight .info-widget-value {
     color: var(--ca-warning);
     font-weight: 600;
   }
