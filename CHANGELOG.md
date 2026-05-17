@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.52.1] - 2026-05-17
+
+### Fixed
+
+- Removed `number.*_pause_duration` entities are now cleaned up from the HA entity registry on startup. After upgrading to 1.52.0 the entity stayed visible as an unavailable / greyed-out field on every cover device because HA keeps orphaned entries until something explicitly removes them. `_cleanup_removed_entities()` runs in `async_setup_entry` and prunes any `cover_automatic` number entity whose unique_id ends with `_pause_duration`.
+
 ## [1.52.0] - 2026-05-17
 
 ### Removed

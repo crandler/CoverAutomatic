@@ -11,6 +11,7 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
 from .api import async_setup_api
@@ -39,6 +40,21 @@ PLATFORMS_LIST: list[Platform] = [
 ]
 
 
+def _cleanup_removed_entities(hass: HomeAssistant) -> None:
+    """Remove orphan entities from prior versions (pre-1.52.0: per-cover pause_duration)."""
+    registry = er.async_get(hass)
+    stale = [
+        entry.entity_id
+        for entry in registry.entities.values()
+        if entry.platform == DOMAIN
+        and entry.domain == Platform.NUMBER
+        and entry.unique_id.endswith("_pause_duration")
+    ]
+    for entity_id in stale:
+        _LOGGER.info("Removing orphan entity %s (pause_duration moved to panel)", entity_id)
+        registry.async_remove(entity_id)
+
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up CoverAutomatic from YAML (not supported)."""
     return True
@@ -56,6 +72,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntr
 
     await coordinator.async_setup()
     await log_storage.async_load()
+
+    _cleanup_removed_entities(hass)
 
     async def async_options_updated(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Handle options update by reloading entry to recreate entities."""
