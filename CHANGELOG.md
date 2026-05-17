@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.52.0] - 2026-05-17
+
+### Removed
+
+- **Breaking:** per-cover `number.*_pause_duration` entity has been removed. Pause duration is now configured exclusively via the sidebar panel (per-cover field with global fallback). Any HA automation or script referencing the entity must switch to the panel or the global `storage.pause_duration` setting. The underlying `CoverConfig.pause_duration` field, panel UI, and engine logic are unchanged — only the HA entity surface is gone.
+
 ## [1.51.3] - 2026-04-27
 
 ### Fixed

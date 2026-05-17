@@ -168,7 +168,6 @@ For each managed cover, the integration creates:
 |--------|-------------|
 | `switch.*_auto` | Enable/disable automation |
 | `sensor.*_status` | Current status (auto/paused/manual/locked/venting/wind_protected) |
-| `number.*_pause_duration` | Pause duration after manual override |
 
 For each facade:
 | Entity | Description |
@@ -198,13 +197,13 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.51.3
+1.52.0
 
 ## Changelog
 
 Full version history is maintained in [CHANGELOG.md](CHANGELOG.md), formatted per [Keep a Changelog](https://keepachangelog.com/).
 
-Latest release: [v1.51.3](https://github.com/crandler/CoverAutomatic/releases/tag/v1.51.3) (2026-04-27).
+Latest release: [v1.52.0](https://github.com/crandler/CoverAutomatic/releases/tag/v1.52.0) (2026-05-17).
 
 ## License
 
