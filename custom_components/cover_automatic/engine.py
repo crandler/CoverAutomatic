@@ -139,6 +139,10 @@ class RuleEngine:
                     return self._eval_time_after_sun_event(condition, get_sunrise_time)
                 case ConditionType.TIME_AFTER_SUNSET:
                     return self._eval_time_after_sun_event(condition, get_sunset_time)
+                case ConditionType.TIME_BEFORE_SUNRISE:
+                    return self._eval_time_before_sun_event(condition, get_sunrise_time)
+                case ConditionType.TIME_BEFORE_SUNSET:
+                    return self._eval_time_before_sun_event(condition, get_sunset_time)
                 case ConditionType.STATE_IS:
                     return self._eval_state_is(condition)
                 case ConditionType.TEMPERATURE_COMFORT:
@@ -343,6 +347,25 @@ class RuleEngine:
 
         target_time = event_time + (offset_minutes * 60)
         return dt_util.now().timestamp() >= target_time
+
+    def _eval_time_before_sun_event(self, condition: Condition, event_fn) -> bool:
+        """Evaluate time before sunrise/sunset with offset.
+
+        Returns True while current time is strictly before the (event + offset)
+        moment. Mirrors _eval_time_after_sun_event so that
+        time_before_sunset offset=-60 means "until 60 min before sunset".
+        """
+        try:
+            offset_minutes = int(condition.params.get("offset", 0))
+        except (ValueError, TypeError):
+            return False
+
+        event_time = event_fn(self.hass)
+        if event_time is None:
+            return False
+
+        target_time = event_time + (offset_minutes * 60)
+        return dt_util.now().timestamp() < target_time
 
     def _eval_state_is(self, condition: Condition) -> bool:
         """Evaluate state_is condition."""

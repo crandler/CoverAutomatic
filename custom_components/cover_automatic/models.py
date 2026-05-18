@@ -32,6 +32,8 @@ class ConditionType(StrEnum):
     TIME_BETWEEN = "time_between"
     TIME_AFTER_SUNRISE = "time_after_sunrise"
     TIME_AFTER_SUNSET = "time_after_sunset"
+    TIME_BEFORE_SUNRISE = "time_before_sunrise"
+    TIME_BEFORE_SUNSET = "time_before_sunset"
     STATE_IS = "state_is"
     WEATHER_IS = "weather_is"
     DAY_OF_WEEK = "day_of_week"

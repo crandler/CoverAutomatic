@@ -1126,6 +1126,153 @@ class TestTimeAfterSunsetCondition:
         assert result is False
 
 
+class TestTimeBeforeSunsetCondition:
+    """Tests for time_before_sunset condition evaluation."""
+
+    @patch("custom_components.cover_automatic.engine.dt_util")
+    @patch("custom_components.cover_automatic.engine.get_sunset_time")
+    def test_time_before_sunset_true(
+        self, mock_get_sunset, mock_dt_util, engine
+    ) -> None:
+        """Test time_before_sunset returns True when current time is before sunset + offset.
+
+        With offset=-60, the cutoff is 60 minutes before sunset. Two hours before
+        sunset is still before the cutoff -> True.
+        """
+        sunset_ts = 1_700_070_000.0
+        mock_get_sunset.return_value = sunset_ts
+        mock_dt_util.now.return_value.timestamp.return_value = sunset_ts - 7200.0
+
+        condition = Condition(
+            type=ConditionType.TIME_BEFORE_SUNSET,
+            params={"offset": -60},
+        )
+
+        result = engine._eval_time_before_sun_event(condition, mock_get_sunset)
+
+        assert result is True
+
+    @patch("custom_components.cover_automatic.engine.dt_util")
+    @patch("custom_components.cover_automatic.engine.get_sunset_time")
+    def test_time_before_sunset_false_inside_cutoff(
+        self, mock_get_sunset, mock_dt_util, engine
+    ) -> None:
+        """Test time_before_sunset returns False once cutoff is reached.
+
+        With offset=-60, the cutoff is 60 min before sunset. 30 min before
+        sunset is past the cutoff -> False.
+        """
+        sunset_ts = 1_700_070_000.0
+        mock_get_sunset.return_value = sunset_ts
+        mock_dt_util.now.return_value.timestamp.return_value = sunset_ts - 1800.0
+
+        condition = Condition(
+            type=ConditionType.TIME_BEFORE_SUNSET,
+            params={"offset": -60},
+        )
+
+        result = engine._eval_time_before_sun_event(condition, mock_get_sunset)
+
+        assert result is False
+
+    @patch("custom_components.cover_automatic.engine.dt_util")
+    @patch("custom_components.cover_automatic.engine.get_sunset_time")
+    def test_time_before_sunset_false_after_sunset(
+        self, mock_get_sunset, mock_dt_util, engine
+    ) -> None:
+        """Test time_before_sunset returns False after sunset has passed."""
+        sunset_ts = 1_700_070_000.0
+        mock_get_sunset.return_value = sunset_ts
+        mock_dt_util.now.return_value.timestamp.return_value = sunset_ts + 3600.0
+
+        condition = Condition(
+            type=ConditionType.TIME_BEFORE_SUNSET,
+            params={"offset": 0},
+        )
+
+        result = engine._eval_time_before_sun_event(condition, mock_get_sunset)
+
+        assert result is False
+
+    @patch("custom_components.cover_automatic.engine.get_sunset_time")
+    def test_time_before_sunset_no_sunset(
+        self, mock_get_sunset, engine
+    ) -> None:
+        """Test time_before_sunset returns False when sunset time is unavailable."""
+        mock_get_sunset.return_value = None
+
+        condition = Condition(
+            type=ConditionType.TIME_BEFORE_SUNSET,
+            params={"offset": -60},
+        )
+
+        result = engine._eval_time_before_sun_event(condition, mock_get_sunset)
+
+        assert result is False
+
+    @patch("custom_components.cover_automatic.engine.get_sunset_time")
+    def test_time_before_sunset_invalid_offset(
+        self, mock_get_sunset, engine
+    ) -> None:
+        """Test time_before_sunset returns False when offset is non-numeric."""
+        mock_get_sunset.return_value = 1_700_070_000.0
+
+        condition = Condition(
+            type=ConditionType.TIME_BEFORE_SUNSET,
+            params={"offset": "abc"},
+        )
+
+        result = engine._eval_time_before_sun_event(condition, mock_get_sunset)
+
+        assert result is False
+
+
+class TestTimeBeforeSunriseCondition:
+    """Tests for time_before_sunrise condition evaluation."""
+
+    @patch("custom_components.cover_automatic.engine.dt_util")
+    @patch("custom_components.cover_automatic.engine.get_sunrise_time")
+    def test_time_before_sunrise_true(
+        self, mock_get_sunrise, mock_dt_util, engine
+    ) -> None:
+        """Test time_before_sunrise returns True well before sunrise."""
+        sunrise_ts = 1_700_000_000.0
+        mock_get_sunrise.return_value = sunrise_ts
+        mock_dt_util.now.return_value.timestamp.return_value = sunrise_ts - 3600.0
+
+        condition = Condition(
+            type=ConditionType.TIME_BEFORE_SUNRISE,
+            params={"offset": -30},
+        )
+
+        result = engine._eval_time_before_sun_event(condition, mock_get_sunrise)
+
+        assert result is True
+
+    @patch("custom_components.cover_automatic.engine.dt_util")
+    @patch("custom_components.cover_automatic.engine.get_sunrise_time")
+    def test_time_before_sunrise_false_inside_cutoff(
+        self, mock_get_sunrise, mock_dt_util, engine
+    ) -> None:
+        """Test time_before_sunrise returns False inside the cutoff window.
+
+        With offset=-30, the cutoff is 30 min before sunrise. 10 min before
+        sunrise is past the cutoff -> False.
+        """
+        sunrise_ts = 1_700_000_000.0
+        mock_get_sunrise.return_value = sunrise_ts
+        mock_dt_util.now.return_value.timestamp.return_value = sunrise_ts - 600.0
+
+        condition = Condition(
+            type=ConditionType.TIME_BEFORE_SUNRISE,
+            params={"offset": -30},
+        )
+
+        result = engine._eval_time_before_sun_event(condition, mock_get_sunrise)
+
+        assert result is False
+
+
 class TestSunElevationCondition:
     """Tests for sun elevation above/below condition."""
 

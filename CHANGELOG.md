@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.53.0] - 2026-05-18
+
+### Added
+
+- New rule conditions `time_before_sunrise` and `time_before_sunset` (engine + panel). Mirror semantics of the existing `time_after_*` conditions but evaluate "current time is before (event + offset)". Use case: bound an open-during-day rule with `time_before_sunset offset=-60` to keep it inactive in the last 60 minutes before sunset, so the shutter is not lifted briefly between the shade rule deactivating and the night rule kicking in. Defaults: `time_before_sunrise offset=0`, `time_before_sunset offset=-60`. 7 new engine tests.
+
 ## [1.52.1] - 2026-05-17
 
 ### Fixed

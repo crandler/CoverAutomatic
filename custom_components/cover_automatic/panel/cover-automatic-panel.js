@@ -151,6 +151,8 @@ const I18N = {
     cond_time_between: "Time between",
     cond_time_after_sunrise: "Time after sunrise",
     cond_time_after_sunset: "Time after sunset",
+    cond_time_before_sunrise: "Time before sunrise",
+    cond_time_before_sunset: "Time before sunset",
     cond_state_is: "State is",
     cond_weather_is: "Weather is",
     cond_day_of_week: "Day of week",
@@ -399,6 +401,8 @@ const I18N = {
     cond_time_between: "Zeit zwischen",
     cond_time_after_sunrise: "Zeit nach Sonnenaufgang",
     cond_time_after_sunset: "Zeit nach Sonnenuntergang",
+    cond_time_before_sunrise: "Zeit vor Sonnenaufgang",
+    cond_time_before_sunset: "Zeit vor Sonnenuntergang",
     cond_state_is: "Status ist",
     cond_weather_is: "Wetter ist",
     cond_day_of_week: "Wochentag",
@@ -536,6 +540,7 @@ const CONDITION_TYPES = [
   "sun_on_facade", "sun_elevation_above", "sun_elevation_below",
   "temperature_above", "temperature_below", "temperature_comfort",
   "time_between", "time_after_sunrise", "time_after_sunset",
+  "time_before_sunrise", "time_before_sunset",
   "state_is", "weather_is", "day_of_week", "workday"
 ];
 
@@ -552,6 +557,8 @@ const CONDITION_PARAMS = {
   ],
   time_after_sunrise: [{ key: "offset", type: "number", default: 0 }],
   time_after_sunset: [{ key: "offset", type: "number", default: 0 }],
+  time_before_sunrise: [{ key: "offset", type: "number", default: 0 }],
+  time_before_sunset: [{ key: "offset", type: "number", default: -60 }],
   state_is: [
     { key: "entity_id", type: "text", default: "" },
     { key: "state", type: "text", default: "on" }

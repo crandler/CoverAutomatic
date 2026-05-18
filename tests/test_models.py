@@ -314,7 +314,9 @@ class TestConditionType:
         assert ConditionType.WEATHER_IS.value == "weather_is"
         assert ConditionType.DAY_OF_WEEK.value == "day_of_week"
         assert ConditionType.WORKDAY.value == "workday"
-        assert len(ConditionType) == 13
+        assert ConditionType.TIME_BEFORE_SUNRISE.value == "time_before_sunrise"
+        assert ConditionType.TIME_BEFORE_SUNSET.value == "time_before_sunset"
+        assert len(ConditionType) == 15
 
 
 class TestComfortMode:
