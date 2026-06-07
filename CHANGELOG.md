@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.53.1] - 2026-06-07
+
+### Fixed
+
+- Brief indoor temperature sensor outages (e.g. a Zigbee bridge restart making all MQTT sensors unavailable for ~2 minutes) no longer drop the `sun_on_facade` rule. Previously `_get_comfort_mode()` returned None on unavailable, `sun_on_facade` evaluated False, a lower-priority day rule won and the covers moved up — only to shade again 2 minutes later once the sensor recovered (the rule-change bypass skips `min_time_between_changes`, so both movements executed immediately). The engine now holds the last known comfort mode for a 900 s grace period (`COMFORT_SENSOR_GRACE_PERIOD`); beyond that, or without any prior reading, behavior is unchanged. Also applies to the `temperature_comfort` condition. +4 regression tests.
+
 ## [1.53.0] - 2026-05-18
 
 ### Added

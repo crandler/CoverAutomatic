@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from datetime import time
+from time import monotonic
 from typing import TYPE_CHECKING
 
 from homeassistant.util import dt as dt_util
@@ -16,6 +17,11 @@ if TYPE_CHECKING:
     from .storage import CoverAutomaticStorage
 
 _LOGGER = logging.getLogger(__name__)
+
+# How long to keep using the last known comfort mode when the indoor temp
+# sensor goes unavailable (e.g. Zigbee bridge restart). Prevents brief sensor
+# outages from dropping the shading rule and triggering a fallback movement.
+COMFORT_SENSOR_GRACE_PERIOD = 900  # seconds
 
 _WEATHER_MAP: dict[str, set[str]] = {
     "sunny": {"sunny", "clear", "clear-night"},
@@ -35,6 +41,7 @@ class RuleEngine:
         self.hass = hass
         self.storage = storage
         self._last_comfort_mode: dict[str, ComfortMode] = {}
+        self._last_comfort_read: dict[str, float] = {}
 
     def evaluate_cover(self, cover: CoverConfig) -> CoverTarget | None:
         """Evaluate rules for a cover and return target position/tilt.
@@ -166,8 +173,9 @@ class RuleEngine:
         Automatically considers indoor comfort temperature when a sensor is
         configured (per-cover > global fallback). In HEATING mode, returns
         False to let sunlight in and save heating energy.
-        When a sensor is configured but unavailable, returns False (wait for
-        reliable data before acting).
+        When a sensor is configured but unavailable, the last known comfort
+        mode is held for COMFORT_SENSOR_GRACE_PERIOD; beyond that (or without
+        a prior reading) returns False (wait for reliable data before acting).
         """
         facade_id = condition.params.get("facade") or cover.facade_id
         if not facade_id:
@@ -217,21 +225,37 @@ class RuleEngine:
         - Exit HEATING only when temp >= comfort_min + hysteresis
         - Exit COOLING only when temp <= comfort_max - hysteresis
 
-        Returns None if no sensor is configured or unavailable.
+        When the sensor goes unavailable, the last known mode is held for
+        COMFORT_SENSOR_GRACE_PERIOD so brief outages (e.g. Zigbee bridge
+        restart) do not drop active rules. Returns None if no sensor is
+        configured, or unavailable beyond the grace period.
         """
         sensor_id = cover.indoor_temp_sensor or self.storage.indoor_temp_sensor
         if not sensor_id:
             return None
 
         state = self.hass.states.get(sensor_id)
-        if state is None:
-            return None
-
         try:
-            temp = float(state.state)
+            temp = float(state.state) if state is not None else None
         except (ValueError, TypeError):
+            temp = None
+
+        if temp is None:
+            prev = self._last_comfort_mode.get(cover.entity_id)
+            last_read = self._last_comfort_read.get(cover.entity_id)
+            if (
+                prev is not None
+                and last_read is not None
+                and monotonic() - last_read < COMFORT_SENSOR_GRACE_PERIOD
+            ):
+                _LOGGER.debug(
+                    "[%s] Comfort sensor %s unavailable, holding last mode %s (grace period)",
+                    cover.entity_id, sensor_id, prev.value,
+                )
+                return prev
             return None
 
+        self._last_comfort_read[cover.entity_id] = monotonic()
         h = self.storage.comfort_hysteresis
         prev = self._last_comfort_mode.get(cover.entity_id)
         comfort_min = cover.comfort_temp_min if cover.comfort_temp_min is not None else self.storage.comfort_temp_min

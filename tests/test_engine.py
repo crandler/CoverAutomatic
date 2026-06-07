@@ -6,7 +6,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from custom_components.cover_automatic.engine import RuleEngine
+from custom_components.cover_automatic.engine import (
+    COMFORT_SENSOR_GRACE_PERIOD,
+    RuleEngine,
+)
 from custom_components.cover_automatic.models import (
     ComfortMode,
     Condition,
@@ -1006,6 +1009,68 @@ class TestSunOnFacadeCondition:
         )
         condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
         assert engine._eval_sun_on_facade(condition, cover) is True
+
+
+class TestComfortSensorGracePeriod:
+    """Tests for holding the comfort mode during brief sensor outages.
+
+    Regression: a Zigbee bridge restart makes all indoor temp sensors
+    unavailable for ~2 minutes. sun_on_facade then returned False, the
+    lower-priority day rule kicked in and the covers moved up, only to
+    shade again 2 minutes later (v1.53.0 and earlier).
+    """
+
+    @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
+    def test_sun_on_facade_holds_shading_during_sensor_outage(
+        self, mock_is_sun_on_facade, engine, mock_storage
+    ) -> None:
+        """A brief sensor outage must not drop the shading rule."""
+        facade = Facade(
+            id="south", name="South", azimuth_start=135.0,
+            azimuth_end=225.0, direction="south",
+        )
+        mock_storage.facades = {"south": facade}
+        mock_is_sun_on_facade.return_value = True
+        temp_state = MagicMock()
+        temp_state.state = "27.0"  # above comfort_max 25 -> COOLING
+        engine.hass.states.get = lambda eid: temp_state if eid == "sensor.indoor_temp" else None
+        cover = CoverConfig(entity_id="cover.test", name="Test", facade_id="south")
+        condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
+        assert engine._eval_sun_on_facade(condition, cover) is True
+
+        temp_state.state = "unavailable"  # e.g. Zigbee bridge restart
+        assert engine._eval_sun_on_facade(condition, cover) is True
+
+    def test_comfort_mode_holds_last_mode_when_sensor_unavailable(self, engine) -> None:
+        """_get_comfort_mode returns the previous mode within the grace period."""
+        temp_state = MagicMock()
+        temp_state.state = "27.0"
+        engine.hass.states.get = lambda eid: temp_state if eid == "sensor.indoor_temp" else None
+        cover = CoverConfig(entity_id="cover.test", name="Test")
+        assert engine._get_comfort_mode(cover) == ComfortMode.COOLING
+
+        temp_state.state = "unavailable"
+        assert engine._get_comfort_mode(cover) == ComfortMode.COOLING
+
+    def test_comfort_mode_defers_after_grace_expiry(self, engine) -> None:
+        """After the grace period the last mode is no longer held."""
+        temp_state = MagicMock()
+        temp_state.state = "27.0"
+        engine.hass.states.get = lambda eid: temp_state if eid == "sensor.indoor_temp" else None
+        cover = CoverConfig(entity_id="cover.test", name="Test")
+        assert engine._get_comfort_mode(cover) == ComfortMode.COOLING
+
+        temp_state.state = "unavailable"
+        engine._last_comfort_read["cover.test"] -= COMFORT_SENSOR_GRACE_PERIOD + 1
+        assert engine._get_comfort_mode(cover) is None
+
+    def test_comfort_mode_unavailable_without_prior_read_returns_none(self, engine) -> None:
+        """Without any prior valid reading an unavailable sensor yields None."""
+        temp_state = MagicMock()
+        temp_state.state = "unavailable"
+        engine.hass.states.get = lambda eid: temp_state if eid == "sensor.indoor_temp" else None
+        cover = CoverConfig(entity_id="cover.test", name="Test")
+        assert engine._get_comfort_mode(cover) is None
 
 
 class TestTimeAfterSunriseCondition:
