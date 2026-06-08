@@ -1165,6 +1165,53 @@ class TestManualOverrideInApplyCycle:
                     await coordinator.async_apply_positions()
                 mock_pause.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_no_override_while_cover_moving(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """A physically moving cover is not misread as a manual override.
+
+        Regression: HmIP-style actuators keep reporting the pre-move position
+        until travel finishes. For a long move whose travel time exceeds
+        SETTLE_TIME, the apply cycle would compare that stale position against
+        the target and falsely PAUSE the cover while it was still opening.
+        """
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+        coordinator._last_positions["cover.test"] = 100  # just commanded target
+        coordinator._last_command_time["cover.test"] = 0.0  # settle elapsed
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "auto",
+                    "target_position": 100,
+                }
+            }
+        }
+        mock_storage.get_cover_raw.return_value = {
+            "min_position_change": 5,
+            "min_time_between_changes": 0,
+            "inverted": False,
+        }
+
+        for moving_state in ("opening", "closing"):
+            coordinator._pending_settle.add("cover.test")
+            # Hardware still reports the old position (33%) while travelling
+            mock_hass.states.get.return_value = MockState(
+                moving_state, {"current_position": 33}
+            )
+            with patch(
+                "custom_components.cover_automatic.coordinator.time_mod"
+            ) as mock_time:
+                mock_time.monotonic.return_value = 9999.0  # well beyond settle
+                with patch.object(coordinator, "pause_cover") as mock_pause:
+                    await coordinator.async_apply_positions()
+                    mock_pause.assert_not_called()
+            # Settle tracking is preserved so the post-settle sync runs once
+            # the cover reports its final position after travel.
+            assert "cover.test" in coordinator._pending_settle
+            mock_hass.services.async_call.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_unavailable_cover_skipped_in_apply_cycle(

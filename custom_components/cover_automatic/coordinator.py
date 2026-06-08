@@ -1158,6 +1158,15 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if state is None or state.state in ("unavailable", "unknown"):
                 continue
 
+            # Skip covers that are physically moving. HmIP-style actuators keep
+            # reporting the pre-move position until travel finishes; for a long
+            # move whose travel time exceeds SETTLE_TIME, the override check
+            # below would misread that stale position as a manual override and
+            # falsely PAUSE the cover. _pending_settle is left intact so the
+            # post-settle sync runs once the cover reports its final position.
+            if state.state in ("opening", "closing"):
+                continue
+
             try:
                 current = int(state.attributes.get("current_position", 0))
             except (ValueError, TypeError):

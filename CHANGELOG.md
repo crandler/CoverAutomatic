@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.53.2] - 2026-06-08
+
+### Fixed
+
+- Covers are no longer falsely paused while physically travelling. For a long move whose travel time exceeds `SETTLE_TIME` (30 s), the apply-cycle override check (`async_apply_positions`) read the still-stale pre-move position reported by HmIP-style actuators (which only update `current_position` once travel finishes), compared it against the target and treated the difference as a manual override — pausing the cover for the full `pause_duration` (e.g. 120 min) and blocking later rules (a night rule due at 19:00 would not run until the pause expired). The state-change handler already guarded against `opening`/`closing`; the apply cycle now does too, leaving `_pending_settle` intact so the post-settle sync runs after travel. +1 regression test.
+
 ## [1.53.1] - 2026-06-07
 
 ### Fixed
