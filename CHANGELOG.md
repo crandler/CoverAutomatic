@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.53.4] - 2026-06-09
+
+### Security
+
+- The `export_config` service can no longer overwrite arbitrary files in the HA config directory (e.g. `configuration.yaml`). Export targets are now confined to `<config>/cover_automatic/` and must use a `.yaml`/`.yml` extension; relative paths resolve inside that folder, which is created on demand. The default export path moved from `/config/cover_automatic_backup.yaml` to `/config/cover_automatic/cover_automatic_backup.yaml`. Import is unchanged (read-only). +8 tests.
+
 ## [1.53.3] - 2026-06-09
 
 ### Fixed

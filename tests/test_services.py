@@ -9,6 +9,7 @@ import pytest
 
 from custom_components.cover_automatic.services import (
     _validate_config_path,
+    _validate_export_path,
     async_setup_services,
     async_unload_services,
 )
@@ -345,7 +346,7 @@ class TestExportImportServices:
         call.context.user_id = None
 
         with patch(
-            "custom_components.cover_automatic.services._validate_config_path",
+            "custom_components.cover_automatic.services._validate_export_path",
             return_value=None,
         ):
             await handlers["export_config"](call)
@@ -571,18 +572,128 @@ class TestExportHappyPath:
         await async_setup_services(hass)
 
         call = MagicMock()
-        call.data = {"path": "/config/backup.yaml"}
+        call.data = {"path": "/config/cover_automatic/backup.yaml"}
         call.context.user_id = None
 
         mock_path = MagicMock()
         mock_path.exists.return_value = True
 
         with patch(
-            "custom_components.cover_automatic.services._validate_config_path",
+            "custom_components.cover_automatic.services._validate_export_path",
             return_value=mock_path,
         ):
             await handlers["export_config"](call)
 
+        hass.async_add_executor_job.assert_called_once()
+
+
+class TestExportPathRestrictions:
+    """Tests for export path hardening (subdirectory + extension whitelist)."""
+
+    def test_rejects_ha_core_file(self) -> None:
+        """Export must not target files outside the export subdirectory."""
+        assert _validate_export_path("/config/configuration.yaml", "/config") is None
+
+    def test_rejects_non_yaml_extension(self) -> None:
+        """Export must use a .yaml/.yml extension."""
+        assert (
+            _validate_export_path("/config/cover_automatic/backup.txt", "/config")
+            is None
+        )
+
+    def test_rejects_traversal_out_of_subdir(self) -> None:
+        """Traversal escaping the export subdirectory is rejected."""
+        assert (
+            _validate_export_path(
+                "/config/cover_automatic/../configuration.yaml", "/config"
+            )
+            is None
+        )
+
+    def test_accepts_yaml_in_subdir(self) -> None:
+        """Absolute YAML path inside the export subdirectory is accepted."""
+        result = _validate_export_path(
+            "/config/cover_automatic/backup.yaml", "/config"
+        )
+        assert result == Path("/config/cover_automatic/backup.yaml")
+
+    def test_accepts_yml_extension(self) -> None:
+        """The .yml extension is accepted as well."""
+        result = _validate_export_path("/config/cover_automatic/backup.yml", "/config")
+        assert result is not None
+
+    def test_relative_path_resolves_into_subdir(self) -> None:
+        """Relative paths resolve inside the export subdirectory."""
+        result = _validate_export_path("backup.yaml", "/config")
+        assert result == Path("/config/cover_automatic/backup.yaml")
+
+    @pytest.fixture
+    def mock_hass_for_export(self):
+        """Create mock Home Assistant for export path restriction tests."""
+        hass = MagicMock()
+        hass.services = MagicMock()
+        hass.services.has_service = MagicMock(return_value=False)
+        hass.services.async_register = MagicMock()
+        hass.async_add_executor_job = AsyncMock()
+        hass.config.config_dir = "/config"
+        hass.config.path = MagicMock(
+            return_value="/config/cover_automatic/cover_automatic_backup.yaml"
+        )
+
+        mock_storage = MagicMock()
+        mock_storage.get_raw_data = MagicMock(return_value={"facades": {}, "covers": {}})
+
+        mock_coordinator = MagicMock()
+        mock_coordinator.storage = mock_storage
+
+        mock_entry = _make_mock_entry(mock_coordinator, mock_storage)
+        hass.config_entries = MagicMock()
+        hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+        return hass
+
+    async def _get_export_handler(self, hass):
+        """Register services and return the export_config handler."""
+        handlers = {}
+
+        def capture_register(domain, service, handler, **kwargs):
+            handlers[service] = handler
+
+        hass.services.async_register = capture_register
+        await async_setup_services(hass)
+        return handlers["export_config"]
+
+    @pytest.mark.asyncio
+    async def test_export_rejects_path_outside_subdir(
+        self, mock_hass_for_export
+    ) -> None:
+        """Export to a HA core file inside /config is rejected without writing."""
+        hass = mock_hass_for_export
+        handler = await self._get_export_handler(hass)
+
+        call = MagicMock()
+        call.data = {"path": "/config/configuration.yaml"}
+        call.context.user_id = None
+
+        await handler(call)
+
+        hass.async_add_executor_job.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_export_default_path_in_subdir(self, mock_hass_for_export) -> None:
+        """Default export path lands inside the export subdirectory."""
+        hass = mock_hass_for_export
+        handler = await self._get_export_handler(hass)
+
+        call = MagicMock()
+        call.data = {}
+        call.context.user_id = None
+
+        await handler(call)
+
+        hass.config.path.assert_called_once_with(
+            "cover_automatic", "cover_automatic_backup.yaml"
+        )
         hass.async_add_executor_job.assert_called_once()
 
 
@@ -867,7 +978,7 @@ class TestAdminRequirement:
         mock_path.exists.return_value = True
 
         with patch(
-            "custom_components.cover_automatic.services._validate_config_path",
+            "custom_components.cover_automatic.services._validate_export_path",
             return_value=mock_path,
         ):
             # Should not raise
@@ -895,7 +1006,7 @@ class TestAdminRequirement:
         mock_path.exists.return_value = True
 
         with patch(
-            "custom_components.cover_automatic.services._validate_config_path",
+            "custom_components.cover_automatic.services._validate_export_path",
             return_value=mock_path,
         ):
             # Should not raise -- internal/automation calls pass through

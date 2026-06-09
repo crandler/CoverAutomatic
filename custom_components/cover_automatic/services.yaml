@@ -48,8 +48,8 @@ export_config:
   fields:
     path:
       name: File path
-      description: Path to save the configuration file.
-      default: /config/cover_automatic_backup.yaml
+      description: Path to save the configuration file. Must be a YAML file (.yaml/.yml) inside the cover_automatic folder below the Home Assistant config directory; relative paths resolve there.
+      default: /config/cover_automatic/cover_automatic_backup.yaml
       selector:
         text:
 

@@ -25,6 +25,48 @@ _LOGGER = logging.getLogger(__name__)
 # Allowed base directories for config import/export
 ALLOWED_CONFIG_PATHS = ["/config", "/homeassistant"]
 
+# Exports are confined to this subdirectory below the HA config dir
+EXPORT_SUBDIR = "cover_automatic"
+EXPORT_ALLOWED_SUFFIXES = (".yaml", ".yml")
+
+
+def _validate_export_path(path: str, config_dir: str) -> Path | None:
+    """Validate an export target path.
+
+    Exports must be YAML files inside <config>/cover_automatic/ so the
+    service can never overwrite HA core files like configuration.yaml.
+    Relative paths resolve inside the export directory.
+
+    Returns:
+        Resolved Path if valid, None if path is unsafe.
+    """
+    try:
+        export_root = (Path(config_dir) / EXPORT_SUBDIR).resolve()
+        candidate = Path(path)
+        if not candidate.is_absolute():
+            candidate = export_root / candidate
+        resolved = candidate.resolve()
+
+        if resolved.suffix.lower() not in EXPORT_ALLOWED_SUFFIXES:
+            _LOGGER.warning(
+                "Export path rejected: %s must use a .yaml/.yml extension", path
+            )
+            return None
+
+        try:
+            resolved.relative_to(export_root)
+        except ValueError:
+            _LOGGER.warning(
+                "Export path rejected: %s is not within %s", path, export_root
+            )
+            return None
+
+        return resolved
+
+    except Exception as err:
+        _LOGGER.error("Export path validation error for %s: %s", path, err)
+        return None
+
 
 def _validate_config_path(path: str, extra_paths: list[str] | None = None) -> Path | None:
     """Validate that path is within allowed directories.
@@ -151,16 +193,16 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         """Handle export_config service call."""
         await _require_admin(call)
         path_str = call.data.get("path") or hass.config.path(
-            "cover_automatic_backup.yaml"
+            EXPORT_SUBDIR, "cover_automatic_backup.yaml"
         )
 
-        # Validate path to prevent path traversal attacks
-        validated_path = _validate_config_path(
-            path_str, extra_paths=[hass.config.config_dir]
-        )
+        # Confine exports to <config>/cover_automatic/ with YAML extension
+        validated_path = _validate_export_path(path_str, hass.config.config_dir)
         if validated_path is None:
             _LOGGER.error(
-                "Export rejected: path '%s' is outside allowed directories", path_str
+                "Export rejected: path '%s' must be a YAML file inside '%s'",
+                path_str,
+                Path(hass.config.config_dir) / EXPORT_SUBDIR,
             )
             return
 
@@ -168,6 +210,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             data = entry_data.storage.get_raw_data()
 
             def write_yaml(export_data=data):
+                validated_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(validated_path, "w", encoding="utf-8") as f:
                     yaml.dump(export_data, f, default_flow_style=False, allow_unicode=True)
 
