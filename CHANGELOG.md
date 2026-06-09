@@ -5,6 +5,13 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.53.5] - 2026-06-09
+
+### Fixed
+
+- A pending protective-exit hysteresis bypass (`_post_protective_exit`) is now cancelled when the cover leaves AUTO/VENTING (e.g. a manual override pauses it) before the next apply cycle consumed it. Previously the stale flag survived the status change and skipped `min_time_between_changes` once on an unrelated move much later. +1 regression test.
+- Panel: the window-level `pointermove`/`pointerup`/`pointercancel` listeners attached during compass house-drag are now also removed in `disconnectedCallback`. Previously they leaked if the panel was removed from the DOM mid-drag.
+
 ## [1.53.4] - 2026-06-09
 
 ### Security

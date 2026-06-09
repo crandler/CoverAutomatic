@@ -3456,3 +3456,38 @@ class TestProtectiveStatusExitFreshApply:
         ]
         assert position_calls == []
         assert coordinator._hysteresis_info.get("cover.test") == "time"
+
+    @pytest.mark.asyncio
+    async def test_stale_bypass_discarded_when_status_leaves_auto(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """The one-shot bypass must be cancelled when the cover leaves
+        AUTO/VENTING (e.g. manual override -> PAUSED) before the next apply
+        cycle ran -- otherwise the stale flag skips the time hysteresis on an
+        unrelated move much later."""
+        cover = self._make_cover()
+        mock_storage.covers = {"cover.test": cover}
+        mock_storage.command_stagger = 0.0
+
+        coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
+        coordinator._post_protective_exit.add("cover.test")
+
+        coordinator.data = {
+            "covers": {
+                "cover.test": {
+                    "status": "paused",
+                    "target_position": 0,
+                    "matching_rule_id": "night",
+                }
+            }
+        }
+
+        await coordinator.async_apply_positions()
+
+        # No move while PAUSED, and the stale bypass flag is consumed
+        position_calls = [
+            call for call in mock_hass.services.async_call.call_args_list
+            if call.args[:2] == ("cover", "set_cover_position")
+        ]
+        assert position_calls == []
+        assert "cover.test" not in coordinator._post_protective_exit

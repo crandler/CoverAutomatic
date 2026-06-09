@@ -1142,6 +1142,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Use live status from _cover_states instead of snapshot
             status = self._cover_states.get(entity_id, CoverStatus.AUTO)
             if status not in (CoverStatus.AUTO, CoverStatus.VENTING):
+                # A new protective/paused state supersedes a pending
+                # protective-exit bypass -- drop it so it cannot skip the
+                # time hysteresis on an unrelated move later.
+                self._post_protective_exit.discard(entity_id)
                 self._hysteresis_info[entity_id] = None
                 continue
 

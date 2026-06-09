@@ -2277,6 +2277,7 @@ class CoverAutomaticPanel extends HTMLElement {
   disconnectedCallback() {
     this._stopLiveRefresh();
     this._unsubscribeUpdates();
+    this._removeHouseDragListeners();
     if (this._saveTimers) {
       Object.values(this._saveTimers).forEach(t => clearTimeout(t));
       this._saveTimers = {};
@@ -4589,8 +4590,7 @@ class CoverAutomaticPanel extends HTMLElement {
     if (input) input.value = angle;
   }
 
-  _handleHouseDragEnd(e) {
-    if (!this._houseDragState) return;
+  _removeHouseDragListeners() {
     this._houseDragState = null;
     if (this._houseDragMoveBound) {
       window.removeEventListener("pointermove", this._houseDragMoveBound);
@@ -4599,6 +4599,11 @@ class CoverAutomaticPanel extends HTMLElement {
       this._houseDragMoveBound = null;
       this._houseDragEndBound = null;
     }
+  }
+
+  _handleHouseDragEnd(e) {
+    if (!this._houseDragState) return;
+    this._removeHouseDragListeners();
     const houseG = this.shadowRoot.querySelector("#compass-house");
     if (houseG) houseG.style.cursor = "grab";
     // Trigger the existing live-update path so facade arcs etc. re-render.
