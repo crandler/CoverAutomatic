@@ -228,6 +228,8 @@ async def ws_cover_update(
 
     # Track facade change for bidirectional sync
     old_facade_id = raw.get("facade_id")
+    # Track auto_enabled change to mirror the switch entity's status transition
+    old_auto_enabled = raw.get("auto_enabled", True)
 
     # Update only fields present in the message
     for key in _UPDATABLE_COVER_FIELDS:
@@ -238,6 +240,16 @@ async def ws_cover_update(
     new_facade_id = raw.get("facade_id")
     if "facade_id" in msg and new_facade_id != old_facade_id:
         _sync_facade_cover_ids(storage, entity_id, new_facade_id, old_facade_id)
+
+    # Mirror the auto_enabled toggle through the coordinator's status
+    # transitions (same path as the HA switch entity). Without this the
+    # persisted cover status stays "auto" and the panel keeps showing AUTO
+    # after disabling automation; on re-enable the cover would stay MANUAL.
+    if "auto_enabled" in msg and msg["auto_enabled"] != old_auto_enabled:
+        if msg["auto_enabled"]:
+            coordinator.resume_cover(entity_id)
+        else:
+            coordinator.set_cover_manual(entity_id)
 
     storage._invalidate_cache()
     await storage.async_save()

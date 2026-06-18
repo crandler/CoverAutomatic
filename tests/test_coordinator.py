@@ -1501,6 +1501,40 @@ class TestSyncCoverStatuses:
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.MANUAL
 
+    def test_sync_auto_enabled_false_persists_manual(
+        self, coordinator, mock_storage
+    ) -> None:
+        """auto_enabled=False persists MANUAL so it survives a restart.
+
+        Regression: the persisted cover status (rendered by the panel) stayed
+        "auto" because only the in-memory state was updated.
+        """
+        mock_storage._data = {
+            "covers": {"cover.test": {"auto_enabled": False}}
+        }
+        mock_storage.get_cover_raw.return_value = {"auto_enabled": False}
+        coordinator._cover_states["cover.test"] = CoverStatus.AUTO
+
+        coordinator._sync_cover_statuses()
+
+        mock_storage.update_cover_status.assert_called_with(
+            "cover.test", CoverStatus.MANUAL.value, None
+        )
+
+    def test_sync_auto_enabled_false_skips_redundant_persist(
+        self, coordinator, mock_storage
+    ) -> None:
+        """Already-MANUAL covers must not re-persist every update cycle."""
+        mock_storage._data = {
+            "covers": {"cover.test": {"auto_enabled": False}}
+        }
+        mock_storage.get_cover_raw.return_value = {"auto_enabled": False}
+        coordinator._cover_states["cover.test"] = CoverStatus.MANUAL
+
+        coordinator._sync_cover_statuses()
+
+        mock_storage.update_cover_status.assert_not_called()
+
 
 class TestRestoreCoverStates:
     """Tests for _restore_cover_states on startup."""

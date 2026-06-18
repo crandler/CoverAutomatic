@@ -418,6 +418,103 @@ class TestWsCoverUpdate:
         conn.send_result.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_disabling_auto_sets_cover_manual(self) -> None:
+        """Toggling auto_enabled off via panel must route through set_cover_manual.
+
+        Regression: the panel auto_enabled toggle only wrote raw["auto_enabled"]
+        without persisting the MANUAL status, so the status table kept showing
+        "Auto" after disabling automation.
+        """
+        from custom_components.cover_automatic.api import ws_cover_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+
+        raw_cover = {
+            "entity_id": "cover.test",
+            "name": "Test",
+            "facade_id": None,
+            "auto_enabled": True,
+        }
+        storage.get_cover_raw = MagicMock(return_value=raw_cover)
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/cover/update",
+            "entity_id": "cover.test",
+            "auto_enabled": False,
+        }
+
+        await ws_cover_update(hass, conn, msg, storage, coordinator)
+
+        assert raw_cover["auto_enabled"] is False
+        coordinator.set_cover_manual.assert_called_once_with("cover.test")
+        coordinator.resume_cover.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_enabling_auto_resumes_cover(self) -> None:
+        """Toggling auto_enabled on via panel must route through resume_cover."""
+        from custom_components.cover_automatic.api import ws_cover_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+
+        raw_cover = {
+            "entity_id": "cover.test",
+            "name": "Test",
+            "facade_id": None,
+            "auto_enabled": False,
+        }
+        storage.get_cover_raw = MagicMock(return_value=raw_cover)
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/cover/update",
+            "entity_id": "cover.test",
+            "auto_enabled": True,
+        }
+
+        await ws_cover_update(hass, conn, msg, storage, coordinator)
+
+        assert raw_cover["auto_enabled"] is True
+        coordinator.resume_cover.assert_called_once_with("cover.test")
+        coordinator.set_cover_manual.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_unchanged_auto_does_not_trigger_transition(self) -> None:
+        """A no-op auto_enabled value must not trigger a status transition."""
+        from custom_components.cover_automatic.api import ws_cover_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+
+        raw_cover = {
+            "entity_id": "cover.test",
+            "name": "Test",
+            "facade_id": None,
+            "auto_enabled": True,
+        }
+        storage.get_cover_raw = MagicMock(return_value=raw_cover)
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/cover/update",
+            "entity_id": "cover.test",
+            "auto_enabled": True,
+        }
+
+        await ws_cover_update(hass, conn, msg, storage, coordinator)
+
+        coordinator.set_cover_manual.assert_not_called()
+        coordinator.resume_cover.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_update_unknown_cover_sends_error(self) -> None:
         from custom_components.cover_automatic.api import ws_cover_update
 

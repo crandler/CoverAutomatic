@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.53.6] - 2026-06-18
+
+### Fixed
+
+- Disabling a cover's automation via the panel toggle now persists the `MANUAL` status, so the status table no longer keeps showing "Auto" after `auto_enabled` is turned off. The panel toggle now routes through the same coordinator status transitions as the HA switch entity (`set_cover_manual` / `resume_cover`), which also fixes covers staying `MANUAL` after re-enabling automation from the panel. `_sync_cover_statuses` additionally persists `MANUAL` so the status survives a restart (which resets all statuses to `AUTO`). +5 regression tests.
+
 ## [1.53.5] - 2026-06-09
 
 ### Fixed

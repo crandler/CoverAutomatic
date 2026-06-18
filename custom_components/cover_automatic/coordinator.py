@@ -953,7 +953,13 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
 
             if not cover_raw.get("auto_enabled", True):
-                self._cover_states[entity_id] = CoverStatus.MANUAL
+                # Persist MANUAL like the LOCKED/VENTING branches do, so the
+                # status survives a restart (which resets all statuses to AUTO)
+                # and the panel, which renders the persisted cover status,
+                # reflects the disabled automation instead of showing AUTO.
+                if self._cover_states.get(entity_id) != CoverStatus.MANUAL:
+                    self._cover_states[entity_id] = CoverStatus.MANUAL
+                    self.storage.update_cover_status(entity_id, CoverStatus.MANUAL.value, None)
                 continue
 
             # Check pause expiry
