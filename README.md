@@ -160,6 +160,24 @@ After installation, all configuration is done via the **CoverAutomatic** sidebar
 4. **Scenarios** - Define modes like "Summer", "Winter", "Vacation" to disable specific rules
 5. **Settings** - Configure sensors, comfort temperatures, wind protection, and more
 
+### Example: heat protection by outdoor temperature
+
+To shade a facade once it gets hot outside, combine two conditions in one rule
+(operator **AND**). No extra setting is required — `temperature_above` reads the
+global outdoor temperature sensor from **Settings** by default.
+
+1. Set an **outdoor temperature sensor** in Settings.
+2. Create a rule, e.g. *"Heat protection South"*:
+   - Condition `sun_on_facade` → your south facade
+   - Condition `temperature_above` → `28` (°C)
+   - Target position → e.g. `30` (partly closed)
+3. Optional: give it a higher priority than your everyday daylight rule so it
+   wins while the sun is on the facade and it is hot.
+
+The rule closes the cover only while the sun actually hits that facade **and**
+the outdoor temperature is above the threshold, and releases it again once
+either condition clears.
+
 ### Created Entities
 
 For each managed cover, the integration creates:
