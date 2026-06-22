@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.53.8] - 2026-06-22
+
+### Changed
+
+- Panel internals modernized (no behavior change): optional chaining (`this._hass?.states`), nullish coalescing (`?? default` in place of `x != null ? x : default`), object spread, `for...of`, and `?.value` element access in form readers. Empty-string-to-default semantics on form fields were deliberately preserved (kept `|| default`, not switched to `??`).
+
 ## [1.53.7] - 2026-06-22
 
 ### Security

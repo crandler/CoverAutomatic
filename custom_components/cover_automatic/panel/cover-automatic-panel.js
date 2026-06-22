@@ -2253,7 +2253,7 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   set hass(hass) {
-    const prevLang = this._hass && this._hass.language;
+    const prevLang = this._hass?.language;
     this._hass = hass;
     if (!this._initialized) {
       this._initialize();
@@ -2286,13 +2286,13 @@ class CoverAutomaticPanel extends HTMLElement {
 
   /* ---------- i18n helper ---------- */
   _t(key) {
-    const lang = (this._hass && this._hass.language) || "en";
+    const lang = (this._hass?.language) || "en";
     const dict = I18N[lang] || I18N.en;
     return dict[key] !== undefined ? dict[key] : (I18N.en[key] !== undefined ? I18N.en[key] : key);
   }
 
   _tt(section, key) {
-    const lang = (this._hass && this._hass.language) || "en";
+    const lang = (this._hass?.language) || "en";
     const dict = I18N[lang] || I18N.en;
     const s = dict[section] || I18N.en[section] || {};
     return s[key] !== undefined ? s[key] : ((I18N.en[section] || {})[key] || key);
@@ -2342,7 +2342,7 @@ class CoverAutomaticPanel extends HTMLElement {
   async _ws(type, data) {
     if (!this._hass) return null;
     try {
-      const msg = Object.assign({ type: type }, data || {});
+      const msg = { type, ...(data ?? {}) };
       const result = await this._hass.callWS(msg);
       return result;
     } catch (err) {
@@ -2529,18 +2529,18 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   _renderInfoBarInline() {
-    const sunState = this._hass && this._hass.states ? this._hass.states["sun.sun"] : null;
+    const sunState = this._hass?.states ? this._hass.states["sun.sun"] : null;
     const settings = this._config ? this._config.settings || {} : {};
     const tempEntity = settings.outdoor_temp_sensor;
-    const tempState = tempEntity && this._hass && this._hass.states ? this._hass.states[tempEntity] : null;
+    const tempState = tempEntity && this._hass?.states ? this._hass.states[tempEntity] : null;
     const tempVal = tempState && tempState.state !== "unavailable" && tempState.state !== "unknown" ? parseFloat(tempState.state) : null;
     const az = sunState && sunState.attributes ? sunState.attributes.azimuth : null;
     const el = sunState && sunState.attributes ? sunState.attributes.elevation : null;
     const weatherEntity = settings.weather_entity;
-    const weatherState = weatherEntity && this._hass && this._hass.states ? this._hass.states[weatherEntity] : null;
+    const weatherState = weatherEntity && this._hass?.states ? this._hass.states[weatherEntity] : null;
     const weatherVal = weatherState && weatherState.state !== "unavailable" && weatherState.state !== "unknown" ? weatherState.state : null;
     const solarEntity = settings.solar_sensor;
-    const solarState = solarEntity && this._hass && this._hass.states ? this._hass.states[solarEntity] : null;
+    const solarState = solarEntity && this._hass?.states ? this._hass.states[solarEntity] : null;
     const solarVal = solarState && solarState.state !== "unavailable" && solarState.state !== "unknown" ? parseFloat(solarState.state) : null;
     if (az == null && el == null && tempVal == null && weatherVal == null && solarVal == null) return '';
     const belowHorizon = el != null && el < 0;
@@ -2564,7 +2564,7 @@ class CoverAutomaticPanel extends HTMLElement {
       widgets.push('<span class="info-widget" title="' + this._esc(weatherLabel) + '">' + this._weatherIconSvg(weatherVal) + '<span class="info-widget-value">' + this._esc(weatherLabel) + '</span></span>');
     }
     if (solarVal != null) {
-      const threshold = settings.solar_threshold != null ? settings.solar_threshold : 0;
+      const threshold = settings.solar_threshold ?? 0;
       const exceeded = threshold > 0 && solarVal > threshold;
       const unit = solarState.attributes && solarState.attributes.unit_of_measurement ? ' ' + solarState.attributes.unit_of_measurement : '';
       const solarTitle = exceeded ? (this._t("info_solar_exceeded_title") || "Solar \u00FCber Schwellwert \u2013 Beschattung aktiv") : (this._t("info_solar_title") || "Solarintensit\u00E4t");
@@ -2587,7 +2587,7 @@ class CoverAutomaticPanel extends HTMLElement {
     if (current == null && target == null) return '\u2013';
     const diverges = current != null && target != null && Math.abs(current - target) >= 1;
     if (!diverges) {
-      const p = current != null ? current : target;
+      const p = current ?? target;
       return this._posBar(p);
     }
     // Two-stop fill: solid up to min(current,target), striped from min to max, empty beyond.
@@ -2750,8 +2750,8 @@ class CoverAutomaticPanel extends HTMLElement {
         case "temp": {
           const sa = a.indoor_temp_sensor || (this._config.settings || {}).indoor_temp_sensor;
           const sb = b.indoor_temp_sensor || (this._config.settings || {}).indoor_temp_sensor;
-          const ta = sa && this._hass && this._hass.states && this._hass.states[sa] ? parseFloat(this._hass.states[sa].state) : -999;
-          const tb = sb && this._hass && this._hass.states && this._hass.states[sb] ? parseFloat(this._hass.states[sb].state) : -999;
+          const ta = sa && this._hass?.states && this._hass.states[sa] ? parseFloat(this._hass.states[sa].state) : -999;
+          const tb = sb && this._hass?.states && this._hass.states[sb] ? parseFloat(this._hass.states[sb].state) : -999;
           va = isNaN(ta) ? -999 : ta; vb = isNaN(tb) ? -999 : tb;
           return sd === "asc" ? va - vb : vb - va;
         }
@@ -2765,7 +2765,7 @@ class CoverAutomaticPanel extends HTMLElement {
       const facadeName = this._getFacadeName(c.facade_id);
       const selected = this._selectedCover === c.entity_id ? " selected" : "";
       const statusClass = "status-" + (c.status || "auto");
-      const haState = this._hass && this._hass.states ? this._hass.states[c.entity_id] : null;
+      const haState = this._hass?.states ? this._hass.states[c.entity_id] : null;
       const currentPos = haState && haState.attributes ? haState.attributes.current_position : null;
       const live = (this._config.live_covers || {})[c.entity_id] || {};
       const targetPos = live.target_position;
@@ -2793,7 +2793,7 @@ class CoverAutomaticPanel extends HTMLElement {
       html += `<td class="nowrap" data-live-facade="${this._esc(c.entity_id)}">${this._esc(facadeName)}${sunIcon}</td>`;
       html += `<td class="nowrap" data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining">' + pauseLeft + '</span>' : ''}${resumeBtn}</td>`;
       const tempSensor = c.indoor_temp_sensor || (this._config.settings || {}).indoor_temp_sensor;
-      const tempState = tempSensor && this._hass && this._hass.states ? this._hass.states[tempSensor] : null;
+      const tempState = tempSensor && this._hass?.states ? this._hass.states[tempSensor] : null;
       const tempVal = tempState && tempState.state !== "unavailable" && tempState.state !== "unknown" ? parseFloat(tempState.state) : null;
       const tempColor = cm === "cooling" ? "var(--ca-info)" : cm === "heating" ? "var(--ca-danger)" : "";
       const tempTitle = cm ? this._t("comfort_" + cm) : "";
@@ -2833,8 +2833,8 @@ class CoverAutomaticPanel extends HTMLElement {
         s += this._renderFacadeDropdown(cover);
         s += this._hint("cover_facade_hint");
         // Pause duration
-        const globalPause = (this._config.settings || {}).pause_duration != null ? this._config.settings.pause_duration : 10;
-        const coverPause = cover.pause_duration != null ? cover.pause_duration : "";
+        const globalPause = this._config.settings?.pause_duration ?? 10;
+        const coverPause = cover.pause_duration ?? "";
         s += `<div class="form-group">
           <label>${this._t("cover_pause_duration")}</label>
           <input type="number" min="0" max="480" value="${coverPause}" placeholder="${globalPause}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="pause_duration">
@@ -2851,16 +2851,16 @@ class CoverAutomaticPanel extends HTMLElement {
           ${this._renderCoverEntitySelect("indoor_temp_sensor", cover.indoor_temp_sensor, cover.entity_id, "sensor", "temperature")}
           ${this._hint("cover_indoor_temp_hint")}
         </div>`;
-        const globalMin = (this._config.settings || {}).comfort_temp_min != null ? this._config.settings.comfort_temp_min : 22;
-        const globalMax = (this._config.settings || {}).comfort_temp_max != null ? this._config.settings.comfort_temp_max : 24;
+        const globalMin = this._config.settings?.comfort_temp_min ?? 22;
+        const globalMax = this._config.settings?.comfort_temp_max ?? 24;
         s += '<div class="form-row">';
         s += `<div class="form-group">
           <label>${this._t("cover_comfort_min")}</label>
-          <input type="number" step="0.5" value="${cover.comfort_temp_min != null ? cover.comfort_temp_min : ""}" placeholder="${globalMin}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="comfort_temp_min">
+          <input type="number" step="0.5" value="${cover.comfort_temp_min ?? ""}" placeholder="${globalMin}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="comfort_temp_min">
         </div>`;
         s += `<div class="form-group">
           <label>${this._t("cover_comfort_max")}</label>
-          <input type="number" step="0.5" value="${cover.comfort_temp_max != null ? cover.comfort_temp_max : ""}" placeholder="${globalMax}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="comfort_temp_max">
+          <input type="number" step="0.5" value="${cover.comfort_temp_max ?? ""}" placeholder="${globalMax}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="comfort_temp_max">
         </div>`;
         s += '</div>';
         s += this._hint("cover_comfort_hint");
@@ -2872,10 +2872,10 @@ class CoverAutomaticPanel extends HTMLElement {
           ${this._renderCoverEntitySelect("lock_sensor", cover.lock_sensor, cover.entity_id, "binary_sensor", null)}
           ${this._hint("cover_lock_sensor_hint")}
         </div>`;
-        const globalLockPos = (this._config.settings || {}).lock_position != null ? this._config.settings.lock_position : 100;
+        const globalLockPos = this._config.settings?.lock_position ?? 100;
         s += `<div class="form-group">
           <label>${this._t("cover_lock_position")}</label>
-          <input type="number" min="0" max="100" value="${cover.lock_position != null ? cover.lock_position : ""}" placeholder="${globalLockPos}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="lock_position">
+          <input type="number" min="0" max="100" value="${cover.lock_position ?? ""}" placeholder="${globalLockPos}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="lock_position">
           ${this._hint("cover_lock_position_hint")}
         </div>`;
         s += `<div class="form-group">
@@ -2883,10 +2883,10 @@ class CoverAutomaticPanel extends HTMLElement {
           ${this._renderCoverEntitySelect("vent_sensor", cover.vent_sensor, cover.entity_id, "binary_sensor", null)}
           ${this._hint("cover_vent_sensor_hint")}
         </div>`;
-        const globalVentPos = (this._config.settings || {}).vent_position != null ? this._config.settings.vent_position : 30;
+        const globalVentPos = this._config.settings?.vent_position ?? 30;
         s += `<div class="form-group">
           <label>${this._t("cover_vent_position")}</label>
-          <input type="number" min="0" max="100" value="${cover.vent_position != null ? cover.vent_position : ""}" placeholder="${globalVentPos}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="vent_position">
+          <input type="number" min="0" max="100" value="${cover.vent_position ?? ""}" placeholder="${globalVentPos}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="vent_position">
           ${this._hint("cover_vent_position_hint")}
         </div>`;
         return s;
@@ -2897,16 +2897,16 @@ class CoverAutomaticPanel extends HTMLElement {
         let s = '';
         s += this._renderToggle("cover_inverted", cover.inverted, "cover-toggle", cover.entity_id, "inverted");
         s += this._hint("cover_inverted_hint");
-        const globalMinChange = (this._config.settings || {}).min_position_change != null ? this._config.settings.min_position_change : 5;
+        const globalMinChange = this._config.settings?.min_position_change ?? 5;
         s += `<div class="form-group">
           <label>${this._t("cover_min_pos_change")}</label>
-          <input type="number" min="1" max="50" value="${cover.min_position_change != null ? cover.min_position_change : ""}" placeholder="${globalMinChange}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_position_change">
+          <input type="number" min="1" max="50" value="${cover.min_position_change ?? ""}" placeholder="${globalMinChange}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_position_change">
           ${this._hint("cover_min_pos_change_hint")}
         </div>`;
-        const globalMinTime = (this._config.settings || {}).min_time_between_changes != null ? this._config.settings.min_time_between_changes : 300;
+        const globalMinTime = this._config.settings?.min_time_between_changes ?? 300;
         s += `<div class="form-group">
           <label>${this._t("cover_min_time")}</label>
-          <input type="number" min="60" max="3600" value="${cover.min_time_between_changes != null ? cover.min_time_between_changes : ""}" placeholder="${globalMinTime}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_time_between_changes">
+          <input type="number" min="60" max="3600" value="${cover.min_time_between_changes ?? ""}" placeholder="${globalMinTime}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_time_between_changes">
           ${this._hint("cover_min_time_hint")}
         </div>`;
         return s;
@@ -2919,11 +2919,11 @@ class CoverAutomaticPanel extends HTMLElement {
           s += this._renderToggle("cover_inverted_tilt", cover.inverted_tilt, "cover-toggle", cover.entity_id, "inverted_tilt");
           s += `<div class="form-group">
             <label>${this._t("cover_lock_tilt")}</label>
-            <input type="number" min="0" max="100" value="${cover.lock_tilt_position != null ? cover.lock_tilt_position : ""}" placeholder="${this._t("none")}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="lock_tilt_position">
+            <input type="number" min="0" max="100" value="${cover.lock_tilt_position ?? ""}" placeholder="${this._t("none")}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="lock_tilt_position">
           </div>`;
           s += `<div class="form-group">
             <label>${this._t("cover_vent_tilt")}</label>
-            <input type="number" min="0" max="100" value="${cover.vent_tilt_position != null ? cover.vent_tilt_position : ""}" placeholder="${this._t("none")}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="vent_tilt_position">
+            <input type="number" min="0" max="100" value="${cover.vent_tilt_position ?? ""}" placeholder="${this._t("none")}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="vent_tilt_position">
           </div>`;
           return s;
         });
@@ -3241,7 +3241,7 @@ class CoverAutomaticPanel extends HTMLElement {
     </div>`;
     html += `<div class="form-group">
       <label>${this._t("rule_target_tilt")}</label>
-      <input type="number" min="0" max="100" value="${rule.target_tilt_position != null ? rule.target_tilt_position : ""}" placeholder="${this._t("none")}" data-action="rule-field" data-id="${this._esc(rule.id)}" data-field="target_tilt_position">
+      <input type="number" min="0" max="100" value="${rule.target_tilt_position ?? ""}" placeholder="${this._t("none")}" data-action="rule-field" data-id="${this._esc(rule.id)}" data-field="target_tilt_position">
     </div>`;
     html += '</div>';
 
@@ -3279,7 +3279,7 @@ class CoverAutomaticPanel extends HTMLElement {
     html += `<div class="rule-conditions-label">${this._t("rule_conditions")}</div>`;
 
     if (rule.conditions && rule.conditions.length > 0) {
-      for (let i = 0; i < rule.conditions.length; i++) {
+      for (const [i] of rule.conditions.entries()) {
         html += this._renderConditionCard(rule, i);
       }
     } else {
@@ -3618,7 +3618,7 @@ class CoverAutomaticPanel extends HTMLElement {
     let infoText = "";
     const settings = this._config ? this._config.settings || {} : {};
     const tempEntity = settings.outdoor_temp_sensor;
-    if (tempEntity && this._hass && this._hass.states[tempEntity]) {
+    if (tempEntity && this._hass?.states[tempEntity]) {
       const tempState = this._hass.states[tempEntity];
       const tempVal = parseFloat(tempState.state);
       if (!isNaN(tempVal)) {
@@ -3698,7 +3698,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
     // House section
     if (active === "house") {
-      const rot = s.house_rotation != null ? s.house_rotation : 0;
+      const rot = s.house_rotation ?? 0;
       html += `<div class="card">
       <div class="card-header">${this._lucideIcon("house")} ${this._t("settings_section_house")}</div>
       <div class="card-body">
@@ -3767,16 +3767,16 @@ class CoverAutomaticPanel extends HTMLElement {
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_comfort_min")}</label>
-            <input type="number" step="0.5" value="${s.comfort_temp_min != null ? s.comfort_temp_min : 21}" data-settings-field="comfort_temp_min">
+            <input type="number" step="0.5" value="${s.comfort_temp_min ?? 21}" data-settings-field="comfort_temp_min">
           </div>
           <div class="form-group">
             <label>${this._t("settings_comfort_max")}</label>
-            <input type="number" step="0.5" value="${s.comfort_temp_max != null ? s.comfort_temp_max : 25}" data-settings-field="comfort_temp_max">
+            <input type="number" step="0.5" value="${s.comfort_temp_max ?? 25}" data-settings-field="comfort_temp_max">
           </div>
         </div>
         <div class="form-group">
           <label>${this._t("settings_comfort_hysteresis")}</label>
-          <input type="number" step="0.1" min="0.1" max="5" value="${s.comfort_hysteresis != null ? s.comfort_hysteresis : 1}" data-settings-field="comfort_hysteresis">
+          <input type="number" step="0.1" min="0.1" max="5" value="${s.comfort_hysteresis ?? 1}" data-settings-field="comfort_hysteresis">
           ${hint(this._t("settings_comfort_hysteresis_hint"))}
         </div>
       </div>
@@ -3797,11 +3797,11 @@ class CoverAutomaticPanel extends HTMLElement {
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_wind_threshold")}</label>
-            <input type="number" step="1" min="0" value="${s.wind_speed_threshold != null ? s.wind_speed_threshold : 0}" data-settings-field="wind_speed_threshold">
+            <input type="number" step="1" min="0" value="${s.wind_speed_threshold ?? 0}" data-settings-field="wind_speed_threshold">
           </div>
           <div class="form-group">
             <label>${this._t("settings_wind_hysteresis")}</label>
-            <input type="number" step="1" min="0" value="${s.wind_speed_hysteresis != null ? s.wind_speed_hysteresis : 0}" data-settings-field="wind_speed_hysteresis">
+            <input type="number" step="1" min="0" value="${s.wind_speed_hysteresis ?? 0}" data-settings-field="wind_speed_hysteresis">
           </div>
         </div>
       </div>
@@ -3821,7 +3821,7 @@ class CoverAutomaticPanel extends HTMLElement {
         </div>
         <div class="form-group">
           <label>${this._t("settings_solar_threshold")}</label>
-          <input type="number" step="100" min="0" value="${s.solar_threshold != null ? s.solar_threshold : 0}" data-settings-field="solar_threshold">
+          <input type="number" step="100" min="0" value="${s.solar_threshold ?? 0}" data-settings-field="solar_threshold">
           ${hint(this._t("settings_solar_threshold_hint"))}
         </div>
       </div>
@@ -3835,48 +3835,48 @@ class CoverAutomaticPanel extends HTMLElement {
       <div class="card-body">
         <div class="form-group">
           <label>${this._t("settings_pause_duration")}</label>
-          <input type="number" min="1" max="480" value="${s.pause_duration != null ? s.pause_duration : 10}" data-settings-field="pause_duration">
+          <input type="number" min="1" max="480" value="${s.pause_duration ?? 10}" data-settings-field="pause_duration">
           ${hint(this._t("settings_pause_duration_hint"))}
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_lock_position")}</label>
-            <input type="number" min="0" max="100" value="${s.lock_position != null ? s.lock_position : 100}" data-settings-field="lock_position">
+            <input type="number" min="0" max="100" value="${s.lock_position ?? 100}" data-settings-field="lock_position">
             ${hint(this._t("settings_lock_position_hint"))}
           </div>
           <div class="form-group">
             <label>${this._t("settings_vent_position")}</label>
-            <input type="number" min="0" max="100" value="${s.vent_position != null ? s.vent_position : 30}" data-settings-field="vent_position">
+            <input type="number" min="0" max="100" value="${s.vent_position ?? 30}" data-settings-field="vent_position">
             ${hint(this._t("settings_vent_position_hint"))}
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_lock_tilt_position")}</label>
-            <input type="number" min="0" max="100" value="${s.lock_tilt_position != null ? s.lock_tilt_position : ""}" data-settings-field="lock_tilt_position">
+            <input type="number" min="0" max="100" value="${s.lock_tilt_position ?? ""}" data-settings-field="lock_tilt_position">
             ${hint(this._t("settings_lock_tilt_position_hint"))}
           </div>
           <div class="form-group">
             <label>${this._t("settings_vent_tilt_position")}</label>
-            <input type="number" min="0" max="100" value="${s.vent_tilt_position != null ? s.vent_tilt_position : ""}" data-settings-field="vent_tilt_position">
+            <input type="number" min="0" max="100" value="${s.vent_tilt_position ?? ""}" data-settings-field="vent_tilt_position">
             ${hint(this._t("settings_vent_tilt_position_hint"))}
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_min_position_change")}</label>
-            <input type="number" min="1" max="50" value="${s.min_position_change != null ? s.min_position_change : 5}" data-settings-field="min_position_change">
+            <input type="number" min="1" max="50" value="${s.min_position_change ?? 5}" data-settings-field="min_position_change">
             ${hint(this._t("settings_min_position_change_hint"))}
           </div>
           <div class="form-group">
             <label>${this._t("settings_min_time")}</label>
-            <input type="number" min="60" max="3600" value="${s.min_time_between_changes != null ? s.min_time_between_changes : 300}" data-settings-field="min_time_between_changes">
+            <input type="number" min="60" max="3600" value="${s.min_time_between_changes ?? 300}" data-settings-field="min_time_between_changes">
             ${hint(this._t("settings_min_time_hint"))}
           </div>
         </div>
         <div class="form-group">
           <label>${this._t("settings_command_stagger")}</label>
-          <input type="number" step="0.1" min="0" max="2" value="${s.command_stagger != null ? s.command_stagger : 0}" data-settings-field="command_stagger">
+          <input type="number" step="0.1" min="0" max="2" value="${s.command_stagger ?? 0}" data-settings-field="command_stagger">
           ${hint(this._t("settings_command_stagger_hint"))}
         </div>
         <div class="form-group">
@@ -3985,7 +3985,7 @@ class CoverAutomaticPanel extends HTMLElement {
     const liveCvrs = this._config.live_covers || {};
     for (const eid of Object.keys(covers)) {
       // Combined position cell: current + target with optional divergence marker, plus hysteresis badge
-      const haState = this._hass && this._hass.states ? this._hass.states[eid] : null;
+      const haState = this._hass?.states ? this._hass.states[eid] : null;
       const curPos = haState && haState.attributes ? haState.attributes.current_position : null;
       const live = liveCvrs[eid] || {};
       const tgtPos = live.target_position;
@@ -4083,7 +4083,7 @@ class CoverAutomaticPanel extends HTMLElement {
       if (tempCell) {
         const c2 = covers[eid];
         const ts = (c2 && c2.indoor_temp_sensor) || ((this._config.settings || {}).indoor_temp_sensor);
-        const tst = ts && this._hass && this._hass.states ? this._hass.states[ts] : null;
+        const tst = ts && this._hass?.states ? this._hass.states[ts] : null;
         const tv = tst && tst.state !== "unavailable" && tst.state !== "unknown" ? parseFloat(tst.state) : null;
         tempCell.textContent = tv != null ? tv.toFixed(1) + " \u00B0C" : "\u2013";
         const cm2 = live.comfort_mode;
@@ -4645,12 +4645,12 @@ class CoverAutomaticPanel extends HTMLElement {
   async _onFacadeAddSave(btn) {
     const form = btn.closest(".inline-form");
     if (!form) return;
-    const name = (form.querySelector('[data-facade-field="name"]') || {}).value || "";
+    const name = form.querySelector('[data-facade-field="name"]')?.value || "";
     if (!name.trim()) return;
-    const direction = (form.querySelector('[data-facade-field="direction"]') || {}).value || "south";
-    const azStart = (() => { const v = (form.querySelector('[data-facade-field="azimuth_start"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 135; })();
-    const azEnd = (() => { const v = (form.querySelector('[data-facade-field="azimuth_end"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 225; })();
-    const minElev = (() => { const v = (form.querySelector('[data-facade-field="min_elevation"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 0; })();
+    const direction = form.querySelector('[data-facade-field="direction"]')?.value || "south";
+    const azStart = (() => { const v = form.querySelector('[data-facade-field="azimuth_start"]')?.value; return v !== "" && v != null ? parseFloat(v) : 135; })();
+    const azEnd = (() => { const v = form.querySelector('[data-facade-field="azimuth_end"]')?.value; return v !== "" && v != null ? parseFloat(v) : 225; })();
+    const minElev = (() => { const v = form.querySelector('[data-facade-field="min_elevation"]')?.value; return v !== "" && v != null ? parseFloat(v) : 0; })();
     const coverIds = [];
     form.querySelectorAll('[data-action="facade-cover-toggle"].selected').forEach(b => coverIds.push(b.dataset.cover));
     try {
@@ -4666,12 +4666,12 @@ class CoverAutomaticPanel extends HTMLElement {
     const facadeId = btn.dataset.id;
     const form = btn.closest(".inline-form");
     if (!form) return;
-    const name = (form.querySelector('[data-facade-field="name"]') || {}).value || "";
+    const name = form.querySelector('[data-facade-field="name"]')?.value || "";
     if (!name.trim()) return;
-    const direction = (form.querySelector('[data-facade-field="direction"]') || {}).value || "south";
-    const azStart = (() => { const v = (form.querySelector('[data-facade-field="azimuth_start"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 135; })();
-    const azEnd = (() => { const v = (form.querySelector('[data-facade-field="azimuth_end"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 225; })();
-    const minElev = (() => { const v = (form.querySelector('[data-facade-field="min_elevation"]') || {}).value; return v !== "" && v != null ? parseFloat(v) : 0; })();
+    const direction = form.querySelector('[data-facade-field="direction"]')?.value || "south";
+    const azStart = (() => { const v = form.querySelector('[data-facade-field="azimuth_start"]')?.value; return v !== "" && v != null ? parseFloat(v) : 135; })();
+    const azEnd = (() => { const v = form.querySelector('[data-facade-field="azimuth_end"]')?.value; return v !== "" && v != null ? parseFloat(v) : 225; })();
+    const minElev = (() => { const v = form.querySelector('[data-facade-field="min_elevation"]')?.value; return v !== "" && v != null ? parseFloat(v) : 0; })();
     const coverIds = [];
     form.querySelectorAll('[data-action="facade-cover-toggle"].selected').forEach(b => coverIds.push(b.dataset.cover));
     try {
@@ -4759,10 +4759,10 @@ class CoverAutomaticPanel extends HTMLElement {
   async _onRuleAddSave(btn) {
     const form = btn.closest(".inline-form");
     if (!form) return;
-    const name = (form.querySelector('[data-rule-new-field="name"]') || {}).value || "";
+    const name = form.querySelector('[data-rule-new-field="name"]')?.value || "";
     if (!name.trim()) return;
-    const tp = (() => { const v = (form.querySelector('[data-rule-new-field="target_position"]') || {}).value; return v !== "" && v != null ? parseInt(v, 10) : 0; })();
-    const ttp = (form.querySelector('[data-rule-new-field="target_tilt_position"]') || {}).value;
+    const tp = (() => { const v = form.querySelector('[data-rule-new-field="target_position"]')?.value; return v !== "" && v != null ? parseInt(v, 10) : 0; })();
+    const ttp = form.querySelector('[data-rule-new-field="target_tilt_position"]')?.value;
     try {
       const data = { name: name.trim(), target_position: tp };
       if (ttp !== "" && ttp != null) {
@@ -4864,16 +4864,16 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   _readScenarioIcon(form, fallback) {
-    const custom = (form.querySelector('[data-scenario-icon-custom]') || {}).value || "";
+    const custom = form.querySelector('[data-scenario-icon-custom]')?.value || "";
     if (custom.trim()) return custom.trim();
-    const picked = (form.querySelector('[data-scenario-field="icon"]') || {}).value || "";
+    const picked = form.querySelector('[data-scenario-field="icon"]')?.value || "";
     return picked.trim() || fallback;
   }
 
   async _onScenarioAddSave(btn) {
     const form = btn.closest(".inline-form");
     if (!form) return;
-    const name = (form.querySelector('[data-scenario-field="name"]') || {}).value || "";
+    const name = form.querySelector('[data-scenario-field="name"]')?.value || "";
     if (!name.trim()) return;
     const icon = this._readScenarioIcon(form, "mdi:home");
     try {
@@ -4887,7 +4887,7 @@ class CoverAutomaticPanel extends HTMLElement {
     const scenarioId = btn.dataset.id;
     const form = btn.closest(".inline-form");
     if (!form) return;
-    const name = (form.querySelector('[data-scenario-field="name"]') || {}).value || "";
+    const name = form.querySelector('[data-scenario-field="name"]')?.value || "";
     if (!name.trim()) return;
     const icon = this._readScenarioIcon(form, "mdi:home");
     try {
@@ -5015,7 +5015,7 @@ class CoverAutomaticPanel extends HTMLElement {
     });
 
     // Conditions from override (pending add/delete) or local state
-    const source = overrideConditions != null ? overrideConditions : (rule.conditions || []);
+    const source = overrideConditions ?? (rule.conditions || []);
     const conditions = source.map(c => ({ type: c.type, params: c.params || {} }));
 
     return {
