@@ -34,42 +34,30 @@ def _make_mock_entry(coordinator, storage, entry_id="entry1"):
 class TestPathValidation:
     """Tests for path validation security."""
 
-    def test_valid_path_in_config(self) -> None:
-        """Test valid path within /config is accepted."""
-        with patch.object(Path, "resolve") as mock_resolve, patch.object(
-            Path, "exists", return_value=True
-        ):
-            mock_resolve.return_value = Path("/config/backup.yaml")
-            result = _validate_config_path("/config/backup.yaml")
-            assert result is not None
+    def test_valid_path_in_config_dir(self) -> None:
+        """Test valid path within the config dir is accepted."""
+        result = _validate_config_path("/config/backup.yaml", "/config")
+        assert result is not None
 
-    def test_valid_path_in_homeassistant(self) -> None:
-        """Test valid path within /homeassistant is accepted."""
-        with patch.object(Path, "resolve") as mock_resolve, patch.object(
-            Path, "exists", return_value=True
-        ):
-            mock_resolve.return_value = Path("/homeassistant/backup.yaml")
-            result = _validate_config_path("/homeassistant/backup.yaml")
-            assert result is not None
+    def test_config_dir_drives_allowed_base(self) -> None:
+        """Test the allowed base is the passed config_dir, not a hardcoded list."""
+        result = _validate_config_path("/data/ha/backup.yaml", "/data/ha")
+        assert result is not None
 
     def test_path_traversal_rejected(self) -> None:
-        """Test path traversal attempts are rejected."""
-        # Test that paths outside allowed directories are rejected
-        # The actual implementation resolves paths and checks if they're in allowed dirs
-        result = _validate_config_path("/etc/passwd")
+        """Test path traversal attempts outside the config dir are rejected."""
+        result = _validate_config_path("/etc/passwd", "/config")
         assert result is None
 
-    def test_path_outside_allowed_dirs_rejected(self) -> None:
-        """Test paths outside allowed directories are rejected."""
-        with patch.object(Path, "resolve") as mock_resolve:
-            mock_resolve.return_value = Path("/root/secrets.yaml")
-            result = _validate_config_path("/root/secrets.yaml")
-            assert result is None
+    def test_path_outside_config_dir_rejected(self) -> None:
+        """Test paths outside the config dir are rejected."""
+        result = _validate_config_path("/root/secrets.yaml", "/config")
+        assert result is None
 
     def test_invalid_path_returns_none(self) -> None:
         """Test invalid path returns None."""
         with patch.object(Path, "resolve", side_effect=ValueError("Bad path")):
-            result = _validate_config_path("\x00invalid")
+            result = _validate_config_path("\x00invalid", "/config")
             assert result is None
 
 

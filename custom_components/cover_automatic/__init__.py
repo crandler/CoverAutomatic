@@ -123,7 +123,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntr
     # Register custom panel (version query for cache busting)
     panel_dir = pathlib.Path(__file__).parent
     panel_path = panel_dir / "panel" / "cover-automatic-panel.js"
-    manifest = json.loads((panel_dir / "manifest.json").read_text())
+    manifest = json.loads((panel_dir / "manifest.json").read_text(encoding="utf-8"))
     panel_version = manifest.get("version", "0")
     await hass.http.async_register_static_paths(
         [StaticPathConfig("/cover_automatic/panel.js", str(panel_path), False)]

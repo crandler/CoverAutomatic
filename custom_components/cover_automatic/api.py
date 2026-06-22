@@ -14,7 +14,7 @@ from homeassistant.helpers import config_validation as cv
 from .const import DOMAIN, FACADE_PRESETS
 from .models import Condition, CoverConfig, Facade, Rule, Scenario
 
-_MANIFEST = json.loads((Path(__file__).parent / "manifest.json").read_text())
+_MANIFEST = json.loads((Path(__file__).parent / "manifest.json").read_text(encoding="utf-8"))
 _VERSION = _MANIFEST["version"]
 
 if TYPE_CHECKING:

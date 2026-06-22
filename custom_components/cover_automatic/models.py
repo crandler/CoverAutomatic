@@ -48,7 +48,7 @@ class ComfortMode(StrEnum):
     NEUTRAL = "neutral"
 
 
-@dataclass
+@dataclass(slots=True)
 class CoverTarget:
     """Target position and optional tilt for a cover."""
 
@@ -58,7 +58,7 @@ class CoverTarget:
     rule_name: str | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class Facade:
     """Represents a building facade with sun exposure settings."""
 
@@ -96,7 +96,7 @@ class Facade:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class Condition:
     """Rule condition."""
 
@@ -119,7 +119,7 @@ class Condition:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class Rule:
     """Automation rule with conditions and action."""
 
@@ -174,7 +174,7 @@ class Rule:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class Scenario:
     """Automation scenario/mode."""
 
@@ -203,7 +203,7 @@ class Scenario:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class CoverConfig:
     """Configuration for a managed cover."""
 

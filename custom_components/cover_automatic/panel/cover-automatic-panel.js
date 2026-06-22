@@ -2834,7 +2834,7 @@ class CoverAutomaticPanel extends HTMLElement {
         s += this._hint("cover_facade_hint");
         // Pause duration
         const globalPause = this._config.settings?.pause_duration ?? 10;
-        const coverPause = cover.pause_duration ?? "";
+        const coverPause = this._num(cover.pause_duration);
         s += `<div class="form-group">
           <label>${this._t("cover_pause_duration")}</label>
           <input type="number" min="0" max="480" value="${coverPause}" placeholder="${globalPause}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="pause_duration">
@@ -2856,11 +2856,11 @@ class CoverAutomaticPanel extends HTMLElement {
         s += '<div class="form-row">';
         s += `<div class="form-group">
           <label>${this._t("cover_comfort_min")}</label>
-          <input type="number" step="0.5" value="${cover.comfort_temp_min ?? ""}" placeholder="${globalMin}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="comfort_temp_min">
+          <input type="number" step="0.5" value="${this._num(cover.comfort_temp_min, "")}" placeholder="${globalMin}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="comfort_temp_min">
         </div>`;
         s += `<div class="form-group">
           <label>${this._t("cover_comfort_max")}</label>
-          <input type="number" step="0.5" value="${cover.comfort_temp_max ?? ""}" placeholder="${globalMax}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="comfort_temp_max">
+          <input type="number" step="0.5" value="${this._num(cover.comfort_temp_max, "")}" placeholder="${globalMax}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="comfort_temp_max">
         </div>`;
         s += '</div>';
         s += this._hint("cover_comfort_hint");
@@ -2875,7 +2875,7 @@ class CoverAutomaticPanel extends HTMLElement {
         const globalLockPos = this._config.settings?.lock_position ?? 100;
         s += `<div class="form-group">
           <label>${this._t("cover_lock_position")}</label>
-          <input type="number" min="0" max="100" value="${cover.lock_position ?? ""}" placeholder="${globalLockPos}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="lock_position">
+          <input type="number" min="0" max="100" value="${this._num(cover.lock_position, "")}" placeholder="${globalLockPos}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="lock_position">
           ${this._hint("cover_lock_position_hint")}
         </div>`;
         s += `<div class="form-group">
@@ -2886,7 +2886,7 @@ class CoverAutomaticPanel extends HTMLElement {
         const globalVentPos = this._config.settings?.vent_position ?? 30;
         s += `<div class="form-group">
           <label>${this._t("cover_vent_position")}</label>
-          <input type="number" min="0" max="100" value="${cover.vent_position ?? ""}" placeholder="${globalVentPos}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="vent_position">
+          <input type="number" min="0" max="100" value="${this._num(cover.vent_position, "")}" placeholder="${globalVentPos}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="vent_position">
           ${this._hint("cover_vent_position_hint")}
         </div>`;
         return s;
@@ -2900,13 +2900,13 @@ class CoverAutomaticPanel extends HTMLElement {
         const globalMinChange = this._config.settings?.min_position_change ?? 5;
         s += `<div class="form-group">
           <label>${this._t("cover_min_pos_change")}</label>
-          <input type="number" min="1" max="50" value="${cover.min_position_change ?? ""}" placeholder="${globalMinChange}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_position_change">
+          <input type="number" min="1" max="50" value="${this._num(cover.min_position_change, "")}" placeholder="${globalMinChange}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_position_change">
           ${this._hint("cover_min_pos_change_hint")}
         </div>`;
         const globalMinTime = this._config.settings?.min_time_between_changes ?? 300;
         s += `<div class="form-group">
           <label>${this._t("cover_min_time")}</label>
-          <input type="number" min="60" max="3600" value="${cover.min_time_between_changes ?? ""}" placeholder="${globalMinTime}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_time_between_changes">
+          <input type="number" min="60" max="3600" value="${this._num(cover.min_time_between_changes, "")}" placeholder="${globalMinTime}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="min_time_between_changes">
           ${this._hint("cover_min_time_hint")}
         </div>`;
         return s;
@@ -2919,11 +2919,11 @@ class CoverAutomaticPanel extends HTMLElement {
           s += this._renderToggle("cover_inverted_tilt", cover.inverted_tilt, "cover-toggle", cover.entity_id, "inverted_tilt");
           s += `<div class="form-group">
             <label>${this._t("cover_lock_tilt")}</label>
-            <input type="number" min="0" max="100" value="${cover.lock_tilt_position ?? ""}" placeholder="${this._t("none")}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="lock_tilt_position">
+            <input type="number" min="0" max="100" value="${this._num(cover.lock_tilt_position, "")}" placeholder="${this._t("none")}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="lock_tilt_position">
           </div>`;
           s += `<div class="form-group">
             <label>${this._t("cover_vent_tilt")}</label>
-            <input type="number" min="0" max="100" value="${cover.vent_tilt_position ?? ""}" placeholder="${this._t("none")}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="vent_tilt_position">
+            <input type="number" min="0" max="100" value="${this._num(cover.vent_tilt_position, "")}" placeholder="${this._t("none")}" data-action="cover-input" data-id="${this._esc(cover.entity_id)}" data-field="vent_tilt_position">
           </div>`;
           return s;
         });
@@ -3066,17 +3066,17 @@ class CoverAutomaticPanel extends HTMLElement {
       <div class="form-row">
         <div class="form-group">
           <label>${this._t("facade_azimuth_start")}</label>
-          <input type="number" min="0" max="360" step="0.1" value="${f.azimuth_start}" data-facade-field="azimuth_start">
+          <input type="number" min="0" max="360" step="0.1" value="${this._num(f.azimuth_start)}" data-facade-field="azimuth_start">
         </div>
         <div class="form-group">
           <label>${this._t("facade_azimuth_end")}</label>
-          <input type="number" min="0" max="360" step="0.1" value="${f.azimuth_end}" data-facade-field="azimuth_end">
+          <input type="number" min="0" max="360" step="0.1" value="${this._num(f.azimuth_end)}" data-facade-field="azimuth_end">
         </div>
       </div>
       ${this._hint("facade_azimuth_hint")}
       <div class="form-group">
         <label>${this._t("facade_min_elevation")}</label>
-        <input type="number" min="0" max="90" step="0.5" value="${f.min_elevation}" data-facade-field="min_elevation">
+        <input type="number" min="0" max="90" step="0.5" value="${this._num(f.min_elevation)}" data-facade-field="min_elevation">
         ${this._hint("facade_min_elevation_hint")}
       </div>
       <div class="form-group">
@@ -3236,12 +3236,12 @@ class CoverAutomaticPanel extends HTMLElement {
     html += '<div class="form-row">';
     html += `<div class="form-group">
       <label>${this._t("rule_target_pos")}</label>
-      <input type="number" min="0" max="100" value="${rule.target_position}" data-action="rule-field" data-id="${this._esc(rule.id)}" data-field="target_position">
+      <input type="number" min="0" max="100" value="${this._num(rule.target_position)}" data-action="rule-field" data-id="${this._esc(rule.id)}" data-field="target_position">
       ${this._hint("rule_target_pos_hint")}
     </div>`;
     html += `<div class="form-group">
       <label>${this._t("rule_target_tilt")}</label>
-      <input type="number" min="0" max="100" value="${rule.target_tilt_position ?? ""}" placeholder="${this._t("none")}" data-action="rule-field" data-id="${this._esc(rule.id)}" data-field="target_tilt_position">
+      <input type="number" min="0" max="100" value="${this._num(rule.target_tilt_position, "")}" placeholder="${this._t("none")}" data-action="rule-field" data-id="${this._esc(rule.id)}" data-field="target_tilt_position">
     </div>`;
     html += '</div>';
 
@@ -3698,7 +3698,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
     // House section
     if (active === "house") {
-      const rot = s.house_rotation ?? 0;
+      const rot = this._num(s.house_rotation, 0);
       html += `<div class="card">
       <div class="card-header">${this._lucideIcon("house")} ${this._t("settings_section_house")}</div>
       <div class="card-body">
@@ -3767,16 +3767,16 @@ class CoverAutomaticPanel extends HTMLElement {
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_comfort_min")}</label>
-            <input type="number" step="0.5" value="${s.comfort_temp_min ?? 21}" data-settings-field="comfort_temp_min">
+            <input type="number" step="0.5" value="${this._num(s.comfort_temp_min, 21)}" data-settings-field="comfort_temp_min">
           </div>
           <div class="form-group">
             <label>${this._t("settings_comfort_max")}</label>
-            <input type="number" step="0.5" value="${s.comfort_temp_max ?? 25}" data-settings-field="comfort_temp_max">
+            <input type="number" step="0.5" value="${this._num(s.comfort_temp_max, 25)}" data-settings-field="comfort_temp_max">
           </div>
         </div>
         <div class="form-group">
           <label>${this._t("settings_comfort_hysteresis")}</label>
-          <input type="number" step="0.1" min="0.1" max="5" value="${s.comfort_hysteresis ?? 1}" data-settings-field="comfort_hysteresis">
+          <input type="number" step="0.1" min="0.1" max="5" value="${this._num(s.comfort_hysteresis, 1)}" data-settings-field="comfort_hysteresis">
           ${hint(this._t("settings_comfort_hysteresis_hint"))}
         </div>
       </div>
@@ -3797,11 +3797,11 @@ class CoverAutomaticPanel extends HTMLElement {
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_wind_threshold")}</label>
-            <input type="number" step="1" min="0" value="${s.wind_speed_threshold ?? 0}" data-settings-field="wind_speed_threshold">
+            <input type="number" step="1" min="0" value="${this._num(s.wind_speed_threshold, 0)}" data-settings-field="wind_speed_threshold">
           </div>
           <div class="form-group">
             <label>${this._t("settings_wind_hysteresis")}</label>
-            <input type="number" step="1" min="0" value="${s.wind_speed_hysteresis ?? 0}" data-settings-field="wind_speed_hysteresis">
+            <input type="number" step="1" min="0" value="${this._num(s.wind_speed_hysteresis, 0)}" data-settings-field="wind_speed_hysteresis">
           </div>
         </div>
       </div>
@@ -3821,7 +3821,7 @@ class CoverAutomaticPanel extends HTMLElement {
         </div>
         <div class="form-group">
           <label>${this._t("settings_solar_threshold")}</label>
-          <input type="number" step="100" min="0" value="${s.solar_threshold ?? 0}" data-settings-field="solar_threshold">
+          <input type="number" step="100" min="0" value="${this._num(s.solar_threshold, 0)}" data-settings-field="solar_threshold">
           ${hint(this._t("settings_solar_threshold_hint"))}
         </div>
       </div>
@@ -3835,48 +3835,48 @@ class CoverAutomaticPanel extends HTMLElement {
       <div class="card-body">
         <div class="form-group">
           <label>${this._t("settings_pause_duration")}</label>
-          <input type="number" min="1" max="480" value="${s.pause_duration ?? 10}" data-settings-field="pause_duration">
+          <input type="number" min="1" max="480" value="${this._num(s.pause_duration, 10)}" data-settings-field="pause_duration">
           ${hint(this._t("settings_pause_duration_hint"))}
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_lock_position")}</label>
-            <input type="number" min="0" max="100" value="${s.lock_position ?? 100}" data-settings-field="lock_position">
+            <input type="number" min="0" max="100" value="${this._num(s.lock_position, 100)}" data-settings-field="lock_position">
             ${hint(this._t("settings_lock_position_hint"))}
           </div>
           <div class="form-group">
             <label>${this._t("settings_vent_position")}</label>
-            <input type="number" min="0" max="100" value="${s.vent_position ?? 30}" data-settings-field="vent_position">
+            <input type="number" min="0" max="100" value="${this._num(s.vent_position, 30)}" data-settings-field="vent_position">
             ${hint(this._t("settings_vent_position_hint"))}
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_lock_tilt_position")}</label>
-            <input type="number" min="0" max="100" value="${s.lock_tilt_position ?? ""}" data-settings-field="lock_tilt_position">
+            <input type="number" min="0" max="100" value="${this._num(s.lock_tilt_position, "")}" data-settings-field="lock_tilt_position">
             ${hint(this._t("settings_lock_tilt_position_hint"))}
           </div>
           <div class="form-group">
             <label>${this._t("settings_vent_tilt_position")}</label>
-            <input type="number" min="0" max="100" value="${s.vent_tilt_position ?? ""}" data-settings-field="vent_tilt_position">
+            <input type="number" min="0" max="100" value="${this._num(s.vent_tilt_position, "")}" data-settings-field="vent_tilt_position">
             ${hint(this._t("settings_vent_tilt_position_hint"))}
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>${this._t("settings_min_position_change")}</label>
-            <input type="number" min="1" max="50" value="${s.min_position_change ?? 5}" data-settings-field="min_position_change">
+            <input type="number" min="1" max="50" value="${this._num(s.min_position_change, 5)}" data-settings-field="min_position_change">
             ${hint(this._t("settings_min_position_change_hint"))}
           </div>
           <div class="form-group">
             <label>${this._t("settings_min_time")}</label>
-            <input type="number" min="60" max="3600" value="${s.min_time_between_changes ?? 300}" data-settings-field="min_time_between_changes">
+            <input type="number" min="60" max="3600" value="${this._num(s.min_time_between_changes, 300)}" data-settings-field="min_time_between_changes">
             ${hint(this._t("settings_min_time_hint"))}
           </div>
         </div>
         <div class="form-group">
           <label>${this._t("settings_command_stagger")}</label>
-          <input type="number" step="0.1" min="0" max="2" value="${s.command_stagger ?? 0}" data-settings-field="command_stagger">
+          <input type="number" step="0.1" min="0" max="2" value="${this._num(s.command_stagger, 0)}" data-settings-field="command_stagger">
           ${hint(this._t("settings_command_stagger_hint"))}
         </div>
         <div class="form-group">
@@ -4176,6 +4176,16 @@ class CoverAutomaticPanel extends HTMLElement {
   _esc(str) {
     if (str == null) return "";
     return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  // Coerce a stored numeric field for safe HTML-attribute interpolation.
+  // Returns a finite number, otherwise the fallback (empty string by default).
+  // Defense-in-depth against hand-edited .storage files (WS schema already
+  // enforces numerics on write).
+  _num(v, fallback = "") {
+    if (v === null || v === undefined || v === "") return fallback;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
   }
 
   /* ============================================================

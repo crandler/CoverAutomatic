@@ -5,6 +5,22 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.53.9] - 2026-06-22
+
+### Security
+
+- Config import path validation now confines paths to the real HA config directory (`hass.config.config_dir`) only, instead of a hardcoded `/config` + `/homeassistant` list that silently tolerated non-existent bases (reduces attack surface).
+- Panel: storage-derived numeric form fields are coerced through a `_num()` helper before HTML-attribute interpolation (defense-in-depth against hand-edited `.storage` files; the WebSocket schema already enforces numerics on write).
+
+### Changed
+
+- `read_text()` calls now pass `encoding="utf-8"` explicitly (PEP 597), avoiding locale-dependent decoding.
+- Data model dataclasses use `slots=True` for a smaller memory footprint and faster attribute access.
+
+### Documentation
+
+- README: added a Privacy section documenting the anonymous GitHub update check and the personal-reference potential of exported entity IDs.
+
 ## [1.53.8] - 2026-06-22
 
 ### Changed

@@ -22,9 +22,6 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-# Allowed base directories for config import/export
-ALLOWED_CONFIG_PATHS = ["/config", "/homeassistant"]
-
 # Exports are confined to this subdirectory below the HA config dir
 EXPORT_SUBDIR = "cover_automatic"
 EXPORT_ALLOWED_SUFFIXES = (".yaml", ".yml")
@@ -68,11 +65,11 @@ def _validate_export_path(path: str, config_dir: str) -> Path | None:
         return None
 
 
-def _validate_config_path(path: str, extra_paths: list[str] | None = None) -> Path | None:
-    """Validate that path is within allowed directories.
+def _validate_config_path(path: str, config_dir: str) -> Path | None:
+    """Validate that path stays within the HA config directory.
 
-    Prevents path traversal attacks by ensuring the resolved path
-    stays within allowed base directories.
+    Prevents path traversal attacks by confining the resolved path to the
+    real HA config directory only -- no hardcoded fallback bases.
 
     Returns:
         Resolved Path if valid, None if path is unsafe.
@@ -80,28 +77,15 @@ def _validate_config_path(path: str, extra_paths: list[str] | None = None) -> Pa
     try:
         # Resolve to absolute path (handles ../ etc.)
         resolved = Path(path).resolve()
-
-        # Combine static and dynamic allowed paths
-        all_allowed = list(ALLOWED_CONFIG_PATHS)
-        if extra_paths:
-            all_allowed.extend(extra_paths)
-
-        # Check if path is within any allowed directory
-        for allowed_base in all_allowed:
-            allowed_path = Path(allowed_base).resolve()
-            if allowed_path.exists():
-                try:
-                    resolved.relative_to(allowed_path)
-                    return resolved
-                except ValueError:
-                    continue
-
-        _LOGGER.warning(
-            "Path validation failed: %s is not within allowed directories %s",
-            path,
-            all_allowed,
-        )
-        return None
+        base = Path(config_dir).resolve()
+        try:
+            resolved.relative_to(base)
+            return resolved
+        except ValueError:
+            _LOGGER.warning(
+                "Path validation failed: %s is not within %s", path, base
+            )
+            return None
 
     except Exception as err:
         _LOGGER.error("Path validation error for %s: %s", path, err)
@@ -231,9 +215,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             return
 
         # Validate path to prevent path traversal attacks
-        validated_path = _validate_config_path(
-            path_str, extra_paths=[hass.config.config_dir]
-        )
+        validated_path = _validate_config_path(path_str, hass.config.config_dir)
         if validated_path is None:
             _LOGGER.error(
                 "Import rejected: path '%s' is outside allowed directories", path_str

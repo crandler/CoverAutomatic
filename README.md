@@ -195,15 +195,22 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ---
 
+## Privacy
+
+- **Update check:** When the configuration panel is open, it makes an anonymous `GET` request to the public GitHub API (`api.github.com`, hosted in the USA) to read the latest published release tag and show an update hint. No account, token, or personal data is sent; it is a standard unauthenticated request. If you prefer no outbound calls, keep the panel closed — automation itself never contacts GitHub.
+- **Configuration export:** Exported/imported YAML contains your sensor and cover entity IDs. Entity IDs you named after rooms or people (e.g. `cover.bedroom_anna`) may carry a personal reference. Treat export files like any other config backup and store them accordingly.
+
+---
+
 ## Version
 
-1.53.8
+1.53.9
 
 ## Changelog
 
 Full version history is maintained in [CHANGELOG.md](CHANGELOG.md), formatted per [Keep a Changelog](https://keepachangelog.com/).
 
-Latest release: [v1.53.8](https://github.com/crandler/CoverAutomatic/releases/tag/v1.53.8) (2026-06-22).
+Latest release: [v1.53.9](https://github.com/crandler/CoverAutomatic/releases/tag/v1.53.9) (2026-06-22).
 
 ## License
 
