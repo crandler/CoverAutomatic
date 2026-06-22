@@ -675,6 +675,47 @@ class TestStateTracking:
             tracked_entities = call_args[0][1]
             assert "sun.sun" in tracked_entities
 
+    def test_full_refresh_cleans_all_orphaned_runtime_state(
+        self, coordinator, mock_storage
+    ) -> None:
+        """A removed cover must be dropped from EVERY per-entity container.
+
+        Regression: _hysteresis_info, _last_matching_rules, _last_move_rule,
+        _pending_settle and _post_protective_exit were not cleaned on full
+        refresh, leaking orphan keys for deleted covers.
+        """
+        mock_storage._data = {"covers": {"cover.keep": {}}, "rules": {}}
+        orphan, keep = "cover.deleted", "cover.keep"
+
+        per_entity_dicts = (
+            coordinator._cover_states,
+            coordinator._last_positions,
+            coordinator._last_tilt_positions,
+            coordinator._pre_lock_states,
+            coordinator._last_command_time,
+            coordinator._hysteresis_info,
+            coordinator._last_matching_rules,
+            coordinator._last_move_rule,
+        )
+        for d in per_entity_dicts:
+            d[orphan] = "x"
+            d[keep] = "x"
+        coordinator._pending_settle.update({orphan, keep})
+        coordinator._post_protective_exit.update({orphan, keep})
+
+        with patch(
+            "custom_components.cover_automatic.coordinator.async_track_state_change_event"
+        ):
+            coordinator.refresh_state_tracking()
+
+        for d in per_entity_dicts:
+            assert orphan not in d
+            assert keep in d
+        assert orphan not in coordinator._pending_settle
+        assert keep in coordinator._pending_settle
+        assert orphan not in coordinator._post_protective_exit
+        assert keep in coordinator._post_protective_exit
+
     def test_setup_state_tracking_tracks_sensors(
         self, coordinator, mock_storage
     ) -> None:
@@ -2201,6 +2242,64 @@ class TestVentSensorWithTilt:
         assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
         # No move command
         assert mock_hass.async_create_task.call_count == 0
+
+    def test_vent_close_returns_to_manual_when_auto_disabled(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Vent closing on an auto-disabled cover must go to MANUAL, not AUTO.
+
+        Regression: the event path hard-set AUTO, which let an AUTO apply cycle
+        run on a disabled cover until the next sync corrected it.
+        """
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": "binary_sensor.vent",
+            "vent_position": 30,
+            "inverted": False,
+            "auto_enabled": False,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.return_value = MockState("off", {"current_position": 50})
+        mock_hass.async_create_task = MagicMock()
+        coordinator._cover_states["cover.test"] = CoverStatus.VENTING
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod"):
+            coordinator._handle_contact_sensor_change(
+                "binary_sensor.vent",
+                [],
+                ["cover.test"],
+                MockState("on"),
+                MockState("off"),
+            )
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.MANUAL
+
+    def test_vent_close_returns_to_auto_when_auto_enabled(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Control: vent closing on a normal cover still returns to AUTO."""
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": "binary_sensor.vent",
+            "vent_position": 30,
+            "inverted": False,
+            "auto_enabled": True,
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        mock_hass.states.get.return_value = MockState("off", {"current_position": 50})
+        mock_hass.async_create_task = MagicMock()
+        coordinator._cover_states["cover.test"] = CoverStatus.VENTING
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod"):
+            coordinator._handle_contact_sensor_change(
+                "binary_sensor.vent",
+                [],
+                ["cover.test"],
+                MockState("on"),
+                MockState("off"),
+            )
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
 
     def test_lock_to_vent_transition_sets_venting(
         self, coordinator, mock_hass, mock_storage

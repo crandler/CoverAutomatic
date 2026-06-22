@@ -5,6 +5,24 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.53.10] - 2026-06-22
+
+### Fixed
+
+- Cover status sensor now shows distinct icons for the `VENTING` and `WIND_PROTECTED` states instead of a generic help-circle fallback.
+- Removing a cover now cleans up all of its per-cover runtime state (hysteresis info, matching/move-rule tracking, pending-settle and protective-exit sets), not just the position/status dicts -- prevents a slow state leak on repeated cover deletion.
+- Panel re-subscribes to the real-time update event and restarts the live refresh on reconnect. HA caches custom panels and detaches/re-attaches them on navigation; previously both went silent after the first disconnect, leaving the covers tab without live updates.
+- Vent sensor closing on a cover with automation disabled now returns it to `MANUAL` instead of `AUTO`, mirroring the status-sync path, so no `AUTO` apply cycle runs on a disabled cover before the next sync corrects it.
+
+### Security
+
+- WebSocket API now validates rule references in `scenario/add`, `scenario/update` (`rules_disabled`) and `rule/reorder` (`rule_ids`), rejecting unknown ids with `not_found`. Closes the reference-validation gap left open relative to v1.53.7. +5 regression tests.
+
+### Changed
+
+- Panel: number condition-parameter inputs are coerced through the `_num()` helper like every other numeric field (defense-in-depth; no behavior change for valid values).
+- Internal cleanups (no behavior change): removed a dead i18n ternary, a dead variable and three duplicate CSS rules in the panel, dropped an unused event-callback parameter, and simplified a nested ternary in the rule model.
+
 ## [1.53.9] - 2026-06-22
 
 ### Security

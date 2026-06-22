@@ -158,14 +158,13 @@ class Rule:
                 conditions.append(Condition.from_dict(c))
             except (ValueError, KeyError) as err:
                 _LOGGER.warning("Skipping invalid condition in rule '%s': %s", data.get("name", "?"), err)
+        operator = data.get("condition_operator", "and")
         return cls(
             id=data["id"],
             name=data["name"],
             enabled=data.get("enabled", True),
             priority=data.get("priority", 10),
-            condition_operator=data.get("condition_operator", "and")
-            if data.get("condition_operator") in ("and", "or")
-            else "and",
+            condition_operator=operator if operator in ("and", "or") else "and",
             facade_ids=list(data.get("facade_ids") or []),
             cover_ids=list(data.get("cover_ids") or []),
             conditions=conditions,

@@ -512,11 +512,17 @@ async def ws_rule_reorder(
     """
     rule_ids: list[str] = msg["rule_ids"]
     rules_data = storage._data.get("rules", {})
-    total = len(rule_ids)
 
+    unknown = _missing_ids(rule_ids, rules_data)
+    if unknown:
+        connection.send_error(
+            msg["id"], "not_found", f"Unknown rule(s): {', '.join(unknown)}"
+        )
+        return
+
+    total = len(rule_ids)
     for idx, rid in enumerate(rule_ids):
-        if rid in rules_data:
-            rules_data[rid]["priority"] = (total - idx) * 10
+        rules_data[rid]["priority"] = (total - idx) * 10
 
     storage._invalidate_cache()
     await storage.async_save()
@@ -532,11 +538,18 @@ async def ws_scenario_add(
 ) -> None:
     """Handle cover_automatic/scenario/add."""
     name = msg["name"]
+    rules_disabled = msg.get("rules_disabled", [])
+    unknown = _missing_ids(rules_disabled, storage.rules)
+    if unknown:
+        connection.send_error(
+            msg["id"], "not_found", f"Unknown rule(s): {', '.join(unknown)}"
+        )
+        return
     scenario = Scenario(
         id=_unique_id(_sanitize_id(name), storage.scenarios),
         name=name,
         icon=msg.get("icon", "mdi:home"),
-        rules_disabled=msg.get("rules_disabled", []),
+        rules_disabled=rules_disabled,
     )
     await storage.async_add_scenario(scenario)
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
@@ -555,6 +568,14 @@ async def ws_scenario_update(
     if existing is None:
         connection.send_error(msg["id"], "not_found", f"Scenario '{scenario_id}' not found")
         return
+
+    if "rules_disabled" in msg:
+        unknown = _missing_ids(msg["rules_disabled"], storage.rules)
+        if unknown:
+            connection.send_error(
+                msg["id"], "not_found", f"Unknown rule(s): {', '.join(unknown)}"
+            )
+            return
 
     updated = Scenario(
         id=scenario_id,

@@ -206,12 +206,18 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._pre_lock_states,
                 self._last_command_time,
                 self._tilt_tasks,
+                self._hysteresis_info,
+                self._last_matching_rules,
+                self._last_move_rule,
             ):
                 orphaned = set(state_dict.keys()) - current_covers
                 for entity_id in orphaned:
                     value = state_dict.pop(entity_id)
                     if isinstance(value, asyncio.Task) and not value.done():
                         value.cancel()
+            # Per-entity sets: drop orphaned entity ids as well
+            for state_set in (self._pending_settle, self._post_protective_exit):
+                state_set -= set(state_set) - current_covers
 
         entities_to_track: set[str] = {SUN_ENTITY_ID}
 
@@ -589,9 +595,18 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if self.data is not None:
                     self.async_set_updated_data(self.data)
             elif not is_open and current_status in (CoverStatus.VENTING, CoverStatus.PAUSED):
-                _LOGGER.info("[%s] Vent sensor closed -> AUTO", cover_id)
-                self._cover_states[cover_id] = CoverStatus.AUTO
-                self.storage.update_cover_status(cover_id, CoverStatus.AUTO.value, None)
+                # Mirror the _sync_cover_statuses branch: a cover with automation
+                # disabled returns to MANUAL, not AUTO, so the refresh triggered
+                # below does not run an AUTO apply cycle (which could move a
+                # disabled cover) before the next sync would correct the status.
+                target = (
+                    CoverStatus.AUTO
+                    if cover_raw.get("auto_enabled", True)
+                    else CoverStatus.MANUAL
+                )
+                _LOGGER.info("[%s] Vent sensor closed -> %s", cover_id, target.value)
+                self._cover_states[cover_id] = target
+                self.storage.update_cover_status(cover_id, target.value, None)
                 self._update_last_position_from_state(cover_id)
                 # Mark for one-shot time-hysteresis bypass so the next apply
                 # cycle re-applies the matching rule even when

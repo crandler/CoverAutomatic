@@ -1269,6 +1269,7 @@ const PANEL_STYLES = `
     overflow: hidden;
     flex-shrink: 0;
     outline: 1px solid rgba(255,255,255,0.15);
+    position: relative;
   }
   .pos-bar-fill {
     display: block;
@@ -1280,9 +1281,6 @@ const PANEL_STYLES = `
   .pos-bar-label {
     font-size: 12px;
     min-width: 32px;
-  }
-  .pos-bar-track {
-    position: relative;
   }
   .pos-bar.pos-bar-diverges {
     min-width: 110px;
@@ -1482,8 +1480,6 @@ const PANEL_STYLES = `
   /* Section */
   .section {
     margin-bottom: 8px;
-  }
-  .section {
     border-top: 1px solid var(--ca-border);
   }
   .section:first-child {
@@ -2110,11 +2106,6 @@ const PANEL_STYLES = `
     display: block;
   }
 
-  /* Hysteresis badge size tweak */
-  .hysteresis-badge {
-    font-size: 11px;
-  }
-
   /* Temperature cell -- mode color is still inline because it's dynamic, but weight is consistent */
   .data-table td.temp-mode {
     font-weight: 600;
@@ -2274,6 +2265,17 @@ class CoverAutomaticPanel extends HTMLElement {
     this._panel = panel;
   }
 
+  connectedCallback() {
+    // Re-attach subscriptions when the element is re-inserted (HA caches
+    // custom panels and detaches/re-attaches them on navigation). _initialize
+    // only runs once, so without this the real-time event push and the live
+    // refresh stay dead after the first disconnect. Both calls are idempotent.
+    if (this._initialized) {
+      this._subscribeUpdates();
+      if (this._activeTab === "covers") this._startLiveRefresh();
+    }
+  }
+
   disconnectedCallback() {
     this._stopLiveRefresh();
     this._unsubscribeUpdates();
@@ -2313,7 +2315,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
   _subscribeUpdates() {
     if (this._eventUnsub || !this._hass) return;
-    this._hass.connection.subscribeEvents((ev) => {
+    this._hass.connection.subscribeEvents(() => {
       if (this._activeTab !== "covers" || !this._config) return;
       if (this._eventDebounce) clearTimeout(this._eventDebounce);
       this._eventDebounce = setTimeout(() => {
@@ -2778,7 +2780,6 @@ class CoverAutomaticPanel extends HTMLElement {
       }
       const cm = live.comfort_mode;
       // Rule name -- if a rule is matching, render as link to Rules tab
-      const ruleName = live.rule_name || this._t("cover_no_rule");
       const ruleCellHtml = this._renderRuleCell(live);
       // Sun on facade
       const liveFacade = c.facade_id ? ((this._config.live_facades || {})[c.facade_id] || {}) : {};
@@ -3345,7 +3346,7 @@ class CoverAutomaticPanel extends HTMLElement {
           }
           html += '</div>';
         } else if (p.type === "number") {
-          html += `<input type="number" value="${val}"${p.step ? ' step="' + p.step + '"' : ""} data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
+          html += `<input type="number" value="${this._num(val)}"${p.step ? ' step="' + p.step + '"' : ""} data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
         } else {
           html += `<input type="text" value="${this._esc(String(val))}" data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
         }
@@ -3682,7 +3683,7 @@ class CoverAutomaticPanel extends HTMLElement {
     let html = '<div class="settings-shell">';
 
     // Sidebar navigation
-    html += '<aside class="settings-nav" role="tablist" aria-label="' + this._esc(this._t("tabs") && typeof this._t("tabs") === "object" ? "Settings" : "Settings") + '">';
+    html += '<aside class="settings-nav" role="tablist" aria-label="Settings">';
     for (const sec of sections) {
       const isActive = sec.id === active;
       const cls = "settings-nav-btn" + (isActive ? " active" : "");

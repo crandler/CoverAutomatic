@@ -189,6 +189,42 @@ class TestSensorPlatform:
 
         assert sensor.icon == "mdi:hand-back-right"
 
+    def test_status_sensor_icon_venting(self, mock_coordinator) -> None:
+        """Test status sensor icon for VENTING status (regression: not help-circle)."""
+        from custom_components.cover_automatic.sensor import CoverAutomaticStatusSensor
+
+        mock_coordinator.get_cover_status.return_value = CoverStatus.VENTING
+
+        sensor = CoverAutomaticStatusSensor(
+            mock_coordinator, "cover.test", "Test"
+        )
+        sensor.hass = MagicMock()
+
+        assert sensor.icon == "mdi:window-open-variant"
+
+    def test_status_sensor_icon_wind_protected(self, mock_coordinator) -> None:
+        """Test status sensor icon for WIND_PROTECTED status (regression: not help-circle)."""
+        from custom_components.cover_automatic.sensor import CoverAutomaticStatusSensor
+
+        mock_coordinator.get_cover_status.return_value = CoverStatus.WIND_PROTECTED
+
+        sensor = CoverAutomaticStatusSensor(
+            mock_coordinator, "cover.test", "Test"
+        )
+        sensor.hass = MagicMock()
+
+        assert sensor.icon == "mdi:weather-windy"
+
+    def test_status_sensor_all_statuses_have_icons(self, mock_coordinator) -> None:
+        """Every CoverStatus must map to a real icon, never the help-circle fallback."""
+        from custom_components.cover_automatic.sensor import CoverAutomaticStatusSensor
+
+        sensor = CoverAutomaticStatusSensor(mock_coordinator, "cover.test", "Test")
+        sensor.hass = MagicMock()
+        for status in CoverStatus:
+            mock_coordinator.get_cover_status.return_value = status
+            assert sensor.icon != "mdi:help-circle", f"{status} has no icon"
+
     def test_facade_sun_sensor_on(self, mock_coordinator) -> None:
         """Test facade sun sensor when sun is on facade."""
         from custom_components.cover_automatic.sensor import FacadeSunSensor

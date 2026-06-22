@@ -1137,6 +1137,36 @@ class TestWsRuleReorder:
         storage.async_save.assert_awaited_once()
         conn.send_result.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_reorder_unknown_rule_sends_error(self) -> None:
+        """reorder with an unknown rule id is rejected without saving (regression)."""
+        from custom_components.cover_automatic.api import ws_rule_reorder
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+        storage._data = {
+            "rules": {"r1": {"id": "r1", "name": "A", "priority": 10}},
+            "facades": {},
+            "covers": {},
+            "scenarios": {},
+        }
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/rule/reorder",
+            "rule_ids": ["r1", "ghost"],
+        }
+
+        await ws_rule_reorder(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_called_once()
+        assert "not_found" in conn.send_error.call_args[0][1]
+        storage.async_save.assert_not_awaited()
+        # Existing priority must be untouched
+        assert storage._data["rules"]["r1"]["priority"] == 10
+
 
 class TestWsScenarioAdd:
     """Tests for cover_automatic/scenario/add handler."""
@@ -1147,7 +1177,7 @@ class TestWsScenarioAdd:
 
         hass = _make_hass()
         conn = _make_connection()
-        storage = _make_storage()
+        storage = _make_storage(rules={"r1": Rule(id="r1", name="R1")})
         coordinator = _make_coordinator()
 
         msg = {
@@ -1166,6 +1196,29 @@ class TestWsScenarioAdd:
         assert scenario_arg.id == "urlaub"
         assert scenario_arg.icon == "mdi:beach"
         assert scenario_arg.rules_disabled == ["r1"]
+
+    @pytest.mark.asyncio
+    async def test_add_scenario_unknown_rule_sends_error(self) -> None:
+        """rules_disabled with an unknown rule id is rejected (regression)."""
+        from custom_components.cover_automatic.api import ws_scenario_add
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage(rules={"r1": {}})
+        coordinator = _make_coordinator()
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/scenario/add",
+            "name": "Urlaub",
+            "rules_disabled": ["r1", "ghost"],
+        }
+
+        await ws_scenario_add(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_called_once()
+        assert "not_found" in conn.send_error.call_args[0][1]
+        storage.async_add_scenario.assert_not_awaited()
 
 
 class TestWsScenarioUpdate:
@@ -1216,6 +1269,30 @@ class TestWsScenarioUpdate:
         await ws_scenario_update(hass, conn, msg, storage, coordinator)
 
         assert storage.active_scenario == "holiday"
+
+    @pytest.mark.asyncio
+    async def test_update_scenario_unknown_rule_sends_error(self) -> None:
+        """Updating rules_disabled with an unknown rule id is rejected (regression)."""
+        from custom_components.cover_automatic.api import ws_scenario_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        scenario = Scenario(id="holiday", name="Holiday")
+        storage = _make_storage(scenarios={"holiday": scenario}, rules={"r1": {}})
+        coordinator = _make_coordinator()
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/scenario/update",
+            "scenario_id": "holiday",
+            "rules_disabled": ["ghost"],
+        }
+
+        await ws_scenario_update(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_called_once()
+        assert "not_found" in conn.send_error.call_args[0][1]
+        storage.async_add_scenario.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_update_unknown_scenario_sends_error(self) -> None:

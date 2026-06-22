@@ -25,6 +25,8 @@ _STATUS_ICONS: dict[CoverStatus, str] = {
     CoverStatus.PAUSED: "mdi:pause-circle",
     CoverStatus.MANUAL: "mdi:hand-back-right",
     CoverStatus.LOCKED: "mdi:lock",
+    CoverStatus.VENTING: "mdi:window-open-variant",
+    CoverStatus.WIND_PROTECTED: "mdi:weather-windy",
 }
 
 
