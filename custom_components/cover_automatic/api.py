@@ -197,6 +197,21 @@ def _parse_conditions(raw: list[dict[str, Any]]) -> tuple[list[Condition], list[
     return conditions, errors
 
 
+def _missing_ids(ids: list[str], known: dict[str, Any]) -> list[str]:
+    """Return the subset of ids that are not present as keys in known."""
+    return [i for i in ids if i not in known]
+
+
+def _unknown_refs_msg(facade_ids: list[str], cover_ids: list[str]) -> str:
+    """Build an error message listing unknown facade/cover references."""
+    parts: list[str] = []
+    if facade_ids:
+        parts.append(f"facade(s): {', '.join(facade_ids)}")
+    if cover_ids:
+        parts.append(f"cover(s): {', '.join(cover_ids)}")
+    return "Unknown " + "; ".join(parts)
+
+
 # ---------------------------------------------------------------------------
 # Handler functions (public for testability)
 # ---------------------------------------------------------------------------
@@ -224,6 +239,11 @@ async def ws_cover_update(
     raw = storage.get_cover_raw(entity_id)
     if raw is None:
         connection.send_error(msg["id"], "not_found", f"Cover '{entity_id}' not found")
+        return
+
+    # Reject assignment to a non-existent facade (None clears the assignment).
+    if "facade_id" in msg and msg["facade_id"] is not None and msg["facade_id"] not in storage.facades:
+        connection.send_error(msg["id"], "not_found", f"Facade '{msg['facade_id']}' not found")
         return
 
     # Track facade change for bidirectional sync
@@ -307,6 +327,10 @@ async def ws_facade_add(
     presets = FACADE_PRESETS.get(direction, FACADE_PRESETS["south"])
 
     new_cover_ids = msg.get("cover_ids", [])
+    unknown = _missing_ids(new_cover_ids, storage.covers)
+    if unknown:
+        connection.send_error(msg["id"], "not_found", _unknown_refs_msg([], unknown))
+        return
     facade_id = _unique_id(_sanitize_id(name), storage.facades)
     facade = Facade(
         id=facade_id,
@@ -336,6 +360,12 @@ async def ws_facade_update(
     if existing is None:
         connection.send_error(msg["id"], "not_found", f"Facade '{facade_id}' not found")
         return
+
+    if "cover_ids" in msg:
+        unknown = _missing_ids(msg["cover_ids"], storage.covers)
+        if unknown:
+            connection.send_error(msg["id"], "not_found", _unknown_refs_msg([], unknown))
+            return
 
     new_cover_ids = msg.get("cover_ids", existing.cover_ids)
     updated = Facade(
@@ -385,6 +415,12 @@ async def ws_rule_add(
         connection.send_error(msg["id"], "invalid_conditions", "; ".join(errors))
         return
 
+    unknown_f = _missing_ids(msg.get("facade_ids", []), storage.facades)
+    unknown_c = _missing_ids(msg.get("cover_ids", []), storage.covers)
+    if unknown_f or unknown_c:
+        connection.send_error(msg["id"], "not_found", _unknown_refs_msg(unknown_f, unknown_c))
+        return
+
     rule = Rule(
         id=_unique_id(_sanitize_id(name), storage.rules),
         name=name,
@@ -422,6 +458,12 @@ async def ws_rule_update(
         if errors:
             connection.send_error(msg["id"], "invalid_conditions", "; ".join(errors))
             return
+
+    unknown_f = _missing_ids(msg["facade_ids"], storage.facades) if "facade_ids" in msg else []
+    unknown_c = _missing_ids(msg["cover_ids"], storage.covers) if "cover_ids" in msg else []
+    if unknown_f or unknown_c:
+        connection.send_error(msg["id"], "not_found", _unknown_refs_msg(unknown_f, unknown_c))
+        return
 
     updated = Rule(
         id=rule_id,

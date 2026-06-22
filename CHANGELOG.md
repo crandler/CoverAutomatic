@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.53.7] - 2026-06-22
+
+### Security
+
+- WebSocket API now validates entity references against existing config: `cover/update` (`facade_id`), `facade/add` + `facade/update` (`cover_ids`), and `rule/add` + `rule/update` (`facade_ids`, `cover_ids`) reject unknown IDs with a `not_found` error instead of silently storing ghost references. Prevents rules/covers/facades from pointing at deleted or never-existing entities. +8 regression tests.
+
 ## [1.53.6] - 2026-06-18
 
 ### Fixed

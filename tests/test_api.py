@@ -387,7 +387,8 @@ class TestWsCoverUpdate:
 
         hass = _make_hass()
         conn = _make_connection()
-        storage = _make_storage()
+        facade = Facade(id="south_1", name="South", azimuth_start=135, azimuth_end=225)
+        storage = _make_storage(facades={"south_1": facade})
         coordinator = _make_coordinator()
 
         raw_cover = {
@@ -722,7 +723,8 @@ class TestWsRuleAdd:
 
         hass = _make_hass()
         conn = _make_connection()
-        storage = _make_storage()
+        facade = Facade(id="south_1", name="South", azimuth_start=135, azimuth_end=225)
+        storage = _make_storage(facades={"south_1": facade})
         coordinator = _make_coordinator()
 
         msg = {
@@ -873,6 +875,193 @@ class TestWsRuleUpdate:
         await ws_rule_update(hass, conn, msg, storage, coordinator)
 
         conn.send_error.assert_called_once()
+
+
+class TestApiReferenceValidation:
+    """Tests for #136: reject ghost references to non-existent facades/covers."""
+
+    @pytest.mark.asyncio
+    async def test_cover_update_rejects_unknown_facade(self) -> None:
+        from custom_components.cover_automatic.api import ws_cover_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()  # no facades
+        coordinator = _make_coordinator()
+        raw_cover = {"entity_id": "cover.test", "name": "Test", "facade_id": None, "auto_enabled": True}
+        storage.get_cover_raw = MagicMock(return_value=raw_cover)
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/cover/update",
+            "entity_id": "cover.test",
+            "facade_id": "ghost",
+        }
+
+        await ws_cover_update(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_called_once()
+        assert "not_found" in conn.send_error.call_args[0][1]
+        assert raw_cover["facade_id"] is None  # unchanged
+        storage.async_save.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_cover_update_allows_clearing_facade(self) -> None:
+        """facade_id=None must stay allowed (unassign), not be treated as unknown."""
+        from custom_components.cover_automatic.api import ws_cover_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        facade = Facade(id="south_1", name="South", azimuth_start=135, azimuth_end=225)
+        storage = _make_storage(facades={"south_1": facade})
+        coordinator = _make_coordinator()
+        raw_cover = {"entity_id": "cover.test", "name": "Test", "facade_id": "south_1", "auto_enabled": True}
+        storage.get_cover_raw = MagicMock(return_value=raw_cover)
+
+        msg = {"id": 1, "type": "cover_automatic/cover/update", "entity_id": "cover.test", "facade_id": None}
+
+        await ws_cover_update(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_not_called()
+        assert raw_cover["facade_id"] is None
+        conn.send_result.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_facade_add_rejects_unknown_cover(self) -> None:
+        from custom_components.cover_automatic.api import ws_facade_add
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()  # no covers
+        coordinator = _make_coordinator()
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/facade/add",
+            "name": "South",
+            "direction": "south",
+            "cover_ids": ["cover.ghost"],
+        }
+
+        await ws_facade_add(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_called_once()
+        assert "not_found" in conn.send_error.call_args[0][1]
+        storage.async_add_facade.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_facade_update_rejects_unknown_cover(self) -> None:
+        from custom_components.cover_automatic.api import ws_facade_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        facade = Facade(id="south_1", name="South", azimuth_start=135, azimuth_end=225)
+        storage = _make_storage(facades={"south_1": facade})
+        coordinator = _make_coordinator()
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/facade/update",
+            "facade_id": "south_1",
+            "cover_ids": ["cover.ghost"],
+        }
+
+        await ws_facade_update(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_called_once()
+        storage.async_add_facade.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_rule_add_rejects_unknown_facade(self) -> None:
+        from custom_components.cover_automatic.api import ws_rule_add
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()  # no facades
+        coordinator = _make_coordinator()
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/rule/add",
+            "name": "Rule",
+            "facade_ids": ["ghost"],
+            "conditions": [{"type": "temperature_above", "params": {"threshold": 25}}],
+        }
+
+        await ws_rule_add(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_called_once()
+        assert "not_found" in conn.send_error.call_args[0][1]
+        storage.async_add_rule.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_rule_add_rejects_unknown_cover(self) -> None:
+        from custom_components.cover_automatic.api import ws_rule_add
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()  # no covers
+        coordinator = _make_coordinator()
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/rule/add",
+            "name": "Rule",
+            "cover_ids": ["cover.ghost"],
+            "conditions": [{"type": "temperature_above", "params": {"threshold": 25}}],
+        }
+
+        await ws_rule_add(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_called_once()
+        storage.async_add_rule.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_rule_update_rejects_unknown_facade(self) -> None:
+        from custom_components.cover_automatic.api import ws_rule_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        rule = Rule(id="r1", name="Rule", priority=10)
+        storage = _make_storage(rules={"r1": rule})
+        coordinator = _make_coordinator()
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/rule/update",
+            "rule_id": "r1",
+            "facade_ids": ["ghost"],
+        }
+
+        await ws_rule_update(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_called_once()
+        storage.async_add_rule.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_rule_add_accepts_known_references(self) -> None:
+        from custom_components.cover_automatic.api import ws_rule_add
+
+        hass = _make_hass()
+        conn = _make_connection()
+        facade = Facade(id="south_1", name="South", azimuth_start=135, azimuth_end=225)
+        cover = CoverConfig(entity_id="cover.lr", name="LR")
+        storage = _make_storage(facades={"south_1": facade}, covers={"cover.lr": cover})
+        coordinator = _make_coordinator()
+
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/rule/add",
+            "name": "Rule",
+            "facade_ids": ["south_1"],
+            "cover_ids": ["cover.lr"],
+            "conditions": [{"type": "temperature_above", "params": {"threshold": 25}}],
+        }
+
+        await ws_rule_add(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_not_called()
+        storage.async_add_rule.assert_awaited_once()
 
 
 class TestWsRuleDelete:
