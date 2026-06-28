@@ -560,7 +560,7 @@ const CONDITION_PARAMS = {
   time_before_sunrise: [{ key: "offset", type: "number", default: 0 }],
   time_before_sunset: [{ key: "offset", type: "number", default: -60 }],
   state_is: [
-    { key: "entity_id", type: "text", default: "" },
+    { key: "entity_id", type: "entity", default: "" },
     { key: "state", type: "text", default: "on" }
   ],
   weather_is: [{ key: "weather", type: "multiselect", options: ["sunny", "cloudy", "partlycloudy", "rainy", "snowy", "windy", "fog", "clear-night"], default: ["sunny"] }],
@@ -3347,6 +3347,8 @@ class CoverAutomaticPanel extends HTMLElement {
           html += '</div>';
         } else if (p.type === "number") {
           html += `<input type="number" value="${this._num(val)}"${p.step ? ' step="' + p.step + '"' : ""} data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
+        } else if (p.type === "entity") {
+          html += this._renderCondEntitySelect(rule, idx, p.key, val);
         } else {
           html += `<input type="text" value="${this._esc(String(val))}" data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${p.key}">`;
         }
@@ -3547,6 +3549,43 @@ class CoverAutomaticPanel extends HTMLElement {
       const sel = e.entity_id === currentValue ? " selected" : "";
       html += `<option value="${this._esc(e.entity_id)}"${sel}>${this._esc(name)}</option>`;
     }
+    html += "</select>";
+    return html;
+  }
+
+  // Entity picker for rule conditions (state_is). Not domain-restricted: any
+  // entity can be checked, so entities are grouped by domain via optgroups.
+  _renderCondEntitySelect(rule, idx, key, currentValue) {
+    const attrs = `data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${this._esc(key)}"`;
+    const cur = currentValue || "";
+    if (!this._hass || !this._hass.states) {
+      return `<input type="text" value="${this._esc(String(cur))}" ${attrs}>`;
+    }
+    const entities = Object.values(this._hass.states).sort((a, b) => {
+      const da = a.entity_id.split(".")[0];
+      const db = b.entity_id.split(".")[0];
+      if (da !== db) return da.localeCompare(db);
+      return (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id);
+    });
+    let html = `<select ${attrs}>`;
+    html += `<option value=""${cur === "" ? " selected" : ""}>-- ${this._t("none")} --</option>`;
+    // Keep a stored entity selectable even if it is currently unavailable
+    if (cur && !entities.some(e => e.entity_id === cur)) {
+      html += `<option value="${this._esc(cur)}" selected>${this._esc(cur)}</option>`;
+    }
+    let curDomain = null;
+    for (const e of entities) {
+      const domain = e.entity_id.split(".")[0];
+      if (domain !== curDomain) {
+        if (curDomain !== null) html += "</optgroup>";
+        html += `<optgroup label="${this._esc(domain)}">`;
+        curDomain = domain;
+      }
+      const name = e.attributes.friendly_name || e.entity_id;
+      const sel = e.entity_id === cur ? " selected" : "";
+      html += `<option value="${this._esc(e.entity_id)}"${sel}>${this._esc(name)} (${this._esc(e.entity_id)})</option>`;
+    }
+    if (curDomain !== null) html += "</optgroup>";
     html += "</select>";
     return html;
   }

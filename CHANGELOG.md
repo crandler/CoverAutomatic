@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.54.0] - 2026-06-28
+
+### Added
+
+- Panel: the entity field of the `state_is` rule condition is now a dropdown picker instead of a free-text field. Entities are grouped by domain via optgroups and sorted by friendly name; a previously stored entity stays selectable even when currently unavailable. Falls back to a text input if entity states are not yet loaded.
+
 ## [1.53.10] - 2026-06-22
 
 ### Fixed
