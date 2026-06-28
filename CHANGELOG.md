@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.54.1] - 2026-06-28
+
+### Changed
+
+- Panel: the `state_is` entity picker is now a searchable input backed by a `<datalist>` instead of one long `<select>`. Typing filters suggestions by friendly name or entity id; free text stays allowed for entities that are not loaded yet.
+
 ## [1.54.0] - 2026-06-28
 
 ### Added

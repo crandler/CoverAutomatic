@@ -12,5 +12,5 @@
   "homeassistant": "2026.3.0",
   "requirements": [],
   "single_config_entry": true,
-  "version": "1.54.0"
+  "version": "1.54.1"
 }

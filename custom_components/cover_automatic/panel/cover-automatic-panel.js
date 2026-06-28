@@ -164,6 +164,7 @@ const I18N = {
     param_end_time: "End time",
     param_offset: "Offset (min)",
     param_entity_id: "Entity ID",
+    param_entity_search: "Search name or entity ID…",
     param_state: "State",
     param_weather: "Weather condition",
     param_mode: "Mode",
@@ -413,6 +414,7 @@ const I18N = {
     param_end_time: "Endzeit",
     param_offset: "Offset (Min.)",
     param_entity_id: "Entity-ID",
+    param_entity_search: "Name oder Entity-ID suchen…",
     param_state: "Status",
     param_weather: "Wetterbedingung",
     param_mode: "Modus",
@@ -3554,39 +3556,27 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   // Entity picker for rule conditions (state_is). Not domain-restricted: any
-  // entity can be checked, so entities are grouped by domain via optgroups.
+  // entity can be checked. A plain <select> grows unsearchably long, so this
+  // is a text input backed by a <datalist> -- typing filters suggestions by
+  // friendly name or entity id, and free text stays allowed (entities that are
+  // not loaded yet, future entities).
   _renderCondEntitySelect(rule, idx, key, currentValue) {
     const attrs = `data-action="cond-param" data-rule="${this._esc(rule.id)}" data-idx="${idx}" data-key="${this._esc(key)}"`;
     const cur = currentValue || "";
     if (!this._hass || !this._hass.states) {
       return `<input type="text" value="${this._esc(String(cur))}" ${attrs}>`;
     }
-    const entities = Object.values(this._hass.states).sort((a, b) => {
-      const da = a.entity_id.split(".")[0];
-      const db = b.entity_id.split(".")[0];
-      if (da !== db) return da.localeCompare(db);
-      return (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id);
-    });
-    let html = `<select ${attrs}>`;
-    html += `<option value=""${cur === "" ? " selected" : ""}>-- ${this._t("none")} --</option>`;
-    // Keep a stored entity selectable even if it is currently unavailable
-    if (cur && !entities.some(e => e.entity_id === cur)) {
-      html += `<option value="${this._esc(cur)}" selected>${this._esc(cur)}</option>`;
-    }
-    let curDomain = null;
+    const listId = `ca-ent-${this._esc(rule.id)}-${idx}`;
+    const entities = Object.values(this._hass.states)
+      .sort((a, b) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
+    let html = `<input type="text" list="${listId}" value="${this._esc(String(cur))}" placeholder="${this._t("param_entity_search")}" autocomplete="off" ${attrs}>`;
+    html += `<datalist id="${listId}">`;
     for (const e of entities) {
-      const domain = e.entity_id.split(".")[0];
-      if (domain !== curDomain) {
-        if (curDomain !== null) html += "</optgroup>";
-        html += `<optgroup label="${this._esc(domain)}">`;
-        curDomain = domain;
-      }
       const name = e.attributes.friendly_name || e.entity_id;
-      const sel = e.entity_id === cur ? " selected" : "";
-      html += `<option value="${this._esc(e.entity_id)}"${sel}>${this._esc(name)} (${this._esc(e.entity_id)})</option>`;
+      // value is the entity id (what gets stored); label shows the friendly name
+      html += `<option value="${this._esc(e.entity_id)}">${this._esc(name)}</option>`;
     }
-    if (curDomain !== null) html += "</optgroup>";
-    html += "</select>";
+    html += "</datalist>";
     return html;
   }
 
