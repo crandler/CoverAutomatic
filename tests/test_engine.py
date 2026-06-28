@@ -1802,3 +1802,110 @@ class TestWorkdayCondition:
             params={},
         )
         assert engine._eval_workday(condition) is False
+
+
+class TestPreviewCondition:
+    """Tests for the rule-editor live condition preview."""
+
+    def test_preview_context_dependent_sun_on_facade(self, engine) -> None:
+        """sun_on_facade is context-dependent -> not evaluable."""
+        cond = Condition(type=ConditionType.SUN_ON_FACADE, params={})
+        assert engine.preview_condition(cond) == {"evaluable": False}
+
+    def test_preview_context_dependent_comfort_no_side_effect(self, engine) -> None:
+        """temperature_comfort is context-dependent and must not touch comfort state."""
+        cond = Condition(
+            type=ConditionType.TEMPERATURE_COMFORT, params={"mode": "cooling"}
+        )
+        assert engine.preview_condition(cond) == {"evaluable": False}
+        # A preview must never mutate the grace-period tracking dicts.
+        assert engine._last_comfort_mode == {}
+        assert engine._last_comfort_read == {}
+
+    def test_preview_temperature_above_matched_with_actual(self, engine) -> None:
+        """Global temp condition returns matched + rounded actual value."""
+        engine.storage.outdoor_temp_sensor = "sensor.outdoor"
+        engine.hass.states.get.return_value = MockState("28.53")
+        cond = Condition(
+            type=ConditionType.TEMPERATURE_ABOVE, params={"temperature": 25}
+        )
+        result = engine.preview_condition(cond)
+        assert result["evaluable"] is True
+        assert result["matched"] is True
+        assert result["actual"] == 28.5
+        assert result["kind"] == "temp"
+
+    def test_preview_temperature_below_not_matched(self, engine) -> None:
+        """Non-matching temp condition still reports the actual value."""
+        engine.storage.outdoor_temp_sensor = "sensor.outdoor"
+        engine.hass.states.get.return_value = MockState("28.0")
+        cond = Condition(
+            type=ConditionType.TEMPERATURE_BELOW, params={"temperature": 15}
+        )
+        result = engine.preview_condition(cond)
+        assert result["matched"] is False
+        assert result["actual"] == 28.0
+
+    def test_preview_temperature_missing_sensor_actual_none(self, engine) -> None:
+        """No sensor configured -> evaluable but actual is None."""
+        engine.storage.outdoor_temp_sensor = None
+        cond = Condition(
+            type=ConditionType.TEMPERATURE_ABOVE, params={"temperature": 25}
+        )
+        result = engine.preview_condition(cond)
+        assert result["evaluable"] is True
+        assert result["actual"] is None
+
+    def test_preview_state_is_actual(self, engine) -> None:
+        """state_is returns the raw entity state as actual."""
+        engine.hass.states.get.return_value = MockState("on")
+        cond = Condition(
+            type=ConditionType.STATE_IS,
+            params={"entity_id": "binary_sensor.x", "state": "on"},
+        )
+        result = engine.preview_condition(cond)
+        assert result["matched"] is True
+        assert result["actual"] == "on"
+        assert result["kind"] == "state"
+
+    def test_preview_state_is_unavailable_actual_none(self, engine) -> None:
+        """Unavailable entity yields no match and actual None."""
+        engine.hass.states.get.return_value = MockState("unavailable")
+        cond = Condition(
+            type=ConditionType.STATE_IS,
+            params={"entity_id": "binary_sensor.x", "state": "on"},
+        )
+        result = engine.preview_condition(cond)
+        assert result["matched"] is False
+        assert result["actual"] is None
+
+    def test_preview_weather_actual(self, engine) -> None:
+        """weather_is returns the raw weather state as actual."""
+        engine.storage.weather_entity = "weather.home"
+        engine.hass.states.get.return_value = MockState("rainy")
+        cond = Condition(type=ConditionType.WEATHER_IS, params={"weather": ["rainy"]})
+        result = engine.preview_condition(cond)
+        assert result["matched"] is True
+        assert result["actual"] == "rainy"
+        assert result["kind"] == "weather"
+
+    def test_preview_day_of_week_actual_is_code(self, engine) -> None:
+        """day_of_week reports today's weekday code as actual."""
+        cond = Condition(type=ConditionType.DAY_OF_WEEK, params={"days": []})
+        result = engine.preview_condition(cond)
+        assert result["kind"] == "day"
+        assert result["actual"] in ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+    def test_preview_sun_elevation_actual(self, engine) -> None:
+        """sun_elevation reports current elevation rounded to 1 decimal."""
+        with patch(
+            "custom_components.cover_automatic.engine.get_sun_position",
+            return_value=(180.0, 23.456),
+        ):
+            cond = Condition(
+                type=ConditionType.SUN_ELEVATION_ABOVE, params={"elevation": 10}
+            )
+            result = engine.preview_condition(cond)
+        assert result["matched"] is True
+        assert result["actual"] == 23.5
+        assert result["kind"] == "elevation"

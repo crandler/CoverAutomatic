@@ -170,6 +170,9 @@ const I18N = {
     param_mode: "Mode",
     param_days: "Days",
     param_select_type: "Select condition type",
+    cond_preview_active: "applies",
+    cond_preview_inactive: "doesn't apply",
+    cond_preview_context: "context-dependent",
     day_mon: "Mon", day_tue: "Tue", day_wed: "Wed", day_thu: "Thu", day_fri: "Fri", day_sat: "Sat", day_sun: "Sun",
     opt_on: "On (workday)", opt_off: "Off (non-workday)",
     opt_cooling: "Cooling", opt_heating: "Heating",
@@ -420,6 +423,9 @@ const I18N = {
     param_mode: "Modus",
     param_days: "Tage",
     param_select_type: "Bedingungstyp wählen",
+    cond_preview_active: "greift",
+    cond_preview_inactive: "greift nicht",
+    cond_preview_context: "kontextabhängig",
     day_mon: "Mo", day_tue: "Di", day_wed: "Mi", day_thu: "Do", day_fri: "Fr", day_sat: "Sa", day_sun: "So",
     opt_on: "An (Arbeitstag)", opt_off: "Aus (kein Arbeitstag)",
     opt_cooling: "Kühlung", opt_heating: "Heizung",
@@ -569,6 +575,10 @@ const CONDITION_PARAMS = {
   day_of_week: [{ key: "days", type: "dayselect", default: ["mon","tue","wed","thu","fri"] }],
   workday: [{ key: "state", type: "select", options: ["on", "off"], default: "on" }]
 };
+
+// Condition types that depend on a cover/facade context and cannot be
+// evaluated in the editor preview (mirrors engine _CONTEXT_DEPENDENT_TYPES).
+const CONTEXT_DEPENDENT_TYPES = ["sun_on_facade", "temperature_comfort"];
 
 const FACADE_PRESETS = {
   north: { start: 315, end: 45 },
@@ -1704,6 +1714,18 @@ const PANEL_STYLES = `
     gap: 8px;
   }
   .condition-card .cond-params .form-group { margin-bottom: 0; }
+  .cond-head-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+  .cond-preview {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; color: var(--ca-secondary-text); white-space: nowrap;
+  }
+  .cond-preview-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--ca-border); flex-shrink: 0;
+  }
+  .cond-preview-on { color: var(--ca-text); }
+  .cond-preview-on .cond-preview-dot { background: var(--ca-active, var(--ca-success-strong)); }
+  .cond-preview-context { font-style: italic; opacity: 0.65; }
   .day-select { display: flex; gap: 4px; flex-wrap: wrap; }
   .day-btn {
     padding: 4px 8px; border: 1px solid var(--ca-border); border-radius: 4px;
@@ -2236,6 +2258,7 @@ class CoverAutomaticPanel extends HTMLElement {
     this._logFilter = null;
     this._coverSort = { key: "name", dir: "asc" };
     this._liveRefreshTimer = null;
+    this._condPreviewTimer = null;
     this._eventUnsub = null;
     this._eventDebounce = null;
     this._expandedSections = { base: true, sensors: true, advanced: false, tilt: false };
@@ -2275,11 +2298,13 @@ class CoverAutomaticPanel extends HTMLElement {
     if (this._initialized) {
       this._subscribeUpdates();
       if (this._activeTab === "covers") this._startLiveRefresh();
+      if (this._activeTab === "rules" && this._expandedRule) this._startCondPreview();
     }
   }
 
   disconnectedCallback() {
     this._stopLiveRefresh();
+    this._stopCondPreview();
     this._unsubscribeUpdates();
     this._removeHouseDragListeners();
     if (this._saveTimers) {
@@ -3309,9 +3334,16 @@ class CoverAutomaticPanel extends HTMLElement {
     const cond = rule.conditions[idx];
     const paramDefs = CONDITION_PARAMS[cond.type] || [];
 
+    const isContextCond = CONTEXT_DEPENDENT_TYPES.includes(cond.type);
+    const previewCell = isContextCond
+      ? `<span class="cond-preview cond-preview-context">${this._t("cond_preview_context")}</span>`
+      : `<span class="cond-preview" data-cond-preview="${idx}"></span>`;
     let html = `<div class="condition-card">
       <div class="cond-header">
-        <span class="cond-type">${this._t("cond_" + cond.type)}</span>
+        <span class="cond-head-left">
+          <span class="cond-type">${this._t("cond_" + cond.type)}</span>
+          ${previewCell}
+        </span>
         <button class="btn-icon" data-action="rule-delete-condition" data-rule="${this._esc(rule.id)}" data-idx="${idx}" title="${this._t("delete")}">&#10005;</button>
       </div>`;
 
@@ -4176,6 +4208,80 @@ class CoverAutomaticPanel extends HTMLElement {
     } catch (e) { /* silent */ }
   }
 
+  /* ---------- Rule editor: live condition preview ---------- */
+  _startCondPreview() {
+    this._stopCondPreview();
+    this._refreshCondPreview();
+    this._condPreviewTimer = setInterval(() => this._refreshCondPreview(), 10000);
+  }
+
+  _stopCondPreview() {
+    if (this._condPreviewTimer) {
+      clearInterval(this._condPreviewTimer);
+      this._condPreviewTimer = null;
+    }
+  }
+
+  async _refreshCondPreview() {
+    if (!this._config || this._activeTab !== "rules" || !this._expandedRule) {
+      this._stopCondPreview();
+      return;
+    }
+    const rule = (this._config.rules || {})[this._expandedRule];
+    if (!rule || !rule.conditions || rule.conditions.length === 0) return;
+    const conditions = rule.conditions.map(c => ({ type: c.type, params: c.params || {} }));
+    let result;
+    try {
+      result = await this._ws("cover_automatic/rule/preview_conditions", { conditions });
+    } catch (e) { return; }
+    // The editor may have collapsed or switched tabs during the await.
+    if (!result || !Array.isArray(result.results) || this._activeTab !== "rules" || !this._expandedRule) return;
+    const root = this.shadowRoot;
+    if (!root) return;
+    result.results.forEach((res, idx) => {
+      const el = root.querySelector('.cond-preview[data-cond-preview="' + idx + '"]');
+      if (el) this._applyCondPreview(el, res);
+    });
+  }
+
+  _applyCondPreview(el, res) {
+    if (!res || res.evaluable === false) {
+      el.className = "cond-preview cond-preview-context";
+      el.textContent = this._t("cond_preview_context");
+      return;
+    }
+    const matched = !!res.matched;
+    el.className = "cond-preview " + (matched ? "cond-preview-on" : "cond-preview-off");
+    const label = this._t(matched ? "cond_preview_active" : "cond_preview_inactive");
+    const actual = this._formatCondActual(res);
+    // DOM API (not innerHTML) to satisfy the security hook on live updates.
+    el.textContent = "";
+    const dot = document.createElement("span");
+    dot.className = "cond-preview-dot";
+    el.appendChild(dot);
+    const txt = document.createElement("span");
+    txt.textContent = actual ? (label + " · " + actual) : label;
+    el.appendChild(txt);
+  }
+
+  _formatCondActual(res) {
+    const v = res.actual;
+    if (v == null) return "";
+    switch (res.kind) {
+      case "temp": return v + " °C";
+      case "elevation": return v + "°";
+      case "weather": return this._i18nOr("weather_" + v, String(v));
+      case "day": return this._i18nOr("day_" + v, String(v));
+      case "workday": return this._i18nOr("opt_" + v, String(v));
+      default: return String(v);
+    }
+  }
+
+  _i18nOr(key, fallback) {
+    const t = this._t(key);
+    return (t && t !== key) ? t : fallback;
+  }
+
   _getCoverName(entityId) {
     const covers = this._config ? (this._config.covers || {}) : {};
     const cover = covers[entityId];
@@ -4258,6 +4364,7 @@ class CoverAutomaticPanel extends HTMLElement {
       } else {
         this._stopLiveRefresh();
       }
+      this._stopCondPreview();
       this._render();
       return;
     }
@@ -4363,6 +4470,7 @@ class CoverAutomaticPanel extends HTMLElement {
       case "rule-expand":
         this._expandedRule = this._expandedRule === actionEl.dataset.id ? null : actionEl.dataset.id;
         this._render();
+        if (this._expandedRule) this._startCondPreview(); else this._stopCondPreview();
         break;
       case "rule-delete": this._onRuleDelete(actionEl.dataset.id); break;
       case "rule-save": this._onRuleSave(actionEl.dataset.id); break;
@@ -4772,6 +4880,7 @@ class CoverAutomaticPanel extends HTMLElement {
       try {
         const result = await this._ws("cover_automatic/rule/update", data);
         this._updateConfigFromResult(result);
+        this._refreshCondPreview();
       } catch (e) { console.error(e); }
     } else {
       this._render();
@@ -4790,6 +4899,7 @@ class CoverAutomaticPanel extends HTMLElement {
       try {
         const result = await this._ws("cover_automatic/rule/update", data);
         this._updateConfigFromResult(result);
+        this._refreshCondPreview();
       } catch (e) { console.error(e); }
     } else {
       this._render();

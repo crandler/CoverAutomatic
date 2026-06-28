@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import time
 from time import monotonic
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.util import dt as dt_util
 
@@ -31,6 +31,13 @@ _WEATHER_MAP: dict[str, set[str]] = {
     "snowy": {"snowy", "snowy-rainy"},
     "windy": {"windy", "exceptional"},
 }
+
+# Condition types whose result depends on a specific cover/facade context
+# (facade azimuth, per-cover comfort range/sensor). They cannot be previewed
+# in the rule editor without one and report evaluable=False.
+_CONTEXT_DEPENDENT_TYPES: frozenset = frozenset(
+    {ConditionType.SUN_ON_FACADE, ConditionType.TEMPERATURE_COMFORT}
+)
 
 
 class RuleEngine:
@@ -166,6 +173,94 @@ class RuleEngine:
         except Exception as err:
             _LOGGER.error("Error evaluating condition %s: %s", condition.type, err, exc_info=True)
             return False
+
+    def preview_condition(self, condition: Condition) -> dict[str, Any]:
+        """Evaluate a condition for the rule editor's live preview.
+
+        Returns a context-free snapshot: whether the condition currently
+        matches plus the raw, language-neutral actual value (the panel
+        localizes it). Context-dependent types (sun_on_facade,
+        temperature_comfort) need a cover and return {"evaluable": False}.
+
+        Side-effect free: only the stateless global _eval_* helpers run, so
+        the comfort grace-period state is never touched.
+        """
+        if condition.type in _CONTEXT_DEPENDENT_TYPES:
+            return {"evaluable": False}
+        try:
+            # cover is unused for global condition types (filtered above)
+            matched = self._evaluate_condition(condition, None)  # type: ignore[arg-type]
+            actual, kind = self._preview_actual(condition)
+            return {"evaluable": True, "matched": matched, "actual": actual, "kind": kind}
+        except Exception as err:  # defensive: preview must never raise
+            _LOGGER.debug("preview_condition(%s) failed: %s", condition.type, err)
+            return {"evaluable": True, "matched": False, "actual": None, "kind": None}
+
+    def _preview_actual(self, condition: Condition) -> tuple[Any, str | None]:
+        """Return (actual_value, kind) for a global condition's current reading."""
+        t = condition.type
+        if t in (ConditionType.SUN_ELEVATION_ABOVE, ConditionType.SUN_ELEVATION_BELOW):
+            position = get_sun_position(self.hass)
+            return (round(position[1], 1) if position else None), "elevation"
+        if t in (ConditionType.TEMPERATURE_ABOVE, ConditionType.TEMPERATURE_BELOW):
+            sensor_id = condition.params.get("sensor") or self.storage.outdoor_temp_sensor
+            return self._read_float_state(sensor_id), "temp"
+        if t == ConditionType.TIME_BETWEEN:
+            return dt_util.now().strftime("%H:%M"), "time"
+        if t in (
+            ConditionType.TIME_AFTER_SUNRISE, ConditionType.TIME_BEFORE_SUNRISE,
+            ConditionType.TIME_AFTER_SUNSET, ConditionType.TIME_BEFORE_SUNSET,
+        ):
+            return self._preview_sun_time(condition), "sun_time"
+        if t == ConditionType.STATE_IS:
+            entity_id = condition.params.get("entity_id") or condition.params.get("entity")
+            return self._read_state(entity_id), "state"
+        if t == ConditionType.WEATHER_IS:
+            entity_id = condition.params.get("entity") or self.storage.weather_entity
+            return self._read_state(entity_id), "weather"
+        if t == ConditionType.DAY_OF_WEEK:
+            codes = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+            return codes[dt_util.now().weekday()], "day"
+        if t == ConditionType.WORKDAY:
+            entity_id = condition.params.get("entity_id") or self.storage.workday_sensor
+            return self._read_state(entity_id), "workday"
+        return None, None
+
+    def _preview_sun_time(self, condition: Condition) -> str | None:
+        """Compute the threshold clock time (sun event + offset) as HH:MM."""
+        event_fn = (
+            get_sunrise_time if "sunrise" in condition.type.value else get_sunset_time
+        )
+        event_time = event_fn(self.hass)
+        if event_time is None:
+            return None
+        try:
+            offset = int(condition.params.get("offset", 0))
+        except (ValueError, TypeError):
+            offset = 0
+        target = dt_util.as_local(dt_util.utc_from_timestamp(event_time + offset * 60))
+        return target.strftime("%H:%M")
+
+    def _read_state(self, entity_id: str | None) -> str | None:
+        """Return an entity's raw state string, or None if missing/unavailable."""
+        if not entity_id:
+            return None
+        state = self.hass.states.get(entity_id)
+        if state is None or state.state in ("unavailable", "unknown"):
+            return None
+        return state.state
+
+    def _read_float_state(self, entity_id: str | None) -> float | None:
+        """Return an entity's numeric state rounded to 1 decimal, or None."""
+        if not entity_id:
+            return None
+        state = self.hass.states.get(entity_id)
+        if state is None:
+            return None
+        try:
+            return round(float(state.state), 1)
+        except (ValueError, TypeError):
+            return None
 
     def _eval_sun_on_facade(self, condition: Condition, cover: CoverConfig) -> bool:
         """Evaluate sun_on_facade condition.

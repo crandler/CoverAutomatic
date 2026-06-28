@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.55.0] - 2026-06-28
+
+### Added
+
+- Rule editor: live condition preview. Each context-independent condition (sun elevation, time, sun-relative time, `state_is`, weather, day of week, workday) now shows a status dot ("applies" / "doesn't apply") plus its current actual value, polled every 10 s while a rule is expanded. Context-dependent conditions (`sun_on_facade`, `temperature_comfort`) are labelled "context-dependent" since they require a specific cover. New WS command `rule/preview_conditions` evaluates the editor's (unsaved) conditions via the engine — the single source of truth, no frontend logic duplication.
+
+### Fixed
+
+- Rule and scenario changes (add/update/delete/reorder, scenario activate) now trigger an immediate coordinator re-evaluation instead of waiting up to one scan interval (60 s). Mirrors the existing behaviour of settings/resume/import handlers.
+
 ## [1.54.1] - 2026-06-28
 
 ### Changed

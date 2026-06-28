@@ -299,7 +299,6 @@ class TestApiSetup:
         storage = _make_storage()
         coordinator = _make_coordinator()
 
-        # 13 commands total
         from homeassistant.components import websocket_api as real_ws
 
         with patch(
@@ -307,7 +306,7 @@ class TestApiSetup:
         ) as mock_ws:
             mock_ws.BASE_COMMAND_MESSAGE_SCHEMA = real_ws.BASE_COMMAND_MESSAGE_SCHEMA
             async_setup_api(hass, storage, coordinator)
-            assert mock_ws.async_register_command.call_count == 20
+            assert mock_ws.async_register_command.call_count == 21
 
     def test_command_names_registered(self) -> None:
         hass = _make_hass()
@@ -329,7 +328,7 @@ class TestApiSetup:
             mock_ws.async_register_command.side_effect = capture_register
             async_setup_api(hass, storage, coordinator)
 
-        assert len(registered_schemas) == 20
+        assert len(registered_schemas) == 21
 
 
 # ---------------------------------------------------------------------------
@@ -1707,3 +1706,76 @@ class TestSettingsValidation:
 
         assert storage.logbook_enabled is False
         conn.send_result.assert_called_once()
+
+
+class TestRulePreviewConditions:
+    """Tests for the cover_automatic/rule/preview_conditions WS command."""
+
+    @pytest.mark.asyncio
+    async def test_preview_returns_result_per_condition(self) -> None:
+        """Global condition is evaluated; context-dependent one is not."""
+        from custom_components.cover_automatic.api import ws_rule_preview_conditions
+        from custom_components.cover_automatic.engine import RuleEngine
+
+        hass = _make_hass()
+        hass.states.get.return_value = MagicMock(state="on")
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+        coordinator.engine = RuleEngine(hass, storage)
+        conn = _make_connection()
+        msg = {
+            "id": 1,
+            "conditions": [
+                {
+                    "type": "state_is",
+                    "params": {"entity_id": "binary_sensor.x", "state": "on"},
+                },
+                {"type": "sun_on_facade", "params": {}},
+            ],
+        }
+
+        await ws_rule_preview_conditions(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_not_called()
+        results = conn.send_result.call_args[0][1]["results"]
+        assert len(results) == 2
+        assert results[0]["evaluable"] is True
+        assert results[0]["matched"] is True
+        assert results[0]["actual"] == "on"
+        assert results[1] == {"evaluable": False}
+
+    @pytest.mark.asyncio
+    async def test_preview_empty_conditions(self) -> None:
+        """Empty condition list yields empty results, no error."""
+        from custom_components.cover_automatic.api import ws_rule_preview_conditions
+        from custom_components.cover_automatic.engine import RuleEngine
+
+        hass = _make_hass()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+        coordinator.engine = RuleEngine(hass, storage)
+        conn = _make_connection()
+        msg = {"id": 1, "conditions": []}
+
+        await ws_rule_preview_conditions(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_not_called()
+        assert conn.send_result.call_args[0][1] == {"results": []}
+
+    @pytest.mark.asyncio
+    async def test_preview_invalid_condition_sends_error(self) -> None:
+        """Invalid condition type is rejected before evaluation."""
+        from custom_components.cover_automatic.api import ws_rule_preview_conditions
+        from custom_components.cover_automatic.engine import RuleEngine
+
+        hass = _make_hass()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+        coordinator.engine = RuleEngine(hass, storage)
+        conn = _make_connection()
+        msg = {"id": 1, "conditions": [{"type": "not_a_real_type", "params": {}}]}
+
+        await ws_rule_preview_conditions(hass, conn, msg, storage, coordinator)
+
+        conn.send_error.assert_called_once()
+        conn.send_result.assert_not_called()

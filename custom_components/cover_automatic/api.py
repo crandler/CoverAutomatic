@@ -434,6 +434,7 @@ async def ws_rule_add(
         target_tilt_position=msg.get("target_tilt_position"),
     )
     await storage.async_add_rule(rule)
+    await coordinator.async_request_refresh()
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
@@ -478,6 +479,7 @@ async def ws_rule_update(
         target_tilt_position=msg.get("target_tilt_position", existing.target_tilt_position),
     )
     await storage.async_add_rule(updated)
+    await coordinator.async_request_refresh()
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
@@ -495,6 +497,7 @@ async def ws_rule_delete(
         return
 
     await storage.async_remove_rule(rule_id)
+    await coordinator.async_request_refresh()
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
@@ -526,7 +529,29 @@ async def ws_rule_reorder(
 
     storage._invalidate_cache()
     await storage.async_save()
+    await coordinator.async_request_refresh()
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
+
+
+async def ws_rule_preview_conditions(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    storage: CoverAutomaticStorage,
+    coordinator: CoverAutomaticCoordinator,
+) -> None:
+    """Handle cover_automatic/rule/preview_conditions.
+
+    Live preview for the rule editor: evaluate each given condition against the
+    current state and return whether it matches plus the raw actual value.
+    Context-dependent conditions return evaluable=False. Read-only, no mutation.
+    """
+    conditions, errors = _parse_conditions(msg.get("conditions", []))
+    if errors:
+        connection.send_error(msg["id"], "invalid_conditions", "; ".join(errors))
+        return
+    results = [coordinator.engine.preview_condition(c) for c in conditions]
+    connection.send_result(msg["id"], {"results": results})
 
 
 async def ws_scenario_add(
@@ -552,6 +577,7 @@ async def ws_scenario_add(
         rules_disabled=rules_disabled,
     )
     await storage.async_add_scenario(scenario)
+    await coordinator.async_request_refresh()
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
@@ -587,6 +613,7 @@ async def ws_scenario_update(
         storage.active_scenario = scenario_id
     await storage.async_add_scenario(updated)
 
+    await coordinator.async_request_refresh()
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
@@ -604,6 +631,7 @@ async def ws_scenario_delete(
         return
 
     await storage.async_remove_scenario(scenario_id)
+    await coordinator.async_request_refresh()
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
@@ -858,6 +886,13 @@ def async_setup_api(
             ws_rule_reorder,
             {
                 vol.Required("rule_ids"): [str],
+            },
+        ),
+        (
+            f"{DOMAIN}/rule/preview_conditions",
+            ws_rule_preview_conditions,
+            {
+                vol.Optional("conditions"): list,
             },
         ),
         (
