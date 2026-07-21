@@ -17,6 +17,9 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
+        with:
+          # Deps are pinned inline below, so key the uv cache on this workflow file
+          cache-dependency-glob: ".github/workflows/ci.yml"
 
       - name: Set up Python
         run: uv python install 3.14
@@ -43,6 +46,9 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
+        with:
+          # Deps are pinned inline below, so key the uv cache on this workflow file
+          cache-dependency-glob: ".github/workflows/ci.yml"
 
       - name: Set up Python
         env:
