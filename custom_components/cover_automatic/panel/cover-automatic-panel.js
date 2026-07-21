@@ -35,6 +35,7 @@ const I18N = {
     version_link_title: "Open release notes on GitHub",
     update_badge_title: "Update available - open release notes on GitHub",
     tabs: { covers: "Covers", facades: "Facades", rules: "Rules", scenarios: "Scenarios", settings: "Settings", log: "Log" },
+    nav_label: "Sections",
     loading: "Loading configuration...",
     error_load: "Failed to load configuration.",
     retry: "Retry",
@@ -293,6 +294,7 @@ const I18N = {
     version_link_title: "Release Notes auf GitHub öffnen",
     update_badge_title: "Update verfügbar – Release Notes auf GitHub öffnen",
     tabs: { covers: "Behänge", facades: "Fassaden", rules: "Regeln", scenarios: "Szenarien", settings: "Einstellungen", log: "Protokoll" },
+    nav_label: "Bereiche",
     loading: "Konfiguration wird geladen...",
     error_load: "Konfiguration konnte nicht geladen werden.",
     retry: "Erneut versuchen",
@@ -773,8 +775,10 @@ const PANEL_STYLES = `
     margin-bottom: 20px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
   }
   .tab-bar button {
+    scroll-snap-align: start;
     flex: 0 0 auto;
     background: none;
     border: none;
@@ -888,6 +892,12 @@ const PANEL_STYLES = `
   }
   .data-table th.sortable:hover {
     color: var(--primary-text-color);
+  }
+  /* Keyboard focus for row/header activation (tabindex targets) */
+  .data-table th.sortable:focus-visible,
+  .data-table tr[data-action]:focus-visible {
+    outline: 2px solid var(--ca-primary);
+    outline-offset: -2px;
   }
   .data-table th .sort-arrow {
     display: inline-block;
@@ -1795,10 +1805,29 @@ const PANEL_STYLES = `
     transition: all 0.3s ease;
     pointer-events: none;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    overflow: hidden;
   }
   .toast.show {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
+  }
+  .toast-progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: 100%;
+    background: rgba(255,255,255,0.55);
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  /* duration must match the timeout in _showToast() */
+  .toast.show .toast-progress {
+    animation: ca-toast-countdown 2s linear forwards;
+  }
+  @keyframes ca-toast-countdown {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
   }
 
   /* Loading / Error */
@@ -2174,12 +2203,14 @@ const PANEL_STYLES = `
         transparent 100%
       );
       scrollbar-width: none;
+      scroll-snap-type: x proximity;
     }
     .settings-nav::-webkit-scrollbar { display: none; }
     .settings-nav-btn {
       flex: 0 0 auto;
       padding: 8px 12px;
       font-size: 13px;
+      scroll-snap-align: start;
     }
     .settings-nav-btn .settings-nav-label {
       overflow: visible;
@@ -2263,6 +2294,7 @@ class CoverAutomaticPanel extends HTMLElement {
     this._eventDebounce = null;
     this._expandedSections = { base: true, sensors: true, advanced: false, tilt: false };
     this._activeSettingsSection = "house";
+    this._keydownListener = (e) => this._handleKeyDown(e);
 
 
     this.attachShadow({ mode: "open" });
@@ -2291,6 +2323,8 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   connectedCallback() {
+    // Window-level so Escape works regardless of where focus sits
+    window.addEventListener("keydown", this._keydownListener);
     // Re-attach subscriptions when the element is re-inserted (HA caches
     // custom panels and detaches/re-attaches them on navigation). _initialize
     // only runs once, so without this the real-time event push and the live
@@ -2303,6 +2337,7 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   disconnectedCallback() {
+    window.removeEventListener("keydown", this._keydownListener);
     this._stopLiveRefresh();
     this._stopCondPreview();
     this._unsubscribeUpdates();
@@ -2436,10 +2471,18 @@ class CoverAutomaticPanel extends HTMLElement {
   _showToast() {
     if (this._toastTimer) clearTimeout(this._toastTimer);
     const toast = this.shadowRoot.querySelector(".toast");
-    if (toast) {
-      toast.classList.add("show");
-      this._toastTimer = setTimeout(() => toast.classList.remove("show"), 2000);
-    }
+    if (!toast) return;
+    const msg = toast.querySelector(".toast-msg");
+    // Setting the text on show (not statically) makes role="status" announce it
+    if (msg) msg.textContent = this._t("saved");
+    // Force reflow so the countdown animation restarts on rapid re-shows
+    toast.classList.remove("show");
+    void toast.offsetWidth;
+    toast.classList.add("show");
+    this._toastTimer = setTimeout(() => {
+      toast.classList.remove("show");
+      if (msg) msg.textContent = "";
+    }, 2000);
   }
 
   /* ---------- Confirm dialog ---------- */
@@ -2447,6 +2490,8 @@ class CoverAutomaticPanel extends HTMLElement {
     this._confirmMessage = message;
     this._confirmCallback = callback;
     this._render();
+    // Move focus into the dialog so keyboard users can act on it
+    setTimeout(() => this.shadowRoot.querySelector(".confirm-dialog .btn-secondary")?.focus(), 0);
   }
 
   _hideConfirm() {
@@ -2504,13 +2549,13 @@ class CoverAutomaticPanel extends HTMLElement {
       return;
     }
 
-    html += `<div class="panel-header" data-region="header">${this._renderHeaderContent()}</div>`;
-    html += `<div class="tab-bar" data-region="tabs">${this._renderTabsContent()}</div>`;
-    html += `<div class="tab-content" data-region="content">${this._renderContent()}</div>`;
+    html += `<div class="panel-header" data-region="header" role="banner">${this._renderHeaderContent()}</div>`;
+    html += `<div class="tab-bar" data-region="tabs" role="navigation" aria-label="${this._t("nav_label")}">${this._renderTabsContent()}</div>`;
+    html += `<div class="tab-content" data-region="content" role="main">${this._renderContent()}</div>`;
     html += `<div data-region="slideout">${this._renderSlideOut()}</div>`;
     html += `<div data-region="confirm">${this._renderConfirmDialog()}</div>`;
     html += '</div>';
-    html += `<div class="toast">${this._t("saved")}</div>`;
+    html += `<div class="toast" role="status"><span class="toast-msg"></span><span class="toast-progress"></span></div>`;
 
     root.innerHTML = html;
     this._setupDelegation();
@@ -2551,8 +2596,8 @@ class CoverAutomaticPanel extends HTMLElement {
     const tabs = ["covers", "facades", "rules", "scenarios", "settings", "log"];
     let html = '';
     for (const tab of tabs) {
-      const active = this._activeTab === tab ? " active" : "";
-      html += '<button class="' + active + '" data-tab="' + tab + '">' + this._tt("tabs", tab) + '</button>';
+      const isActive = this._activeTab === tab;
+      html += '<button class="' + (isActive ? " active" : "") + '" data-tab="' + tab + '"' + (isActive ? ' aria-current="true"' : '') + '>' + this._tt("tabs", tab) + '</button>';
     }
     return html;
   }
@@ -2709,7 +2754,7 @@ class CoverAutomaticPanel extends HTMLElement {
   _renderConfirmDialog() {
     if (!this._confirmCallback) return '';
     return '<div class="confirm-overlay" data-action="confirm-cancel">'
-      + '<div class="confirm-dialog">'
+      + '<div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-label="' + this._esc(this._confirmMessage) + '">'
       + '<p>' + this._esc(this._confirmMessage) + '</p>'
       + '<div class="actions">'
       + '<button class="btn btn-secondary" data-action="confirm-cancel">' + this._t("cancel") + '</button>'
@@ -2757,7 +2802,8 @@ class CoverAutomaticPanel extends HTMLElement {
     const sth = (key, label) => {
       const active = sk === key;
       const arrow = active ? (sd === "asc" ? "\u25B2" : "\u25BC") : "\u2195";
-      return `<th class="sortable${active ? " sorted" : ""}" data-action="cover-sort" data-sort="${key}">${label}<span class="sort-arrow">${arrow}</span></th>`;
+      const ariaSort = active ? ` aria-sort="${sd === "asc" ? "ascending" : "descending"}"` : "";
+      return `<th class="sortable${active ? " sorted" : ""}" data-action="cover-sort" data-sort="${key}" tabindex="0"${ariaSort}>${label}<span class="sort-arrow">${arrow}</span></th>`;
     };
     html += sth("name", this._t("name"));
     html += sth("facade", this._t("cover_facade"));
@@ -2816,7 +2862,7 @@ class CoverAutomaticPanel extends HTMLElement {
       // Pause info
       const pauseLeft = (c.status === "paused" && live.pause_until) ? this._formatPauseRemaining(live.pause_until) : "";
       const resumeBtn = c.status === "paused" ? '<button class="btn-icon resume-x" data-action="cover-resume" data-id="' + this._esc(c.entity_id) + '" title="' + this._esc(this._t("cover_resume")) + '">&#10005;</button>' : '';
-      html += `<tr class="${selected}" data-action="select-cover" data-id="${this._esc(c.entity_id)}">`;
+      html += `<tr class="${selected}" data-action="select-cover" data-id="${this._esc(c.entity_id)}" tabindex="0">`;
       html += `<td data-live-name="${this._esc(c.entity_id)}">${this._esc(c.name)}</td>`;
       html += `<td class="nowrap" data-live-facade="${this._esc(c.entity_id)}">${this._esc(facadeName)}${sunIcon}</td>`;
       html += `<td class="nowrap" data-live-status="${this._esc(c.entity_id)}"><span class="status-badge ${statusClass}">${this._esc(this._t("status_" + (c.status || "auto")) || c.status || "auto")}</span>${pauseLeft ? '<span class="pause-remaining">' + pauseLeft + '</span>' : ''}${resumeBtn}</td>`;
@@ -2842,8 +2888,8 @@ class CoverAutomaticPanel extends HTMLElement {
     const open = this._slideOpen && this._selectedCover;
     const cover = open ? (this._config.covers || {})[this._selectedCover] : null;
 
-    let html = `<div class="slide-overlay${open ? " open" : ""}" data-action="close-slide"></div>`;
-    html += `<div class="slide-panel${open ? " open" : ""}">`;
+    let html = `<div class="slide-overlay${open ? " open" : ""}" data-action="close-slide" aria-hidden="true"></div>`;
+    html += `<div class="slide-panel${open ? " open" : ""}"${cover ? ` role="dialog" aria-modal="true" aria-label="${this._esc(cover.name)}"` : ' aria-hidden="true"'}>`;
 
     if (cover) {
       html += `<div class="slide-header">
@@ -3981,7 +4027,7 @@ class CoverAutomaticPanel extends HTMLElement {
   _renderLog() {
     if (this._logEntries === null) {
       this._loadLog();
-      return '<div class="empty-state">' + this._t("log_loading") + '</div>';
+      return '<div class="state-msg"><div class="spinner"></div><div>' + this._t("log_loading") + '</div></div>';
     }
 
     let html = '';
@@ -4341,6 +4387,31 @@ class CoverAutomaticPanel extends HTMLElement {
     root.addEventListener("dragleave", (e) => this._handleDragLeave(e));
     root.addEventListener("drop", (e) => this._handleDrop(e));
     root.addEventListener("pointerdown", (e) => this._handleHouseDragStart(e));
+    // Enter/Space activate non-native interactive elements (rows, sort headers)
+    root.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const el = e.composedPath()[0];
+      if (!el || !el.closest) return;
+      const target = el.closest('[data-action][tabindex]');
+      if (!target || ["BUTTON", "A", "INPUT", "SELECT", "TEXTAREA", "SUMMARY"].includes(el.tagName)) return;
+      e.preventDefault();
+      target.click();
+    });
+  }
+
+  /* ---------- Keyboard (window-level) ---------- */
+  _handleKeyDown(e) {
+    if (e.key !== "Escape") return;
+    if (this._confirmCallback) {
+      e.stopPropagation();
+      this._hideConfirm();
+      return;
+    }
+    if (this._slideOpen) {
+      e.stopPropagation();
+      this._slideOpen = false;
+      this._render();
+    }
   }
 
   /* ---------- Click delegation ---------- */
@@ -4402,6 +4473,8 @@ class CoverAutomaticPanel extends HTMLElement {
         this._slideOpen = true;
         this._expandedSections = { base: true, sensors: true, advanced: false, tilt: false };
         this._render();
+        // Move focus into the slide-out so Tab order continues inside the dialog
+        setTimeout(() => this.shadowRoot.querySelector(".slide-header .btn-icon")?.focus(), 0);
         break;
       case "goto-rule": {
         e.preventDefault();

@@ -5,6 +5,18 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.56.0] - 2026-07-21
+
+### Added
+
+- Panel: toast notifications now show a slim countdown bar indicating how long the toast stays visible; rapid consecutive saves restart the countdown. The toast is also announced to screen readers via `role="status"`.
+- Panel accessibility: Escape closes the cover slide-out and the confirm dialog; focus moves into the slide-out/dialog when opened. Cover table rows and sortable column headers are keyboard-focusable and activatable via Enter/Space (`aria-sort` on the active sort column). ARIA landmarks (banner/navigation/main) and dialog roles added.
+
+### Changed
+
+- Panel: the horizontal tab bar and the mobile settings pill strip use CSS scroll snapping for cleaner scroll stops on touch devices.
+- Panel: the log tab shows a proper spinner while entries are loading instead of a plain text notice.
+
 ## [1.55.0] - 2026-06-28
 
 ### Added
