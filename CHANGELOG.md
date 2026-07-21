@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.57.0] - 2026-07-21
+
+### Changed
+
+- Panel: visual refinement of the house compass in settings. The sun now has a soft radial glow and its light cone fades as a directional gradient toward the facade; facade arcs render in two layers (wide faint underlay, crisp core, round caps); north is marked with a filled accent triangle and an accent-colored "N" as the rotation reference; cardinal letters use quieter secondary-text styling; the house gets a softer drop shadow, a subtle top sheen and finer stroke weights; the inner ring is a fine dotted circle. Drag-rotation behaviour and all interaction paths are unchanged.
+
 ## [1.56.0] - 2026-07-21
 
 ### Added

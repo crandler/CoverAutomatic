@@ -1256,7 +1256,7 @@ const PANEL_STYLES = `
   }
   /* House SVG: ensure the house group has a proper drag affordance */
   #compass-house { transition: filter var(--ca-transition); cursor: grab; touch-action: none; }
-  #compass-house:hover rect { stroke-width: 2.5; }
+  #compass-house:hover rect { stroke-width: 2; }
   /* Save action bar below all config cards */
   .settings-save-bar {
     display: flex;
@@ -3674,7 +3674,8 @@ class CoverAutomaticPanel extends HTMLElement {
     const sunEl = sunState ? parseFloat(sunState.attributes.elevation) : null;
     const belowHorizon = sunEl != null && sunEl < 0;
 
-    // Facade arcs -- muted, harmonized palette (same saturation, varying hue)
+    // Facade arcs -- muted, harmonized palette (same saturation, varying hue).
+    // Two layers per arc: wide faint underlay + narrow crisp core, round caps.
     const facades = this._config ? Object.values(this._config.facades || {}) : [];
     let facadeArcs = "";
     const facadeColors = ["#7da7c8", "#7fb89e", "#c4a979", "#c98969", "#b878a1", "#8a7eb5"];
@@ -3687,16 +3688,21 @@ class CoverAutomaticPanel extends HTMLElement {
       let sweep = f.azimuth_end - f.azimuth_start;
       if (sweep < 0) sweep += 360;
       const large = sweep > 180 ? 1 : 0;
-      facadeArcs += `<path d="M${x1},${y1} A${arcR},${arcR} 0 ${large},1 ${x2},${y2}" fill="none" stroke="${facadeColors[i % facadeColors.length]}" stroke-width="6" opacity="0.6"/>`;
+      const col = facadeColors[i % facadeColors.length];
+      const d = `M${x1},${y1} A${arcR},${arcR} 0 ${large},1 ${x2},${y2}`;
+      facadeArcs += `<path d="${d}" fill="none" stroke="${col}" stroke-width="9" stroke-linecap="round" opacity="0.18"/>`;
+      facadeArcs += `<path d="${d}" fill="none" stroke="${col}" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>`;
       // Label
       const midDeg = (f.azimuth_start + sweep / 2 - 90) * Math.PI / 180;
-      const lx = cx + (arcR - 14) * Math.cos(midDeg), ly = cy + (arcR - 14) * Math.sin(midDeg);
-      facadeArcs += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="9" fill="${facadeColors[i % facadeColors.length]}" font-weight="600">${this._esc(f.name.substring(0, 8))}</text>`;
+      const lx = cx + (arcR - 15) * Math.cos(midDeg), ly = cy + (arcR - 15) * Math.sin(midDeg);
+      facadeArcs += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="9" letter-spacing="0.3" fill="${col}" font-weight="600">${this._esc(f.name.substring(0, 8))}</text>`;
     });
 
-    // Sun position
+    // Sun position -- soft radial glow behind the disc, fine rays, and a
+    // light cone rendered as a directional gradient fading toward the house
     let sunMarker = "";
     let sunBeams = "";
+    let beamGradient = "";
     if (sunAz != null && !isNaN(sunAz) && !belowHorizon) {
       const sunRad = (sunAz - 90) * Math.PI / 180;
       const sr = r + 28;
@@ -3704,9 +3710,9 @@ class CoverAutomaticPanel extends HTMLElement {
       // Sun symbol rays (radiating outward)
       const symbolRays = [0,45,90,135,180,225,270,315].map(d => {
         const rr = d * Math.PI / 180;
-        const x1 = sx + 10 * Math.cos(rr), y1 = sy + 10 * Math.sin(rr);
-        const x2 = sx + 15 * Math.cos(rr), y2 = sy + 15 * Math.sin(rr);
-        return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--ca-sun)" stroke-width="2" stroke-linecap="round"/>`;
+        const x1 = sx + 10.5 * Math.cos(rr), y1 = sy + 10.5 * Math.sin(rr);
+        const x2 = sx + 14.5 * Math.cos(rr), y2 = sy + 14.5 * Math.sin(rr);
+        return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--ca-sun)" stroke-width="1.5" stroke-linecap="round" opacity="0.9"/>`;
       }).join("");
       // Light cone toward house facade (trapezoid: narrow at sun, wide at house)
       const dx = cx - sx, dy = cy - sy;
@@ -3717,9 +3723,14 @@ class CoverAutomaticPanel extends HTMLElement {
       const facadeW = hr + 20;
       const facadeDist = dist + hr * 0.5 + 20;
       const fx = sx + ndx * facadeDist, fy = sy + ndy * facadeDist;
-      sunBeams = `<polygon points="${sx + perpX * sunW},${sy + perpY * sunW} ${sx - perpX * sunW},${sy - perpY * sunW} ${fx - perpX * facadeW},${fy - perpY * facadeW} ${fx + perpX * facadeW},${fy + perpY * facadeW}" fill="var(--ca-sun)" opacity="0.08"/>`;
-      sunMarker = `${symbolRays}<circle cx="${sx}" cy="${sy}" r="8" fill="var(--ca-sun)" stroke="var(--ca-sun-outline)" stroke-width="1.5"/>
-        <text x="${sx}" y="${sy + 26}" text-anchor="middle" font-size="9" fill="var(--ca-sun)" font-weight="700">\u2220${Math.round(sunEl)}\u00B0</text>`;
+      beamGradient = `<linearGradient id="ca-beam" gradientUnits="userSpaceOnUse" x1="${sx}" y1="${sy}" x2="${fx}" y2="${fy}">
+          <stop offset="0" stop-color="var(--ca-sun)" stop-opacity="0.22"/>
+          <stop offset="1" stop-color="var(--ca-sun)" stop-opacity="0.02"/>
+        </linearGradient>`;
+      sunBeams = `<polygon points="${sx + perpX * sunW},${sy + perpY * sunW} ${sx - perpX * sunW},${sy - perpY * sunW} ${fx - perpX * facadeW},${fy - perpY * facadeW} ${fx + perpX * facadeW},${fy + perpY * facadeW}" fill="url(#ca-beam)"/>`;
+      sunMarker = `<circle cx="${sx}" cy="${sy}" r="20" fill="url(#ca-sun-glow)" pointer-events="none"/>
+        ${symbolRays}<circle cx="${sx}" cy="${sy}" r="7" fill="var(--ca-sun)" stroke="var(--ca-sun-outline)" stroke-width="1"/>
+        <text x="${sx}" y="${sy + 27}" text-anchor="middle" font-size="9" fill="var(--ca-sun)" font-weight="600">\u2220${Math.round(sunEl)}\u00B0</text>`;
     }
 
     // Outdoor temperature info text at bottom of SVG
@@ -3739,28 +3750,39 @@ class CoverAutomaticPanel extends HTMLElement {
     return `<svg id="compass-svg" class="compass-svg-root" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
       <defs>
         <filter id="ca-house-shadow" x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.45"/>
+          <feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="#000" flood-opacity="0.3"/>
         </filter>
+        <radialGradient id="ca-sun-glow">
+          <stop offset="0" stop-color="var(--ca-sun)" stop-opacity="0.35"/>
+          <stop offset="1" stop-color="var(--ca-sun)" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="ca-house-sheen" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fff" stop-opacity="0.09"/>
+          <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+        </linearGradient>
+        ${beamGradient}
       </defs>
-      <!-- Compass circle -->
-      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--divider-color)" stroke-width="1.5"/>
-      <circle cx="${cx}" cy="${cy}" r="${r - 20}" fill="none" stroke="var(--divider-color)" stroke-width="0.5" stroke-dasharray="3,3"/>
-      <!-- Cardinal directions (fixed) -->
-      <text x="${cx}" y="${cy - r - 6}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--primary-text-color)">N</text>
-      <text x="${cx}" y="${cy + r + 18}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--primary-text-color)">S</text>
-      <text x="${cx + r + 10}" y="${cy + 5}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--primary-text-color)">E</text>
-      <text x="${cx - r - 10}" y="${cy + 5}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--primary-text-color)">W</text>
-      <!-- Tick marks -->
-      ${[0,45,90,135,180,225,270,315].map(d => { const rad=(d-90)*Math.PI/180; const i=d%90===0?10:6; return `<line x1="${cx+(r-i)*Math.cos(rad)}" y1="${cy+(r-i)*Math.sin(rad)}" x2="${cx+r*Math.cos(rad)}" y2="${cy+r*Math.sin(rad)}" stroke="var(--primary-text-color)" stroke-width="${d%90===0?2:1}" opacity="${d%90===0?0.8:0.4}"/>`; }).join("")}
+      <!-- Compass rings: quiet outer ring, fine dotted inner ring -->
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--divider-color)" stroke-width="1"/>
+      <circle cx="${cx}" cy="${cy}" r="${r - 20}" fill="none" stroke="var(--divider-color)" stroke-width="1" stroke-dasharray="0.5 6" stroke-linecap="round" opacity="0.8"/>
+      <!-- Cardinal directions (fixed); N carries the accent as rotation reference -->
+      <text x="${cx}" y="${cy - r - 8}" text-anchor="middle" font-size="12" font-weight="700" letter-spacing="1" fill="var(--ca-primary)">N</text>
+      <text x="${cx}" y="${cy + r + 18}" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="1" fill="var(--ca-secondary-text)">S</text>
+      <text x="${cx + r + 11}" y="${cy + 4}" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="1" fill="var(--ca-secondary-text)">E</text>
+      <text x="${cx - r - 11}" y="${cy + 4}" text-anchor="middle" font-size="12" font-weight="600" letter-spacing="1" fill="var(--ca-secondary-text)">W</text>
+      <!-- North marker: filled triangle pointing inward from the ring -->
+      <polygon points="${cx - 3.5},${cy - r} ${cx + 3.5},${cy - r} ${cx},${cy - r + 8}" fill="var(--ca-primary)"/>
+      <!-- Tick marks (north replaced by the triangle marker) -->
+      ${[45,90,135,180,225,270,315].map(d => { const rad=(d-90)*Math.PI/180; const i=d%90===0?9:5; return `<line x1="${cx+(r-i)*Math.cos(rad)}" y1="${cy+(r-i)*Math.sin(rad)}" x2="${cx+r*Math.cos(rad)}" y2="${cy+r*Math.sin(rad)}" stroke="var(--primary-text-color)" stroke-width="${d%90===0?1.5:1}" opacity="${d%90===0?0.5:0.25}"/>`; }).join("")}
       <!-- Sun beams (behind house) -->
       ${sunBeams}
       <!-- House (rotated, on top of beams) -->
       <g id="compass-house" transform="rotate(${rotation}, ${cx}, ${cy})" data-action="house-drag-start" filter="url(#ca-house-shadow)">
-        <rect x="${cx - hr}" y="${cy - hr}" width="${hr * 2}" height="${hr * 2}" rx="3" fill="var(--primary-background-color, #1c1c1c)" stroke="var(--primary-color)" stroke-width="2"/>
-        <rect x="${cx - hr + 1.5}" y="${cy - hr + 1.5}" width="${hr * 2 - 3}" height="${hr * 2 - 3}" rx="2" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1" pointer-events="none"/>
+        <rect x="${cx - hr}" y="${cy - hr}" width="${hr * 2}" height="${hr * 2}" rx="4" fill="var(--primary-background-color, #1c1c1c)" stroke="var(--primary-color)" stroke-width="1.5"/>
+        <rect x="${cx - hr + 1.5}" y="${cy - hr + 1.5}" width="${hr * 2 - 3}" height="${hr * 2 - 3}" rx="3" fill="url(#ca-house-sheen)" stroke="none" pointer-events="none"/>
         <!-- Roof indicator (front = south of house before rotation) -->
-        <line x1="${cx - hr + 6}" y1="${cy + hr}" x2="${cx + hr - 6}" y2="${cy + hr}" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round" pointer-events="none"/>
-        <text id="compass-degree-label" x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="var(--primary-text-color)" opacity="0.6" pointer-events="none">${rotation}°</text>
+        <line x1="${cx - hr + 7}" y1="${cy + hr}" x2="${cx + hr - 7}" y2="${cy + hr}" stroke="var(--primary-color)" stroke-width="2.5" stroke-linecap="round" pointer-events="none"/>
+        <text id="compass-degree-label" x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--primary-text-color)" opacity="0.75" pointer-events="none">${rotation}°</text>
       </g>
       <!-- Facade arcs -->
       ${facadeArcs}
