@@ -223,6 +223,47 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ---
 
+## Troubleshooting
+
+Most "bugs" turn out to be one of the safety mechanisms below doing its job. Please check this list before opening an issue.
+
+### Covers don't move right after a Home Assistant restart
+
+By design. After startup, CoverAutomatic waits **120 seconds** before applying any positions. This grace period prevents wrong movements while sensors are still reporting incomplete data (e.g. a Zigbee bridge that hasn't reconnected yet). Automation starts on the first scan after the grace period.
+
+### A cover suddenly shows PAUSED
+
+CoverAutomatic detected a **manual override**: the cover was moved by something other than CoverAutomatic itself — a wall switch, a remote, another automation, or the HA UI. Automation for that cover pauses for the configured pause duration (global or per-cover) so your manual choice is respected, then resumes automatically. Resume earlier via the **X** button in the panel or the `cover_automatic.resume` service.
+
+### A rule matches but the cover doesn't move
+
+Check in this order:
+
+1. **Status priority** — WIND_PROTECTED, LOCKED (window open), VENTING (window tilted) and PAUSED all override rule evaluation. The covers table in the panel shows the current status and the winning rule per cover.
+2. **Master switch / per-cover automation toggle** — both must be on.
+3. **Active scenario** — scenarios can disable specific rules.
+4. **Minimum time between changes** — position changes are rate-limited by the configured interval; the move happens on a later scan.
+
+### A sun rule doesn't shade
+
+`sun_on_facade` is comfort-aware: in **HEATING** mode (room below comfort range) shading is blocked to let the sun warm the room. In **NEUTRAL** mode shading additionally requires the solar radiation sensor to be above the threshold (preemptive shading, can be disabled per cover). In **COOLING** mode (room above comfort range) shading always applies.
+
+### Cover is stuck in LOCKED or VENTING
+
+These statuses are derived from the configured window contact sensors: lock = window open (automation fully blocked), vent = window tilted (cover keeps a minimum position). If the sensor itself is `unavailable` or `unknown`, the last derived status is kept for safety — check the sensor, not the integration.
+
+### Panel looks broken or outdated after an update
+
+The panel JS is cache-busted per version, but some browsers hold on to it anyway. Hard-reload the browser (Ctrl/Cmd+Shift+R) or clear the app cache in the HA companion app.
+
+### Enable debug logging
+
+Settings → Devices & Services → **CoverAutomatic** → three-dot menu → **Enable debug logging**. Reproduce the issue, then disable debug logging the same way — Home Assistant offers the captured log as a download. Attach it to your bug report together with an export from `cover_automatic.export_config`.
+
+Still stuck? [Open a bug report](https://github.com/crandler/CoverAutomatic/issues/new?template=bug_report.yml) — the form asks for everything needed to help you quickly.
+
+---
+
 ## Privacy
 
 - **Update check:** When the configuration panel is open, it makes an anonymous `GET` request to the public GitHub API (`api.github.com`, hosted in the USA) to read the latest published release tag and show an update hint. No account, token, or personal data is sent; it is a standard unauthenticated request. If you prefer no outbound calls, keep the panel closed — automation itself never contacts GitHub.
@@ -232,7 +273,7 @@ Note: The integration controls your original cover entities directly. No wrapper
 
 ## Version
 
-1.55.0
+1.57.2
 
 ## Changelog
 
