@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.58.0] - 2026-08-12
+
+### Added
+
+- Privacy: opt-out for the panel's update check. New setting "Check for updates" (Settings -> Automation, default on). When disabled, the panel never contacts the GitHub API — no outbound request leaves Home Assistant.
+
 ## [1.57.2] - 2026-08-12
 
 ### Fixed

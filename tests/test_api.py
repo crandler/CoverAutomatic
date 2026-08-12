@@ -1707,6 +1707,38 @@ class TestSettingsValidation:
         assert storage.logbook_enabled is False
         conn.send_result.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_update_check_enabled_in_config_response(self) -> None:
+        """Test that update_check_enabled appears in config response."""
+        from custom_components.cover_automatic.api import _build_config_response
+
+        storage = _make_storage()
+        storage.update_check_enabled = False
+
+        result = _build_config_response(storage)
+
+        assert result["settings"]["update_check_enabled"] is False
+
+    @pytest.mark.asyncio
+    async def test_update_check_enabled_update_persists(self) -> None:
+        """Test that update_check_enabled update is written to storage."""
+        from custom_components.cover_automatic.api import ws_settings_update
+
+        hass = _make_hass()
+        conn = _make_connection()
+        storage = _make_storage()
+        coordinator = _make_coordinator()
+        msg = {
+            "id": 1,
+            "type": "cover_automatic/settings/update",
+            "update_check_enabled": False,
+        }
+
+        await ws_settings_update(hass, conn, msg, storage, coordinator)
+
+        assert storage.update_check_enabled is False
+        conn.send_result.assert_called_once()
+
 
 class TestRulePreviewConditions:
     """Tests for the cover_automatic/rule/preview_conditions WS command."""

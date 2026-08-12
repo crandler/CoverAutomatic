@@ -268,6 +268,16 @@ class TestStorageProperties:
         storage.logbook_enabled = 0
         assert storage._data["logbook_enabled"] is False
 
+    def test_update_check_enabled_default_true(self, storage) -> None:
+        """Test update_check_enabled defaults to True."""
+        storage._data = {}
+        assert storage.update_check_enabled is True
+
+    def test_update_check_enabled_setter(self, storage) -> None:
+        """Test setting update_check_enabled to False."""
+        storage.update_check_enabled = False
+        assert storage._data["update_check_enabled"] is False
+
 
 class TestStorageCRUD:
     """Tests for CRUD operations."""

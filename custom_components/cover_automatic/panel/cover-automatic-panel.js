@@ -221,6 +221,8 @@ const I18N = {
     settings_command_stagger_hint: "Delay in seconds between commands when multiple covers move simultaneously. Recommended 0.3-0.5 for radio-based systems (Z-Wave, Zigbee). 0 = no delay.",
     settings_logbook_enabled: "Write logbook entries",
     settings_logbook_enabled_hint: "Record cover movements, lock/unlock, pause/resume and wind protection in Home Assistant's logbook.",
+    settings_update_check_enabled: "Check for updates",
+    settings_update_check_enabled_hint: "When the panel opens, query the public GitHub API once for the latest release and show an update hint. Disable to prevent any outbound request to GitHub.",
     settings_current_value: "Current",
     settings_validation_min_max: "Min must be less than max",
     settings_workday_sensor: "Workday sensor",
@@ -473,6 +475,8 @@ const I18N = {
     settings_command_stagger_hint: "Verzögerung in Sekunden zwischen Kommandos, wenn mehrere Behänge gleichzeitig fahren. Empfohlen 0,3-0,5 für Funksysteme (Z-Wave, Zigbee). 0 = keine Verzögerung.",
     settings_logbook_enabled: "Logbuch-Einträge schreiben",
     settings_logbook_enabled_hint: "Bewegungen, Sperren, Pausen und Windschutz im Home-Assistant-Logbuch protokollieren.",
+    settings_update_check_enabled: "Auf Updates prüfen",
+    settings_update_check_enabled_hint: "Beim Öffnen des Panels einmalig die öffentliche GitHub-API nach dem neuesten Release abfragen und einen Update-Hinweis anzeigen. Deaktivieren, um jegliche Anfrage an GitHub zu unterbinden.",
     settings_current_value: "Aktuell",
     settings_validation_min_max: "Min muss kleiner als Max sein",
     settings_workday_sensor: "Arbeitstag-Sensor",
@@ -2431,6 +2435,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
   async _checkForUpdate() {
     if (!this._config || !this._config.version) return;
+    if (this._config.settings && this._config.settings.update_check_enabled === false) return;
     try {
       const resp = await fetch("https://api.github.com/repos/crandler/CoverAutomatic/releases/latest", { headers: { Accept: "application/vnd.github.v3+json" } });
       if (!resp.ok) return;
@@ -4015,6 +4020,13 @@ class CoverAutomaticPanel extends HTMLElement {
             <span>${this._t("settings_logbook_enabled")}</span>
           </label>
           ${hint(this._t("settings_logbook_enabled_hint"))}
+        </div>
+        <div class="form-group">
+          <label class="checkbox-row">
+            <input type="checkbox" data-settings-field="update_check_enabled" ${s.update_check_enabled !== false ? "checked" : ""}>
+            <span>${this._t("settings_update_check_enabled")}</span>
+          </label>
+          ${hint(this._t("settings_update_check_enabled_hint"))}
         </div>
       </div>
     </div>`;

@@ -373,6 +373,16 @@ class CoverAutomaticStorage:
         """Set whether to write HA logbook entries for cover actions."""
         self._data["logbook_enabled"] = bool(value)
 
+    @property
+    def update_check_enabled(self) -> bool:
+        """Get whether the panel may query GitHub for the latest release."""
+        return self._data.get("update_check_enabled", True)
+
+    @update_check_enabled.setter
+    def update_check_enabled(self, value: bool) -> None:
+        """Set whether the panel may query GitHub for the latest release."""
+        self._data["update_check_enabled"] = bool(value)
+
     async def async_add_facade(self, facade: Facade, *, save: bool = True) -> None:
         """Add or update a facade."""
         if "facades" not in self._data:

@@ -47,7 +47,7 @@ _SETTINGS_FIELDS = (
     "wind_sensor", "wind_speed_threshold", "wind_speed_hysteresis",
     "command_stagger",
     "solar_sensor", "solar_threshold",
-    "logbook_enabled",
+    "logbook_enabled", "update_check_enabled",
 )
 
 # Umlaut replacement map
@@ -124,6 +124,7 @@ def _build_config_response(
             "solar_sensor": storage.solar_sensor,
             "solar_threshold": storage.solar_threshold,
             "logbook_enabled": storage.logbook_enabled,
+            "update_check_enabled": storage.update_check_enabled,
         },
     }
     if hass:
@@ -950,6 +951,7 @@ def async_setup_api(
                 vol.Optional("solar_sensor"): vol.Any(str, None),
                 vol.Optional("solar_threshold"): vol.All(vol.Coerce(float), vol.Range(min=0)),
                 vol.Optional("logbook_enabled"): bool,
+                vol.Optional("update_check_enabled"): bool,
             },
         ),
         (

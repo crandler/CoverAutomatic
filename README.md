@@ -266,20 +266,20 @@ Still stuck? [Open a bug report](https://github.com/crandler/CoverAutomatic/issu
 
 ## Privacy
 
-- **Update check:** When the configuration panel is open, it makes an anonymous `GET` request to the public GitHub API (`api.github.com`, hosted in the USA) to read the latest published release tag and show an update hint. No account, token, or personal data is sent; it is a standard unauthenticated request. If you prefer no outbound calls, keep the panel closed — automation itself never contacts GitHub.
+- **Update check:** When the configuration panel is open, it makes an anonymous `GET` request to the public GitHub API (`api.github.com`, hosted in the USA) to read the latest published release tag and show an update hint. No account, token, or personal data is sent; it is a standard unauthenticated request. You can disable this entirely via **Settings → Automation → Check for updates** — with the option off, no outbound request is made. Automation itself never contacts GitHub.
 - **Configuration export:** Exported/imported YAML contains your sensor and cover entity IDs. Entity IDs you named after rooms or people (e.g. `cover.bedroom_anna`) may carry a personal reference. Treat export files like any other config backup and store them accordingly.
 
 ---
 
 ## Version
 
-1.57.2
+1.58.0
 
 ## Changelog
 
 Full version history is maintained in [CHANGELOG.md](CHANGELOG.md), formatted per [Keep a Changelog](https://keepachangelog.com/).
 
-Latest release: [v1.57.2](https://github.com/crandler/CoverAutomatic/releases/tag/v1.57.2) (2026-08-12).
+Latest release: [v1.58.0](https://github.com/crandler/CoverAutomatic/releases/tag/v1.58.0) (2026-08-12).
 
 ## License
 
