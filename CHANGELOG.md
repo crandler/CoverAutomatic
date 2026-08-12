@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.57.1] - 2026-08-12
+
+### Fixed
+
+- Manifest: `documentation` and `issue_tracker` URLs pointed to a non-existent repository slug (`cover_automatic` instead of `CoverAutomatic`), breaking the documentation and issue links shown in the Home Assistant UI.
+
 ## [1.57.0] - 2026-07-21
 
 ### Changed
