@@ -1,10 +1,10 @@
 {
   "domain": "cover_automatic",
   "name": "CoverAutomatic",
+  "after_dependencies": ["logbook"],
   "codeowners": ["@crandler"],
   "config_flow": true,
   "dependencies": ["frontend", "http", "sun", "websocket_api"],
-  "after_dependencies": ["logbook"],
   "documentation": "https://github.com/crandler/CoverAutomatic",
   "integration_type": "service",
   "iot_class": "calculated",
