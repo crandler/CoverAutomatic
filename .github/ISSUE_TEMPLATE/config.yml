@@ -3,3 +3,7 @@ contact_links:
   - name: Documentation
     url: https://github.com/crandler/CoverAutomatic#readme
     about: Check the README for setup instructions and feature documentation
+  - name: Troubleshooting
+    url: https://github.com/crandler/CoverAutomatic#troubleshooting
+    about: Common questions (startup delay, PAUSED status, rules not firing) explained
+
