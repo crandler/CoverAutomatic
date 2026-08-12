@@ -6,6 +6,14 @@
 
 <p align="center"><strong>Custom HACS integration for Home Assistant - intelligent, automated control of covers (shutters, blinds, roller blinds).</strong></p>
 
+<p align="center">
+  <a href="https://github.com/hacs/integration"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5?logo=homeassistant&logoColor=white" alt="HACS Custom"></a>
+  <a href="https://github.com/crandler/CoverAutomatic/releases/latest"><img src="https://img.shields.io/github/v/release/crandler/CoverAutomatic?label=Release" alt="Latest release"></a>
+  <a href="https://github.com/crandler/CoverAutomatic/actions/workflows/ci.yml"><img src="https://github.com/crandler/CoverAutomatic/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/crandler/CoverAutomatic" alt="License"></a>
+  <img src="https://img.shields.io/badge/Home%20Assistant-2026.3%2B-03a9f4?logo=homeassistant&logoColor=white" alt="Home Assistant 2026.3+">
+</p>
+
 ---
 
 > **DEVELOPMENT VERSION - USE AT YOUR OWN RISK**
@@ -106,6 +114,8 @@ The integration ships with a custom sidebar panel that replaces the traditional 
 ## Installation
 
 ### Method 1: HACS (Recommended)
+
+[![Open your Home Assistant instance and open this repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=crandler&repository=CoverAutomatic&category=integration)
 
 #### Step 1: Add Custom Repository
 
