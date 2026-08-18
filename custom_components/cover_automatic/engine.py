@@ -173,6 +173,10 @@ class RuleEngine:
                     return self._eval_time_before_sun_event(condition, get_sunset_time)
                 case ConditionType.STATE_IS:
                     return self._eval_state_is(condition)
+                case ConditionType.NUMERIC_STATE:
+                    return self._eval_numeric_state(
+                        condition, update_state=update_state
+                    )
                 case ConditionType.TEMPERATURE_COMFORT:
                     return self._eval_temp_comfort(condition, cover)
                 case ConditionType.WEATHER_IS:
@@ -228,6 +232,9 @@ class RuleEngine:
             ConditionType.TIME_AFTER_SUNSET, ConditionType.TIME_BEFORE_SUNSET,
         ):
             return self._preview_sun_time(condition), "sun_time"
+        if t == ConditionType.NUMERIC_STATE:
+            entity_id = condition.params.get("entity_id") or condition.params.get("entity")
+            return self._read_float_state(entity_id), "numeric"
         if t == ConditionType.STATE_IS:
             entity_id = condition.params.get("entity_id") or condition.params.get("entity")
             return self._read_state(entity_id), "state"
@@ -455,16 +462,37 @@ class RuleEngine:
         except (ValueError, TypeError):
             return False
 
+        return self._threshold_with_hysteresis(
+            sensor_id, temp, threshold, above=above, update_state=update_state,
+        )
+
+    def _threshold_with_hysteresis(
+        self,
+        sensor_id: str,
+        value: float,
+        threshold: float,
+        *,
+        above: bool,
+        update_state: bool,
+        hysteresis: float | None = None,
+    ) -> bool:
+        """Compare value against threshold with a hysteresis deadband.
+
+        State is keyed by (sensor_id, threshold, above) so it survives rule
+        edits and is shared by conditions using the identical threshold.
+        hysteresis=None falls back to the global setting (degrees) -- callers
+        working in other units must pass their own value.
+        """
         key = (sensor_id, threshold, above)
         prev = self._threshold_states.get(key)
-        h = self.storage.threshold_hysteresis
+        h = self.storage.threshold_hysteresis if hysteresis is None else hysteresis
 
         if prev is None or h <= 0:
-            result = temp > threshold if above else temp < threshold
+            result = value > threshold if above else value < threshold
         elif above:
-            result = temp > (threshold - h) if prev else temp > (threshold + h)
+            result = value > (threshold - h) if prev else value > (threshold + h)
         else:
-            result = temp < (threshold + h) if prev else temp < (threshold - h)
+            result = value < (threshold + h) if prev else value < (threshold - h)
 
         if update_state:
             self._threshold_states[key] = result
@@ -542,6 +570,38 @@ class RuleEngine:
             return False
 
         return state.state == str(expected_state)
+
+    def _eval_numeric_state(
+        self, condition: Condition, *, update_state: bool = True
+    ) -> bool:
+        """Evaluate numeric_state condition.
+
+        Compares any numeric entity (illuminance, humidity, power, price)
+        against a value. Unlike temperature_above/below the deadband is not
+        the global degree-based setting -- the sensor's unit is unknown, so
+        the buffer comes from the condition itself (0 = off).
+        """
+        entity_id = condition.params.get("entity_id") or condition.params.get("entity")
+        raw_value = condition.params.get("value")
+        if not entity_id or raw_value is None:
+            return False
+
+        state = self.hass.states.get(entity_id)
+        if state is None:
+            return False
+
+        try:
+            current = float(state.state)
+            threshold = float(raw_value)
+            hysteresis = float(condition.params.get("hysteresis") or 0)
+        except (ValueError, TypeError):
+            return False
+
+        above = str(condition.params.get("operator", "above")) != "below"
+        return self._threshold_with_hysteresis(
+            entity_id, current, threshold,
+            above=above, update_state=update_state, hysteresis=hysteresis,
+        )
 
     def _eval_temp_comfort(self, condition: Condition, cover: CoverConfig) -> bool:
         """Evaluate temperature_comfort condition.

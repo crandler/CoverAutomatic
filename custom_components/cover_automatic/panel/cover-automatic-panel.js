@@ -155,6 +155,7 @@ const I18N = {
     cond_time_before_sunrise: "Time before sunrise",
     cond_time_before_sunset: "Time before sunset",
     cond_state_is: "State is",
+    cond_numeric_state: "Numeric value",
     cond_weather_is: "Weather is",
     cond_day_of_week: "Day of week",
     cond_workday: "Workday sensor",
@@ -167,6 +168,11 @@ const I18N = {
     param_entity_id: "Entity ID",
     param_entity_search: "Search name or entity ID…",
     param_state: "State",
+    param_operator: "Comparison",
+    param_value: "Value",
+    param_hysteresis: "Buffer",
+    opt_above: "above",
+    opt_below: "below",
     param_weather: "Weather condition",
     param_mode: "Mode",
     param_days: "Days",
@@ -414,6 +420,7 @@ const I18N = {
     cond_time_before_sunrise: "Zeit vor Sonnenaufgang",
     cond_time_before_sunset: "Zeit vor Sonnenuntergang",
     cond_state_is: "Status ist",
+    cond_numeric_state: "Zahlenwert",
     cond_weather_is: "Wetter ist",
     cond_day_of_week: "Wochentag",
     cond_workday: "Arbeitstag-Sensor",
@@ -425,6 +432,11 @@ const I18N = {
     param_entity_id: "Entity-ID",
     param_entity_search: "Name oder Entity-ID suchen…",
     param_state: "Status",
+    param_operator: "Vergleich",
+    param_value: "Wert",
+    param_hysteresis: "Puffer",
+    opt_above: "über",
+    opt_below: "unter",
     param_weather: "Wetterbedingung",
     param_mode: "Modus",
     param_days: "Tage",
@@ -559,7 +571,7 @@ const CONDITION_TYPES = [
   "temperature_above", "temperature_below", "temperature_comfort",
   "time_between", "time_after_sunrise", "time_after_sunset",
   "time_before_sunrise", "time_before_sunset",
-  "state_is", "weather_is", "day_of_week", "workday"
+  "state_is", "numeric_state", "weather_is", "day_of_week", "workday"
 ];
 
 const CONDITION_PARAMS = {
@@ -580,6 +592,12 @@ const CONDITION_PARAMS = {
   state_is: [
     { key: "entity_id", type: "entity", default: "" },
     { key: "state", type: "text", default: "on" }
+  ],
+  numeric_state: [
+    { key: "entity_id", type: "entity", default: "" },
+    { key: "operator", type: "select", options: ["above", "below"], default: "above" },
+    { key: "value", type: "number", default: 0 },
+    { key: "hysteresis", type: "number", default: 0, step: 0.1 }
   ],
   weather_is: [{ key: "weather", type: "multiselect", options: ["sunny", "cloudy", "partlycloudy", "rainy", "snowy", "windy", "fog", "clear-night"], default: ["sunny"] }],
   day_of_week: [{ key: "days", type: "dayselect", default: ["mon","tue","wed","thu","fri"] }],

@@ -35,6 +35,7 @@ class ConditionType(StrEnum):
     TIME_BEFORE_SUNRISE = "time_before_sunrise"
     TIME_BEFORE_SUNSET = "time_before_sunset"
     STATE_IS = "state_is"
+    NUMERIC_STATE = "numeric_state"
     WEATHER_IS = "weather_is"
     DAY_OF_WEEK = "day_of_week"
     WORKDAY = "workday"

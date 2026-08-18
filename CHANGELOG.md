@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.60.0] - 2026-08-18
+
+### Added
+
+- New rule condition `numeric_state`: compares any numeric entity against a value with an `above` / `below` operator. Covers illuminance, humidity, power, energy price and anything else the existing `state_is` condition could not express, since that one compares state text literally. Includes an optional per-condition buffer (deadband, default 0) -- the global threshold buffer stays temperature-only because it is expressed in degrees and would be meaningless in lux or watts.
+
 ## [1.59.0] - 2026-08-18
 
 ### Added

@@ -2003,3 +2003,99 @@ class TestThresholdHysteresis:
         engine.preview_condition(self._cond())
 
         assert engine._threshold_states == {}
+
+
+class TestNumericState:
+    """Tests for the numeric_state condition."""
+
+    @staticmethod
+    def _cond(value=1000, operator="above", hysteresis=0) -> Condition:
+        return Condition(
+            type=ConditionType.NUMERIC_STATE,
+            params={
+                "entity_id": "sensor.illumination",
+                "operator": operator,
+                "value": value,
+                "hysteresis": hysteresis,
+            },
+        )
+
+    def test_above_matches(self, engine, mock_hass) -> None:
+        """A reading above the value matches."""
+        mock_hass.states.get.return_value = MockState("1500")
+        assert engine._eval_numeric_state(self._cond()) is True
+
+    def test_above_does_not_match_below_value(self, engine, mock_hass) -> None:
+        """A reading below the value does not match."""
+        mock_hass.states.get.return_value = MockState("800")
+        assert engine._eval_numeric_state(self._cond()) is False
+
+    def test_below_operator_is_mirrored(self, engine, mock_hass) -> None:
+        """operator=below inverts the comparison."""
+        mock_hass.states.get.return_value = MockState("800")
+        assert engine._eval_numeric_state(self._cond(operator="below")) is True
+
+        mock_hass.states.get.return_value = MockState("1500")
+        assert engine._eval_numeric_state(self._cond(operator="below")) is False
+
+    def test_non_numeric_state_is_false(self, engine, mock_hass) -> None:
+        """unavailable/unknown must not be treated as a number."""
+        mock_hass.states.get.return_value = MockState("unavailable")
+        assert engine._eval_numeric_state(self._cond()) is False
+
+    def test_missing_entity_is_false(self, engine, mock_hass) -> None:
+        """A condition without entity never matches."""
+        mock_hass.states.get.return_value = MockState("1500")
+        condition = Condition(
+            type=ConditionType.NUMERIC_STATE, params={"value": 1000}
+        )
+        assert engine._eval_numeric_state(condition) is False
+
+    def test_unknown_entity_is_false(self, engine, mock_hass) -> None:
+        """A missing state object never matches."""
+        mock_hass.states.get.return_value = None
+        assert engine._eval_numeric_state(self._cond()) is False
+
+    def test_per_condition_hysteresis_holds_value(self, engine, mock_hass) -> None:
+        """The condition's own buffer creates a deadband in sensor units."""
+        cond = self._cond(hysteresis=200)
+        mock_hass.states.get.return_value = MockState("1300")
+        assert engine._eval_numeric_state(cond) is True
+
+        mock_hass.states.get.return_value = MockState("900")
+        assert engine._eval_numeric_state(cond) is True
+
+        mock_hass.states.get.return_value = MockState("700")
+        assert engine._eval_numeric_state(cond) is False
+
+    def test_global_temperature_buffer_does_not_apply(self, engine, mock_hass, mock_storage) -> None:
+        """The Kelvin-based global buffer must not leak into sensor units."""
+        mock_storage.threshold_hysteresis = 0.5
+        cond = self._cond(hysteresis=0)
+        mock_hass.states.get.return_value = MockState("1500")
+        assert engine._eval_numeric_state(cond) is True
+
+        mock_hass.states.get.return_value = MockState("999")
+        assert engine._eval_numeric_state(cond) is False
+
+    def test_dispatched_from_evaluate_condition(self, engine, mock_hass) -> None:
+        """The type is wired into the condition dispatcher."""
+        mock_hass.states.get.return_value = MockState("1500")
+        assert engine._evaluate_condition(self._cond(), None) is True
+
+    def test_preview_reports_actual_reading(self, engine, mock_hass) -> None:
+        """The rule editor preview shows the raw sensor value."""
+        mock_hass.states.get.return_value = MockState("1500")
+        result = engine.preview_condition(self._cond())
+
+        assert result["evaluable"] is True
+        assert result["matched"] is True
+        assert result["actual"] == 1500.0
+        assert result["kind"] == "numeric"
+
+    def test_preview_does_not_mutate_state(self, engine, mock_hass) -> None:
+        """Preview stays side-effect free for numeric_state too."""
+        mock_hass.states.get.return_value = MockState("1500")
+        engine.preview_condition(self._cond(hysteresis=200))
+
+        assert engine._threshold_states == {}
