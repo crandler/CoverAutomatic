@@ -49,10 +49,10 @@ class RuleEngine:
         self.storage = storage
         self._last_comfort_mode: dict[str, ComfortMode] = {}
         self._last_comfort_read: dict[str, float] = {}
-        # Hysteresis state for temperature_above/below, keyed by
-        # (sensor_id, threshold, above) so it survives rule edits and is
-        # shared by rules using the identical threshold.
-        self._threshold_states: dict[tuple[str, float, bool], bool] = {}
+        # Hysteresis state for threshold comparisons, keyed by
+        # (sensor_id, threshold, above, hysteresis) so it survives rule edits
+        # and is shared only by genuinely identical checks.
+        self._threshold_states: dict[tuple[str, float, bool, float], bool] = {}
 
     def evaluate_cover(self, cover: CoverConfig) -> CoverTarget | None:
         """Evaluate rules for a cover and return target position/tilt.
@@ -406,8 +406,14 @@ class RuleEngine:
         self._last_comfort_mode[cover.entity_id] = mode
         return mode
 
-    def _check_solar_intensity(self) -> bool:
-        """Check if solar intensity exceeds threshold for preemptive shading."""
+    def _check_solar_intensity(self, *, update_state: bool = True) -> bool:
+        """Check if solar intensity exceeds threshold for preemptive shading.
+
+        Applies solar_hysteresis as a deadband so a sensor drifting around the
+        threshold does not drop sun_on_facade on every reading. The buffer is
+        a separate setting because the sensor's unit is unknown (lx, W/m2),
+        which rules out the degree-based global threshold_hysteresis.
+        """
         sensor_id = self.storage.solar_sensor
         if not sensor_id:
             return False
@@ -418,9 +424,14 @@ class RuleEngine:
         if state is None or state.state in ("unavailable", "unknown"):
             return False
         try:
-            return float(state.state) > threshold
+            value = float(state.state)
         except (ValueError, TypeError):
             return False
+        return self._threshold_with_hysteresis(
+            sensor_id, value, float(threshold),
+            above=True, update_state=update_state,
+            hysteresis=self.storage.solar_hysteresis,
+        )
 
     def _eval_sun_elevation(self, condition: Condition, *, above: bool) -> bool:
         """Evaluate sun elevation above/below threshold."""
@@ -478,14 +489,17 @@ class RuleEngine:
     ) -> bool:
         """Compare value against threshold with a hysteresis deadband.
 
-        State is keyed by (sensor_id, threshold, above) so it survives rule
-        edits and is shared by conditions using the identical threshold.
+        State is keyed by (sensor_id, threshold, above, h) so it survives rule
+        edits and is shared by conditions that are truly identical. The buffer
+        belongs in the key: the same entity may back both solar_sensor and a
+        numeric_state condition on the same threshold but with different
+        buffers, and a shared bool would let them overwrite each other.
         hysteresis=None falls back to the global setting (degrees) -- callers
         working in other units must pass their own value.
         """
-        key = (sensor_id, threshold, above)
-        prev = self._threshold_states.get(key)
         h = self.storage.threshold_hysteresis if hysteresis is None else hysteresis
+        key = (sensor_id, threshold, above, h)
+        prev = self._threshold_states.get(key)
 
         if prev is None or h <= 0:
             result = value > threshold if above else value < threshold

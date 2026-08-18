@@ -245,6 +245,8 @@ const I18N = {
     settings_solar_sensor: "Solar intensity sensor",
     settings_solar_threshold: "Solar intensity threshold",
     settings_solar_threshold_hint: "Shading starts within the comfort zone when this value is exceeded.",
+    settings_solar_hysteresis: "Threshold buffer",
+    settings_solar_hysteresis_hint: "Deadband in the sensor's own unit. Shading starts above threshold + buffer and stops only below threshold - buffer, so a sensor drifting around the threshold does not toggle shading on every reading. 0 disables the buffer.",
     settings_solar_short: "Solar:",
     status_auto: "Auto",
     status_paused: "Paused",
@@ -507,6 +509,8 @@ const I18N = {
     settings_solar_sensor: "Solarintensit\u00E4ts-Sensor",
     settings_solar_threshold: "Solarintensit\u00E4ts-Schwellwert",
     settings_solar_threshold_hint: "Beschattung beginnt innerhalb der Komfortzone, wenn dieser Wert \u00FCberschritten wird.",
+    settings_solar_hysteresis: "Schwellwert-Puffer",
+    settings_solar_hysteresis_hint: "Totband in der Einheit des Sensors. Die Beschattung startet erst oberhalb von Schwelle + Puffer und endet erst unterhalb von Schwelle - Puffer. So schaltet ein um die Schwelle schwankender Sensor die Beschattung nicht bei jedem Messwert um. 0 schaltet den Puffer ab.",
     settings_solar_short: "Solar:",
     status_auto: "Auto",
     status_paused: "Pausiert",
@@ -3983,10 +3987,17 @@ class CoverAutomaticPanel extends HTMLElement {
           ${this._renderEntitySelect("solar_sensor", s.solar_sensor, "sensor")}
           ${this._renderSensorValue(s.solar_sensor)}
         </div>
-        <div class="form-group">
-          <label>${this._t("settings_solar_threshold")}</label>
-          <input type="number" step="100" min="0" value="${this._num(s.solar_threshold, 0)}" data-settings-field="solar_threshold">
-          ${hint(this._t("settings_solar_threshold_hint"))}
+        <div class="form-row">
+          <div class="form-group">
+            <label>${this._t("settings_solar_threshold")}</label>
+            <input type="number" step="100" min="0" value="${this._num(s.solar_threshold, 0)}" data-settings-field="solar_threshold">
+            ${hint(this._t("settings_solar_threshold_hint"))}
+          </div>
+          <div class="form-group">
+            <label>${this._t("settings_solar_hysteresis")}</label>
+            <input type="number" step="100" min="0" value="${this._num(s.solar_hysteresis, 0)}" data-settings-field="solar_hysteresis">
+            ${hint(this._t("settings_solar_hysteresis_hint"))}
+          </div>
         </div>
       </div>
     </div>`;

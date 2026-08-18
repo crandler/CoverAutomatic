@@ -46,6 +46,7 @@ def _make_storage(
     wind_speed_hysteresis: float = 0.0,
     solar_sensor: str | None = None,
     solar_threshold: float = 0.0,
+    solar_hysteresis: float = 0.0,
 ) -> MagicMock:
     """Create a mock storage object."""
     storage = MagicMock()
@@ -67,6 +68,7 @@ def _make_storage(
     storage.wind_speed_hysteresis = wind_speed_hysteresis
     storage.solar_sensor = solar_sensor
     storage.solar_threshold = solar_threshold
+    storage.solar_hysteresis = solar_hysteresis
     storage.lock_tilt_position = None
     storage.vent_tilt_position = None
     storage.command_stagger = 0.0
@@ -276,6 +278,16 @@ class TestBuildConfigResponse:
         storage = _make_storage()
         result = _build_config_response(storage)
         assert result["settings"]["comfort_hysteresis"] == 1.0
+
+    def test_solar_hysteresis_in_response(self) -> None:
+        storage = _make_storage(solar_hysteresis=2000.0)
+        result = _build_config_response(storage)
+        assert result["settings"]["solar_hysteresis"] == 2000.0
+
+    def test_solar_hysteresis_default(self) -> None:
+        storage = _make_storage()
+        result = _build_config_response(storage)
+        assert result["settings"]["solar_hysteresis"] == 0.0
 
     def test_threshold_hysteresis_in_response(self) -> None:
         storage = _make_storage(threshold_hysteresis=0.3)

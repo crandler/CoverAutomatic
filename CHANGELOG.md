@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.61.0] - 2026-08-18
+
+### Added
+
+- Hysteresis for preemptive shading. New setting "Threshold buffer" next to the solar threshold (Settings -> Solar, default 0 = off). Shading now starts above threshold + buffer and stops only below threshold - buffer, so a solar sensor drifting around the threshold no longer toggles `sun_on_facade` on every reading while a room sits in the NEUTRAL comfort band. The buffer is a separate setting because the sensor's unit is unknown -- the global threshold buffer is in degrees.
+
+### Fixed
+
+- Hysteresis state was keyed by `(sensor, threshold, direction)` only. One entity backing both `solar_sensor` and a `numeric_state` condition on the same threshold but with different buffers made the two overwrite each other's state, which could cancel out either deadband. The buffer is now part of the key.
+
 ## [1.60.0] - 2026-08-18
 
 ### Added

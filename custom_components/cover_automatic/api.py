@@ -47,7 +47,7 @@ _SETTINGS_FIELDS = (
     "workday_sensor",
     "wind_sensor", "wind_speed_threshold", "wind_speed_hysteresis",
     "command_stagger",
-    "solar_sensor", "solar_threshold",
+    "solar_sensor", "solar_threshold", "solar_hysteresis",
     "logbook_enabled", "update_check_enabled",
 )
 
@@ -125,6 +125,7 @@ def _build_config_response(
             "command_stagger": storage.command_stagger,
             "solar_sensor": storage.solar_sensor,
             "solar_threshold": storage.solar_threshold,
+            "solar_hysteresis": storage.solar_hysteresis,
             "logbook_enabled": storage.logbook_enabled,
             "update_check_enabled": storage.update_check_enabled,
         },
@@ -953,6 +954,7 @@ def async_setup_api(
                 vol.Optional("command_stagger"): vol.All(vol.Coerce(float), vol.Range(min=0, max=2.0)),
                 vol.Optional("solar_sensor"): vol.Any(str, None),
                 vol.Optional("solar_threshold"): vol.All(vol.Coerce(float), vol.Range(min=0)),
+                vol.Optional("solar_hysteresis"): vol.All(vol.Coerce(float), vol.Range(min=0)),
                 vol.Optional("logbook_enabled"): bool,
                 vol.Optional("update_check_enabled"): bool,
             },

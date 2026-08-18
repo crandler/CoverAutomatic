@@ -354,6 +354,16 @@ class CoverAutomaticStorage:
         self._data["solar_threshold"] = float(value)
 
     @property
+    def solar_hysteresis(self) -> float:
+        """Get deadband for the preemptive-shading solar threshold."""
+        return self._data.get("solar_hysteresis", 0.0)
+
+    @solar_hysteresis.setter
+    def solar_hysteresis(self, value: float) -> None:
+        """Set deadband for the preemptive-shading solar threshold."""
+        self._data["solar_hysteresis"] = float(value)
+
+    @property
     def house_rotation(self) -> float:
         """Get global house rotation offset in degrees."""
         return self._data.get("house_rotation", 0.0)
@@ -562,6 +572,7 @@ class CoverAutomaticStorage:
             "wind_speed_hysteresis",
             "solar_sensor",
             "solar_threshold",
+            "solar_hysteresis",
             "command_stagger",
             "logbook_enabled",
         )

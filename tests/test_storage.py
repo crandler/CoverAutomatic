@@ -711,6 +711,7 @@ class TestImportGlobalSettings:
             "house_rotation": 12.5,
             "comfort_hysteresis": 2.0,
             "threshold_hysteresis": 0.3,
+            "solar_hysteresis": 2000.0,
             "command_stagger": 0.4,
             "logbook_enabled": False,
         }
@@ -732,6 +733,7 @@ class TestImportGlobalSettings:
         assert storage._data["house_rotation"] == 12.5
         assert storage._data["comfort_hysteresis"] == 2.0
         assert storage._data["threshold_hysteresis"] == 0.3
+        assert storage._data["solar_hysteresis"] == 2000.0
         assert storage._data["command_stagger"] == 0.4
         assert storage._data["logbook_enabled"] is False
 
@@ -1067,3 +1069,18 @@ class TestThresholdHysteresisSetting:
         storage._data = {}
         storage.threshold_hysteresis = 0
         assert storage.threshold_hysteresis == 0.0
+
+
+class TestSolarHysteresisSetting:
+    """Tests for the solar_hysteresis global setting."""
+
+    def test_default_is_off(self, storage) -> None:
+        """Unset storage keeps the previous plain-comparison behaviour."""
+        storage._data = {}
+        assert storage.solar_hysteresis == 0.0
+
+    def test_setter_coerces_to_float(self, storage) -> None:
+        """Values arriving as strings are stored as float."""
+        storage._data = {}
+        storage.solar_hysteresis = "2000"
+        assert storage._data["solar_hysteresis"] == 2000.0

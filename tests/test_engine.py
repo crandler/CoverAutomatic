@@ -55,6 +55,7 @@ def mock_storage():
     storage.threshold_hysteresis = 0.5
     storage.solar_sensor = None
     storage.solar_threshold = 0.0
+    storage.solar_hysteresis = 0.0
     return storage
 
 
@@ -2099,3 +2100,92 @@ class TestNumericState:
         engine.preview_condition(self._cond(hysteresis=200))
 
         assert engine._threshold_states == {}
+
+
+class TestSolarHysteresis:
+    """Tests for hysteresis on the preemptive-shading solar check."""
+
+    @staticmethod
+    def _setup(engine, mock_storage, value: str, hysteresis: float = 2000.0):
+        mock_storage.solar_sensor = "sensor.illumination"
+        mock_storage.solar_threshold = 8000.0
+        mock_storage.solar_hysteresis = hysteresis
+        state = MagicMock()
+        state.state = value
+        engine.hass.states.get = lambda eid: state
+
+    def test_stays_true_inside_band(self, engine, mock_storage) -> None:
+        """Once shading, a dip above threshold - h keeps the check true."""
+        self._setup(engine, mock_storage, "9000")
+        assert engine._check_solar_intensity() is True
+
+        self._setup(engine, mock_storage, "7000")
+        assert engine._check_solar_intensity() is True
+
+        self._setup(engine, mock_storage, "5500")
+        assert engine._check_solar_intensity() is False
+
+    def test_entering_requires_upper_band(self, engine, mock_storage) -> None:
+        """From false, the check turns true only above threshold + h."""
+        self._setup(engine, mock_storage, "5000")
+        assert engine._check_solar_intensity() is False
+
+        self._setup(engine, mock_storage, "9500")
+        assert engine._check_solar_intensity() is False
+
+        self._setup(engine, mock_storage, "10500")
+        assert engine._check_solar_intensity() is True
+
+    def test_zero_hysteresis_keeps_legacy_behaviour(self, engine, mock_storage) -> None:
+        """Default 0 must behave exactly like the previous plain comparison."""
+        self._setup(engine, mock_storage, "9000", hysteresis=0.0)
+        assert engine._check_solar_intensity() is True
+
+        self._setup(engine, mock_storage, "7500", hysteresis=0.0)
+        assert engine._check_solar_intensity() is False
+
+    def test_threshold_zero_disables_check(self, engine, mock_storage) -> None:
+        """A threshold of 0 keeps preemptive shading off entirely."""
+        self._setup(engine, mock_storage, "50000")
+        mock_storage.solar_threshold = 0.0
+        assert engine._check_solar_intensity() is False
+
+    def test_unavailable_sensor_is_false(self, engine, mock_storage) -> None:
+        """An unavailable sensor must not shade."""
+        self._setup(engine, mock_storage, "unavailable")
+        assert engine._check_solar_intensity() is False
+
+    def test_state_is_isolated_from_condition_with_same_threshold(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """Same sensor and threshold but a different buffer must not share state.
+
+        Reusing one entity as both solar_sensor and a numeric_state condition
+        is the expected setup, and both may carry different buffers.
+        """
+        mock_storage.solar_sensor = "sensor.illumination"
+        mock_storage.solar_threshold = 8000.0
+        mock_storage.solar_hysteresis = 0.0
+
+        condition = Condition(
+            type=ConditionType.NUMERIC_STATE,
+            params={
+                "entity_id": "sensor.illumination",
+                "operator": "above",
+                "value": 8000,
+                "hysteresis": 2000,
+            },
+        )
+
+        state = MagicMock()
+        state.state = "9000"
+        engine.hass.states.get = lambda eid: state
+        assert engine._eval_numeric_state(condition) is True
+        assert engine._check_solar_intensity() is True
+
+        # 7000: inside the condition's band (stays true), below the solar
+        # check's hard threshold (turns false). Neither may overwrite the other.
+        state.state = "7000"
+        assert engine._eval_numeric_state(condition) is True
+        assert engine._check_solar_intensity() is False
+        assert engine._eval_numeric_state(condition) is True
