@@ -710,6 +710,7 @@ class TestImportGlobalSettings:
             "min_time_between_changes": 600,
             "house_rotation": 12.5,
             "comfort_hysteresis": 2.0,
+            "threshold_hysteresis": 0.3,
             "command_stagger": 0.4,
             "logbook_enabled": False,
         }
@@ -730,6 +731,7 @@ class TestImportGlobalSettings:
         assert storage._data["min_time_between_changes"] == 600
         assert storage._data["house_rotation"] == 12.5
         assert storage._data["comfort_hysteresis"] == 2.0
+        assert storage._data["threshold_hysteresis"] == 0.3
         assert storage._data["command_stagger"] == 0.4
         assert storage._data["logbook_enabled"] is False
 
@@ -1044,3 +1046,24 @@ class TestActivityLogStorage:
 
         assert log._save_task is None
         mock_store.async_save.assert_called_once()
+
+
+class TestThresholdHysteresisSetting:
+    """Tests for the threshold_hysteresis global setting."""
+
+    def test_default_is_half_a_degree(self, storage) -> None:
+        """Unset storage falls back to the shipped default."""
+        storage._data = {}
+        assert storage.threshold_hysteresis == 0.5
+
+    def test_setter_coerces_to_float(self, storage) -> None:
+        """Values arriving as strings are stored as float."""
+        storage._data = {}
+        storage.threshold_hysteresis = "1.5"
+        assert storage._data["threshold_hysteresis"] == 1.5
+
+    def test_zero_is_preserved(self, storage) -> None:
+        """0 disables the deadband and must not fall back to the default."""
+        storage._data = {}
+        storage.threshold_hysteresis = 0
+        assert storage.threshold_hysteresis == 0.0

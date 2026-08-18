@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.59.0] - 2026-08-18
+
+### Added
+
+- Hysteresis for the `temperature above` / `temperature below` rule conditions. New global setting "Threshold buffer" (Settings -> Comfort, default 0.5). A condition now turns true only above threshold + buffer and false only below threshold - buffer, so a sensor lingering at the threshold no longer flips the rule on every reading. Set to 0 to restore the previous plain comparison.
+
+### Fixed
+
+- Covers moved repeatedly when the outdoor temperature hovered at a condition threshold: each reading crossing the exact value swapped the winning rule, and a rule change bypasses `min_time_between_changes` by design, so every flip moved the cover immediately.
+
 ## [1.58.0] - 2026-08-12
 
 ### Added

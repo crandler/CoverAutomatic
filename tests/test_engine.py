@@ -52,6 +52,7 @@ def mock_storage():
     storage.comfort_temp_min = 21.0
     storage.comfort_temp_max = 25.0
     storage.comfort_hysteresis = 1.0
+    storage.threshold_hysteresis = 0.5
     storage.solar_sensor = None
     storage.solar_threshold = 0.0
     return storage
@@ -1909,3 +1910,96 @@ class TestPreviewCondition:
         assert result["matched"] is True
         assert result["actual"] == 23.5
         assert result["kind"] == "elevation"
+
+
+class TestThresholdHysteresis:
+    """Tests for temperature threshold hysteresis (deadband)."""
+
+    @staticmethod
+    def _cond(threshold: float = 19.0) -> Condition:
+        return Condition(
+            type=ConditionType.TEMPERATURE_ABOVE,
+            params={"sensor": "sensor.outdoor", "temperature": threshold},
+        )
+
+    def test_stays_true_when_reading_dips_inside_band(self, engine, mock_hass) -> None:
+        """Regression: a dip inside the deadband must not flip the condition.
+
+        Real-world series from an outdoor sensor hovering at the threshold:
+        19.1 -> 19.0 -> 19.1 flipped the rule twice and moved every cover.
+        """
+        readings = ["19.1", "19.0", "19.1"]
+        results = []
+        for value in readings:
+            mock_hass.states.get.return_value = MockState(value)
+            results.append(engine._eval_temp_threshold(self._cond(), above=True))
+
+        assert results == [True, True, True]
+
+    def test_entering_requires_upper_band(self, engine, mock_hass) -> None:
+        """From false, the condition turns true only above threshold + h."""
+        mock_hass.states.get.return_value = MockState("18.0")
+        assert engine._eval_temp_threshold(self._cond(), above=True) is False
+
+        mock_hass.states.get.return_value = MockState("19.3")
+        assert engine._eval_temp_threshold(self._cond(), above=True) is False
+
+        mock_hass.states.get.return_value = MockState("19.6")
+        assert engine._eval_temp_threshold(self._cond(), above=True) is True
+
+    def test_leaving_requires_lower_band(self, engine, mock_hass) -> None:
+        """From true, the condition turns false only below threshold - h."""
+        mock_hass.states.get.return_value = MockState("20.0")
+        assert engine._eval_temp_threshold(self._cond(), above=True) is True
+
+        mock_hass.states.get.return_value = MockState("18.7")
+        assert engine._eval_temp_threshold(self._cond(), above=True) is True
+
+        mock_hass.states.get.return_value = MockState("18.4")
+        assert engine._eval_temp_threshold(self._cond(), above=True) is False
+
+    def test_below_is_mirrored(self, engine, mock_hass) -> None:
+        """temperature_below applies the same band in the opposite direction."""
+        mock_hass.states.get.return_value = MockState("18.0")
+        assert engine._eval_temp_threshold(self._cond(), above=False) is True
+
+        mock_hass.states.get.return_value = MockState("19.3")
+        assert engine._eval_temp_threshold(self._cond(), above=False) is True
+
+        mock_hass.states.get.return_value = MockState("19.6")
+        assert engine._eval_temp_threshold(self._cond(), above=False) is False
+
+    def test_zero_hysteresis_keeps_legacy_behaviour(
+        self, engine, mock_hass, mock_storage
+    ) -> None:
+        """With h = 0 the evaluation stays a plain comparison."""
+        mock_storage.threshold_hysteresis = 0.0
+        readings = ["19.1", "19.0", "19.1"]
+        results = []
+        for value in readings:
+            mock_hass.states.get.return_value = MockState(value)
+            results.append(engine._eval_temp_threshold(self._cond(), above=True))
+
+        assert results == [True, False, True]
+
+    def test_state_is_keyed_per_sensor_and_threshold(self, engine, mock_hass) -> None:
+        """Different thresholds keep independent hysteresis state."""
+        mock_hass.states.get.return_value = MockState("19.1")
+        assert engine._eval_temp_threshold(self._cond(19.0), above=True) is True
+        # A different threshold starts cold and uses the hard boundary
+        assert engine._eval_temp_threshold(self._cond(25.0), above=True) is False
+
+        mock_hass.states.get.return_value = MockState("19.0")
+        assert engine._eval_temp_threshold(self._cond(19.0), above=True) is True
+
+    def test_first_evaluation_uses_hard_boundary(self, engine, mock_hass) -> None:
+        """After a restart there is no prior state, so no band is applied."""
+        mock_hass.states.get.return_value = MockState("19.1")
+        assert engine._eval_temp_threshold(self._cond(), above=True) is True
+
+    def test_preview_does_not_mutate_state(self, engine, mock_hass) -> None:
+        """The rule editor preview must stay side-effect free."""
+        mock_hass.states.get.return_value = MockState("19.1")
+        engine.preview_condition(self._cond())
+
+        assert engine._threshold_states == {}

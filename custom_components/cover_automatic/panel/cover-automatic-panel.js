@@ -196,6 +196,8 @@ const I18N = {
     settings_comfort_hint: "Defines the comfort range. Below min = heating mode (shading off, use solar heat). Above max = cooling mode (shading active). Between = neutral (keep current position).",
     settings_comfort_hysteresis: "Hysteresis",
     settings_comfort_hysteresis_hint: "Temperature buffer at comfort boundaries to prevent oscillation between modes (e.g. 1.0 = mode only changes 1 degree past threshold).",
+    settings_threshold_hysteresis: "Threshold buffer",
+    settings_threshold_hysteresis_hint: "Deadband for the rule conditions \"temperature above/below\". A condition turns true only above threshold + buffer and false only below threshold - buffer, so an outdoor sensor lingering at the threshold no longer flips the rule with every reading. 0 disables the buffer.",
     settings_house_rotation: "House rotation (degrees)",
     settings_house_rotation_hint: "Offset from true north (-180 to 180, positive = clockwise). Applied automatically when selecting a facade direction. Drag the house in the compass, hold Shift to snap to 45°.",
     settings_house_rotation_reset: "Reset",
@@ -450,6 +452,8 @@ const I18N = {
     settings_comfort_hint: "Definiert den Komfortbereich. Unter min = Heizmodus (keine Beschattung, Sonnenwärme nutzen). Über max = Kühlmodus (Beschattung aktiv). Dazwischen = Neutral (Position beibehalten).",
     settings_comfort_hysteresis: "Hysterese",
     settings_comfort_hysteresis_hint: "Temperaturpuffer an Komfortgrenzen, um Pendeln zwischen Modi zu verhindern (z. B. 1,0 = Moduswechsel erst 1 Grad jenseits des Schwellwerts).",
+    settings_threshold_hysteresis: "Schwellwert-Puffer",
+    settings_threshold_hysteresis_hint: "Totband für die Regelbedingungen \"Temperatur über/unter\". Eine Bedingung wird erst oberhalb von Schwelle + Puffer wahr und erst unterhalb von Schwelle - Puffer falsch. So kippt eine Regel nicht mehr bei jedem Messwert, wenn der Außensensor an der Schwelle verweilt. 0 schaltet den Puffer ab.",
     settings_house_rotation: "Hausrotation (Grad)",
     settings_house_rotation_hint: "Abweichung von exakt Nord (-180 bis 180, positiv = im Uhrzeigersinn). Wird automatisch bei der Fassaden-Richtungswahl angewendet. Haus im Kompass ziehen, mit Shift auf 45° einrasten.",
     settings_house_rotation_reset: "Zurücksetzen",
@@ -3909,10 +3913,17 @@ class CoverAutomaticPanel extends HTMLElement {
             <input type="number" step="0.5" value="${this._num(s.comfort_temp_max, 25)}" data-settings-field="comfort_temp_max">
           </div>
         </div>
-        <div class="form-group">
-          <label>${this._t("settings_comfort_hysteresis")}</label>
-          <input type="number" step="0.1" min="0.1" max="5" value="${this._num(s.comfort_hysteresis, 1)}" data-settings-field="comfort_hysteresis">
-          ${hint(this._t("settings_comfort_hysteresis_hint"))}
+        <div class="form-row">
+          <div class="form-group">
+            <label>${this._t("settings_comfort_hysteresis")}</label>
+            <input type="number" step="0.1" min="0.1" max="5" value="${this._num(s.comfort_hysteresis, 1)}" data-settings-field="comfort_hysteresis">
+            ${hint(this._t("settings_comfort_hysteresis_hint"))}
+          </div>
+          <div class="form-group">
+            <label>${this._t("settings_threshold_hysteresis")}</label>
+            <input type="number" step="0.1" min="0" max="5" value="${this._num(s.threshold_hysteresis, 0.5)}" data-settings-field="threshold_hysteresis">
+            ${hint(this._t("settings_threshold_hysteresis_hint"))}
+          </div>
         </div>
       </div>
     </div>`;

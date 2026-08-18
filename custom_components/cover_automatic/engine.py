@@ -49,6 +49,10 @@ class RuleEngine:
         self.storage = storage
         self._last_comfort_mode: dict[str, ComfortMode] = {}
         self._last_comfort_read: dict[str, float] = {}
+        # Hysteresis state for temperature_above/below, keyed by
+        # (sensor_id, threshold, above) so it survives rule edits and is
+        # shared by rules using the identical threshold.
+        self._threshold_states: dict[tuple[str, float, bool], bool] = {}
 
     def evaluate_cover(self, cover: CoverConfig) -> CoverTarget | None:
         """Evaluate rules for a cover and return target position/tilt.
@@ -133,8 +137,14 @@ class RuleEngine:
             self._evaluate_condition(c, cover) for c in rule.conditions
         )
 
-    def _evaluate_condition(self, condition: Condition, cover: CoverConfig) -> bool:
-        """Evaluate a single condition."""
+    def _evaluate_condition(
+        self, condition: Condition, cover: CoverConfig, *, update_state: bool = True
+    ) -> bool:
+        """Evaluate a single condition.
+
+        update_state=False keeps threshold hysteresis state untouched, so the
+        rule editor's live preview cannot shift the runtime deadband.
+        """
         try:
             match condition.type:
                 case ConditionType.SUN_ON_FACADE:
@@ -144,9 +154,13 @@ class RuleEngine:
                 case ConditionType.SUN_ELEVATION_BELOW:
                     return self._eval_sun_elevation(condition, above=False)
                 case ConditionType.TEMPERATURE_ABOVE:
-                    return self._eval_temp_threshold(condition, above=True)
+                    return self._eval_temp_threshold(
+                        condition, above=True, update_state=update_state
+                    )
                 case ConditionType.TEMPERATURE_BELOW:
-                    return self._eval_temp_threshold(condition, above=False)
+                    return self._eval_temp_threshold(
+                        condition, above=False, update_state=update_state
+                    )
                 case ConditionType.TIME_BETWEEN:
                     return self._eval_time_between(condition)
                 case ConditionType.TIME_AFTER_SUNRISE:
@@ -189,7 +203,9 @@ class RuleEngine:
             return {"evaluable": False}
         try:
             # cover is unused for global condition types (filtered above)
-            matched = self._evaluate_condition(condition, None)  # type: ignore[arg-type]
+            matched = self._evaluate_condition(
+                condition, None, update_state=False,  # type: ignore[arg-type]
+            )
             actual, kind = self._preview_actual(condition)
             return {"evaluable": True, "matched": matched, "actual": actual, "kind": kind}
         except Exception as err:  # defensive: preview must never raise
@@ -408,8 +424,20 @@ class RuleEngine:
             return False
         return position[1] > threshold if above else position[1] < threshold
 
-    def _eval_temp_threshold(self, condition: Condition, *, above: bool) -> bool:
-        """Evaluate outdoor temperature above/below threshold."""
+    def _eval_temp_threshold(
+        self, condition: Condition, *, above: bool, update_state: bool = True
+    ) -> bool:
+        """Evaluate outdoor temperature above/below threshold.
+
+        Applies a hysteresis deadband around the threshold so a sensor
+        hovering at the boundary does not flip the rule on every reading:
+        - above: turns true above threshold + h, false below threshold - h
+        - below: mirrored
+
+        On first evaluation (no prior state, e.g. after a restart) the hard
+        boundary is used -- the band must not bias the initial reading in
+        either direction, same as _get_comfort_mode().
+        """
         sensor_id = condition.params.get("sensor") or self.storage.outdoor_temp_sensor
         temp_val = condition.params.get("temperature")
         threshold = temp_val if temp_val is not None else condition.params.get("value", 0)
@@ -423,9 +451,24 @@ class RuleEngine:
 
         try:
             temp = float(state.state)
-            return temp > threshold if above else temp < threshold
+            threshold = float(threshold)
         except (ValueError, TypeError):
             return False
+
+        key = (sensor_id, threshold, above)
+        prev = self._threshold_states.get(key)
+        h = self.storage.threshold_hysteresis
+
+        if prev is None or h <= 0:
+            result = temp > threshold if above else temp < threshold
+        elif above:
+            result = temp > (threshold - h) if prev else temp > (threshold + h)
+        else:
+            result = temp < (threshold + h) if prev else temp < (threshold - h)
+
+        if update_state:
+            self._threshold_states[key] = result
+        return result
 
     def _eval_time_between(self, condition: Condition) -> bool:
         """Evaluate time_between condition."""

@@ -40,6 +40,7 @@ def _make_storage(
     comfort_temp_min: float = 21.0,
     comfort_temp_max: float = 25.0,
     comfort_hysteresis: float = 1.0,
+    threshold_hysteresis: float = 0.5,
     wind_sensor: str | None = None,
     wind_speed_threshold: float = 0.0,
     wind_speed_hysteresis: float = 0.0,
@@ -60,6 +61,7 @@ def _make_storage(
     storage.comfort_temp_min = comfort_temp_min
     storage.comfort_temp_max = comfort_temp_max
     storage.comfort_hysteresis = comfort_hysteresis
+    storage.threshold_hysteresis = threshold_hysteresis
     storage.wind_sensor = wind_sensor
     storage.wind_speed_threshold = wind_speed_threshold
     storage.wind_speed_hysteresis = wind_speed_hysteresis
@@ -274,6 +276,16 @@ class TestBuildConfigResponse:
         storage = _make_storage()
         result = _build_config_response(storage)
         assert result["settings"]["comfort_hysteresis"] == 1.0
+
+    def test_threshold_hysteresis_in_response(self) -> None:
+        storage = _make_storage(threshold_hysteresis=0.3)
+        result = _build_config_response(storage)
+        assert result["settings"]["threshold_hysteresis"] == 0.3
+
+    def test_threshold_hysteresis_default(self) -> None:
+        storage = _make_storage()
+        result = _build_config_response(storage)
+        assert result["settings"]["threshold_hysteresis"] == 0.5
 
     def test_enabled_default_true(self) -> None:
         storage = _make_storage()

@@ -204,6 +204,16 @@ class CoverAutomaticStorage:
         self._data["comfort_hysteresis"] = float(value)
 
     @property
+    def threshold_hysteresis(self) -> float:
+        """Get deadband for temperature_above/below conditions."""
+        return self._data.get("threshold_hysteresis", 0.5)
+
+    @threshold_hysteresis.setter
+    def threshold_hysteresis(self, value: float) -> None:
+        """Set deadband for temperature_above/below conditions."""
+        self._data["threshold_hysteresis"] = float(value)
+
+    @property
     def enabled(self) -> bool:
         """Get global automation enabled state."""
         return self._data.get("enabled", True)
@@ -537,6 +547,7 @@ class CoverAutomaticStorage:
             "comfort_temp_min",
             "comfort_temp_max",
             "comfort_hysteresis",
+            "threshold_hysteresis",
             "pause_duration",
             "lock_position",
             "vent_position",
