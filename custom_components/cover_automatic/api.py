@@ -1,10 +1,8 @@
 """WebSocket API for CoverAutomatic config panel."""
 from __future__ import annotations
 
-import json
 import logging
 import re
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
@@ -14,8 +12,10 @@ from homeassistant.helpers import config_validation as cv
 from .const import DOMAIN, FACADE_PRESETS
 from .models import Condition, CoverConfig, Facade, Rule, Scenario
 
-_MANIFEST = json.loads((Path(__file__).parent / "manifest.json").read_text(encoding="utf-8"))
-_VERSION = _MANIFEST["version"]
+# Integration version shown in the panel. Set once by async_setup_api() from
+# the cached integration manifest -- reading manifest.json here would be a
+# blocking file read inside the event loop, which Home Assistant flags.
+_VERSION = "0"
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -765,8 +765,15 @@ def async_setup_api(
     hass: HomeAssistant,
     storage: CoverAutomaticStorage,
     coordinator: CoverAutomaticCoordinator,
+    version: str = "0",
 ) -> None:
-    """Register all WebSocket commands."""
+    """Register all WebSocket commands.
+
+    version comes from the integration manifest, resolved by the caller so no
+    file is read inside the event loop.
+    """
+    global _VERSION
+    _VERSION = version
 
     # Command definitions: (command_type, handler, extra_schema)
     commands: list[tuple[str, Any, dict[str, Any]]] = [

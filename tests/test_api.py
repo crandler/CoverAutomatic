@@ -1835,3 +1835,52 @@ class TestRulePreviewConditions:
 
         conn.send_error.assert_called_once()
         conn.send_result.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Version handling (no blocking manifest read at import time)
+# ---------------------------------------------------------------------------
+
+class TestVersionHandling:
+    """The panel version must not come from a blocking file read.
+
+    Home Assistant flags synchronous file I/O inside the event loop, so the
+    version is resolved once during setup (from the already-cached integration
+    manifest) and handed to the API instead of being read from disk.
+    """
+
+    def test_setup_stores_version_for_config_response(self) -> None:
+        from custom_components.cover_automatic import api as api_mod
+
+        previous = api_mod._VERSION
+        try:
+            hass = _make_hass()
+            storage = _make_storage()
+            coordinator = _make_coordinator()
+
+            from homeassistant.components import websocket_api as real_ws
+
+            with patch(
+                "custom_components.cover_automatic.api.websocket_api"
+            ) as mock_ws:
+                mock_ws.BASE_COMMAND_MESSAGE_SCHEMA = real_ws.BASE_COMMAND_MESSAGE_SCHEMA
+                async_setup_api(hass, storage, coordinator, version="9.9.9")
+
+            result = _build_config_response(storage)
+            assert result["version"] == "9.9.9"
+        finally:
+            api_mod._VERSION = previous
+
+    def test_module_does_no_file_io(self) -> None:
+        """No blocking file read may remain in the module.
+
+        Guards the regression directly: Home Assistant logs "Detected blocking
+        call to read_text ... inside the event loop" for exactly this pattern.
+        """
+        import inspect
+
+        from custom_components.cover_automatic import api as api_mod
+
+        source = inspect.getsource(api_mod)
+        assert "read_text(" not in source
+        assert "open(" not in source

@@ -1,7 +1,6 @@
 """CoverAutomatic integration for Home Assistant."""
 from __future__ import annotations
 
-import json
 import logging
 import pathlib
 from dataclasses import dataclass
@@ -14,6 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.loader import async_get_integration
 
 from .api import async_setup_api
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN
@@ -120,14 +120,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntr
 
     await async_setup_services(hass)
 
+    # Version for cache busting and the panel's version display. Taken from the
+    # integration object, whose manifest Home Assistant has already loaded and
+    # cached -- reading manifest.json here would be blocking I/O in the event loop.
+    integration = await async_get_integration(hass, DOMAIN)
+    panel_version = integration.manifest.get("version", "0")
+
     # Setup WebSocket API for config panel
-    async_setup_api(hass, storage, coordinator)
+    async_setup_api(hass, storage, coordinator, version=panel_version)
 
     # Register custom panel (version query for cache busting)
-    panel_dir = pathlib.Path(__file__).parent
-    panel_path = panel_dir / "panel" / "cover-automatic-panel.js"
-    manifest = json.loads((panel_dir / "manifest.json").read_text(encoding="utf-8"))
-    panel_version = manifest.get("version", "0")
+    panel_path = pathlib.Path(__file__).parent / "panel" / "cover-automatic-panel.js"
     await hass.http.async_register_static_paths(
         [StaticPathConfig("/cover_automatic/panel.js", str(panel_path), False)]
     )

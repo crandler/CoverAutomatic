@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.61.1] - 2026-08-18
+
+### Fixed
+
+- Removed a blocking file read from the event loop. Both `__init__.py` and `api.py` parsed `manifest.json` with `read_text()` to obtain the integration version, which Home Assistant reports as "Detected blocking call to read_text ... inside the event loop by custom integration 'cover_automatic'". The version now comes from the already-cached integration manifest via `async_get_integration()` and is handed to the API, so no file is read at runtime.
+
 ## [1.61.0] - 2026-08-18
 
 ### Added
