@@ -1040,3 +1040,99 @@ class TestInvertedCoverIntegration:
             {"entity_id": "cover.inverted", "position": 70},
             blocking=False,
         )
+
+
+class TestSetupEntryVersionResolution:
+    """Tests for how async_setup_entry resolves the integration version.
+
+    Reading manifest.json from disk inside the event loop made Home Assistant
+    log "Detected blocking call to read_text". The version now comes from the
+    already-cached integration object, and this path had no coverage before.
+    """
+
+    @pytest.mark.asyncio
+    async def test_version_comes_from_cached_manifest(self) -> None:
+        """Setup pulls the version from async_get_integration, not from disk."""
+        from custom_components.cover_automatic import async_setup_entry
+
+        hass = MagicMock()
+        hass.data = {}
+        hass.config_entries.async_forward_entry_setups = AsyncMock()
+        hass.http.async_register_static_paths = AsyncMock()
+
+        entry = MagicMock()
+        entry.data = {}
+        entry.entry_id = "test_entry"
+        entry.add_update_listener = MagicMock()
+
+        integration = MagicMock()
+        integration.manifest = {"version": "9.9.9"}
+
+        mod = "custom_components.cover_automatic"
+        with (
+            patch(f"{mod}.async_get_integration", AsyncMock(return_value=integration)) as get_integration,
+            patch(f"{mod}.CoverAutomaticStorage") as storage_cls,
+            patch(f"{mod}.ActivityLogStorage") as log_cls,
+            patch(f"{mod}.CoverAutomaticCoordinator") as coord_cls,
+            patch(f"{mod}.async_setup_services", AsyncMock()),
+            patch(f"{mod}.async_setup_api") as setup_api,
+            patch(f"{mod}.async_register_built_in_panel") as register_panel,
+            patch(f"{mod}.er.async_get", MagicMock()),
+        ):
+            storage_cls.return_value.async_load = AsyncMock()
+            storage_cls.return_value.covers = {}
+            log_cls.return_value.async_load = AsyncMock()
+            coord_cls.return_value.async_setup = AsyncMock()
+            coord_cls.return_value.async_config_entry_first_refresh = AsyncMock()
+            coord_cls.return_value.async_add_listener = MagicMock()
+
+            await async_setup_entry(hass, entry)
+
+        get_integration.assert_awaited_once()
+        assert get_integration.await_args.args[1] == "cover_automatic"
+
+        # Version reaches the WebSocket API ...
+        assert setup_api.call_args.kwargs["version"] == "9.9.9"
+        # ... and the panel URL used for cache busting
+        panel_kwargs = register_panel.call_args.kwargs
+        assert "9.9.9" in str(panel_kwargs.get("config"))
+
+    @pytest.mark.asyncio
+    async def test_missing_version_falls_back(self) -> None:
+        """A manifest without a version must not break setup."""
+        from custom_components.cover_automatic import async_setup_entry
+
+        hass = MagicMock()
+        hass.data = {}
+        hass.config_entries.async_forward_entry_setups = AsyncMock()
+        hass.http.async_register_static_paths = AsyncMock()
+
+        entry = MagicMock()
+        entry.data = {}
+        entry.entry_id = "test_entry"
+        entry.add_update_listener = MagicMock()
+
+        integration = MagicMock()
+        integration.manifest = {}
+
+        mod = "custom_components.cover_automatic"
+        with (
+            patch(f"{mod}.async_get_integration", AsyncMock(return_value=integration)),
+            patch(f"{mod}.CoverAutomaticStorage") as storage_cls,
+            patch(f"{mod}.ActivityLogStorage") as log_cls,
+            patch(f"{mod}.CoverAutomaticCoordinator") as coord_cls,
+            patch(f"{mod}.async_setup_services", AsyncMock()),
+            patch(f"{mod}.async_setup_api") as setup_api,
+            patch(f"{mod}.async_register_built_in_panel"),
+            patch(f"{mod}.er.async_get", MagicMock()),
+        ):
+            storage_cls.return_value.async_load = AsyncMock()
+            storage_cls.return_value.covers = {}
+            log_cls.return_value.async_load = AsyncMock()
+            coord_cls.return_value.async_setup = AsyncMock()
+            coord_cls.return_value.async_config_entry_first_refresh = AsyncMock()
+            coord_cls.return_value.async_add_listener = MagicMock()
+
+            await async_setup_entry(hass, entry)
+
+        assert setup_api.call_args.kwargs["version"] == "0"
