@@ -129,6 +129,4 @@ class CoverAutomaticAutoSwitch(CoordinatorEntity[CoverAutomaticCoordinator], Swi
             cover.auto_enabled = False
             await self.coordinator.storage.async_add_cover(cover)
             self.coordinator.set_cover_manual(self._cover_entity_id)
-            if self.coordinator.data is not None:
-                self.coordinator.async_set_updated_data(self.coordinator.data)
             self.async_write_ha_state()

@@ -1475,3 +1475,92 @@ class TestEntitiesFollowStorage:
             assert len(_device_entities(hass, entry, "cover.b")[1]) == 2
             assert len(_device_entities(hass, entry, "cover.c")[1]) == 2
             assert len(_device_entities(hass, entry, "facade_north")[1]) == 3
+
+
+class TestPanelAutoToggleUpdatesEntities:
+    """Toggling automation in the panel updates the HA entities right away.
+
+    ws_cover_update changed status and storage but notified no entity on
+    disable and evaluated no rule on enable, so the automation switch and the
+    status sensor lagged until the next coordinator cycle (up to 60 s).
+    """
+
+    async def _setup(self, hass, entry, storage, coordinator):
+        """Add a global rule that matches, refresh, return (switch, sensor) ids."""
+        hass.states.async_set("sensor.outdoor_temp", "25")
+        await storage.async_add_rule(Rule(
+            id="shade", name="Shade", enabled=True, priority=10,
+            conditions=[Condition(
+                type=ConditionType.TEMPERATURE_ABOVE,
+                params={"sensor": "sensor.outdoor_temp", "value": 20},
+            )],
+            target_position=30,
+        ))
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+        _, entity_ids = _device_entities(hass, entry, "cover.a")
+        switch_id = next(e for e in entity_ids if e.startswith("switch."))
+        sensor_id = next(e for e in entity_ids if e.startswith("sensor."))
+        return switch_id, sensor_id
+
+    @pytest.mark.asyncio
+    async def test_disable_updates_switch_and_status_sensor(self, tmp_path) -> None:
+        from custom_components.cover_automatic.api import ws_cover_update
+
+        async with _real_instance(tmp_path, ["cover.a"], []) as (
+            hass, entry, storage, coordinator,
+        ):
+            switch_id, sensor_id = await self._setup(hass, entry, storage, coordinator)
+            assert hass.states.get(switch_id).state == "on"
+            assert hass.states.get(sensor_id).state == "auto"
+            assert hass.states.get(sensor_id).attributes["rule_id"] == "shade"
+
+            msg = {"id": 1, "entity_id": "cover.a", "auto_enabled": False}
+            await ws_cover_update(hass, MagicMock(), msg, storage, coordinator)
+            await hass.async_block_till_done()
+
+            assert hass.states.get(switch_id).state == "off"
+            sensor = hass.states.get(sensor_id)
+            assert sensor.state == "manual"
+            assert sensor.attributes["rule_id"] is None
+
+    @pytest.mark.asyncio
+    async def test_enable_updates_switch_and_status_sensor(self, tmp_path) -> None:
+        from custom_components.cover_automatic.api import ws_cover_update
+
+        async with _real_instance(tmp_path, ["cover.a"], []) as (
+            hass, entry, storage, coordinator,
+        ):
+            storage.get_cover_raw("cover.a")["auto_enabled"] = False
+            storage._invalidate_cache()
+            coordinator.set_cover_manual("cover.a")
+            switch_id, sensor_id = await self._setup(hass, entry, storage, coordinator)
+            assert hass.states.get(switch_id).state == "off"
+            assert hass.states.get(sensor_id).state == "manual"
+
+            msg = {"id": 1, "entity_id": "cover.a", "auto_enabled": True}
+            await ws_cover_update(hass, MagicMock(), msg, storage, coordinator)
+            await hass.async_block_till_done()
+
+            assert hass.states.get(switch_id).state == "on"
+            sensor = hass.states.get(sensor_id)
+            assert sensor.state == "auto"
+            assert sensor.attributes["rule_id"] == "shade"
+            assert sensor.attributes["target_position"] == 30
+
+    @pytest.mark.asyncio
+    async def test_rapid_disable_updates_switch_during_refresh_cooldown(self, tmp_path) -> None:
+        """A refresh requested within the debounce cooldown is deferred."""
+        from custom_components.cover_automatic.api import ws_cover_update
+
+        async with _real_instance(tmp_path, ["cover.a"], []) as (
+            hass, entry, storage, coordinator,
+        ):
+            switch_id, sensor_id = await self._setup(hass, entry, storage, coordinator)
+            for msg_id, enabled in enumerate((False, True, False), start=1):
+                msg = {"id": msg_id, "entity_id": "cover.a", "auto_enabled": enabled}
+                await ws_cover_update(hass, MagicMock(), msg, storage, coordinator)
+                await hass.async_block_till_done()
+
+            assert hass.states.get(switch_id).state == "off"
+            assert hass.states.get(sensor_id).state == "manual"

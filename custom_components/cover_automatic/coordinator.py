@@ -1420,6 +1420,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Set a cover's status to MANUAL (public API for platforms)."""
         self._cover_states[entity_id] = CoverStatus.MANUAL
         self.storage.update_cover_status(entity_id, CoverStatus.MANUAL.value, None)
+        if self.data is not None:
+            self.async_set_updated_data(self.data)
 
     async def async_shutdown(self) -> None:
         """Shut down coordinator."""

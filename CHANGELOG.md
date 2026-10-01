@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.62.4] - 2026-10-01
+
+### Fixed
+
+- Turning automation on or off for a cover in the panel now updates its automation switch and status sensor right away instead of up to a minute later. Re-enabling applies the active rule immediately, like resuming.
+
 ## [1.62.3] - 2026-10-01
 
 ### Fixed
