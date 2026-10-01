@@ -59,7 +59,15 @@ def _cleanup_removed_entities(hass: HomeAssistant) -> None:
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up CoverAutomatic from YAML (not supported)."""
+    """Register the panel's static path (YAML setup is not supported).
+
+    Runs once per Home Assistant runtime. aiohttp routes cannot be removed, so
+    registering in async_setup_entry would fail on every entry reload.
+    """
+    panel_path = pathlib.Path(__file__).parent / "panel" / "cover-automatic-panel.js"
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig("/cover_automatic/panel.js", str(panel_path), False)]
+    )
     return True
 
 
@@ -129,11 +137,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntr
     # Setup WebSocket API for config panel
     async_setup_api(hass, storage, coordinator, version=panel_version)
 
-    # Register custom panel (version query for cache busting)
-    panel_path = pathlib.Path(__file__).parent / "panel" / "cover-automatic-panel.js"
-    await hass.http.async_register_static_paths(
-        [StaticPathConfig("/cover_automatic/panel.js", str(panel_path), False)]
-    )
+    # Register custom panel (version query for cache busting); the static path
+    # behind js_url is registered once in async_setup
     async_register_built_in_panel(
         hass,
         component_name="custom",

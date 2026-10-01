@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.61.2] - 2026-10-01
+
+### Fixed
+
+- Reloading the integration failed with "RuntimeError: Added route will never be executed" followed by "has already been setup!" errors for the switch, sensor and select platforms, leaving the entities unavailable until a Home Assistant restart. The panel's static path is now registered once per Home Assistant runtime instead of on every entry setup ([#3](https://github.com/crandler/CoverAutomatic/issues/3)).
+
 ## [1.61.1] - 2026-08-18
 
 ### Fixed

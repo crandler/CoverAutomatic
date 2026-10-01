@@ -1136,3 +1136,94 @@ class TestSetupEntryVersionResolution:
             await async_setup_entry(hass, entry)
 
         assert setup_api.call_args.kwargs["version"] == "0"
+
+
+class TestSetupEntryReload:
+    """Reloading the config entry must not re-register the panel's static path.
+
+    aiohttp routes cannot be removed, so registering /cover_automatic/panel.js
+    in every async_setup_entry made the second setup (a reload) fail with
+    "RuntimeError: Added route will never be executed" -- GitHub issue #3.
+    The router here is a real aiohttp one driven by Home Assistant's own
+    registration code, so a duplicate registration fails exactly as in HA.
+    """
+
+    PANEL_URL = "/cover_automatic/panel.js"
+
+    @staticmethod
+    def _make_hass(app):
+        from types import SimpleNamespace
+
+        from homeassistant.components.http.server import HomeAssistantHTTP
+
+        server = SimpleNamespace(app=app)
+
+        async def register_static_paths(configs):
+            HomeAssistantHTTP._async_register_static_paths(
+                server, configs, {c.url_path: None for c in configs}
+            )
+
+        hass = MagicMock()
+        hass.data = {}
+        hass.http.async_register_static_paths = register_static_paths
+        hass.config_entries.async_forward_entry_setups = AsyncMock()
+        hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
+        hass.config_entries.async_entries = MagicMock(return_value=[])
+        return hass
+
+    @pytest.mark.asyncio
+    async def test_reload_registers_panel_route_once(self) -> None:
+        """Setup, unload and setup again succeeds with one panel route."""
+        from aiohttp import web
+        from homeassistant.helpers.http import KEY_ALLOW_CONFIGURED_CORS
+
+        from custom_components.cover_automatic import (
+            async_setup,
+            async_setup_entry,
+            async_unload_entry,
+        )
+
+        app = web.Application()
+        app[KEY_ALLOW_CONFIGURED_CORS] = lambda _route: None
+        hass = self._make_hass(app)
+
+        entry = MagicMock()
+        entry.data = {}
+        entry.entry_id = "test_entry"
+        entry.add_update_listener = MagicMock()
+
+        integration = MagicMock()
+        integration.manifest = {"version": "1.0.0"}
+
+        mod = "custom_components.cover_automatic"
+        with (
+            patch(f"{mod}.async_get_integration", AsyncMock(return_value=integration)),
+            patch(f"{mod}.CoverAutomaticStorage") as storage_cls,
+            patch(f"{mod}.ActivityLogStorage") as log_cls,
+            patch(f"{mod}.CoverAutomaticCoordinator") as coord_cls,
+            patch(f"{mod}.async_setup_services", AsyncMock()),
+            patch(f"{mod}.async_unload_services", AsyncMock()),
+            patch(f"{mod}.async_setup_api"),
+            patch(f"{mod}.async_register_built_in_panel"),
+            patch(f"{mod}.async_remove_panel"),
+            patch(f"{mod}.er.async_get", MagicMock()),
+        ):
+            storage_cls.return_value.async_load = AsyncMock()
+            storage_cls.return_value.covers = {}
+            log_cls.return_value.async_load = AsyncMock()
+            coord_cls.return_value.async_setup = AsyncMock()
+            coord_cls.return_value.async_config_entry_first_refresh = AsyncMock()
+            coord_cls.return_value.async_add_listener = MagicMock()
+
+            # Home Assistant runs async_setup once per runtime, entries on every (re)load
+            assert await async_setup(hass, {})
+            assert await async_setup_entry(hass, entry)
+            assert await async_unload_entry(hass, entry)
+            assert await async_setup_entry(hass, entry)
+
+        panel_routes = [
+            route
+            for route in app.router.routes()
+            if route.method == "GET" and route.resource.canonical == self.PANEL_URL
+        ]
+        assert len(panel_routes) == 1
