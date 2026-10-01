@@ -51,19 +51,135 @@
         }
       },
       "sun_on_facade": {
-        "name": "Sun on facade"
+        "name": "Sun on facade",
+        "state": {
+          "on": "On",
+          "off": "Off"
+        }
       },
       "sun_entry_time": {
         "name": "Sun entry time"
       },
       "sun_exit_time": {
         "name": "Sun exit time"
+      },
+      "active_rule": {
+        "name": "Active rule"
+      },
+      "target_position": {
+        "name": "Target position"
+      },
+      "position": {
+        "name": "Position (rules scale)"
+      },
+      "comfort_mode": {
+        "name": "Comfort mode",
+        "state": {
+          "heating": "Cold",
+          "neutral": "Comfort",
+          "cooling": "Hot"
+        }
+      },
+      "pause_end": {
+        "name": "Pause end"
+      },
+      "covers_paused": {
+        "name": "Covers paused"
+      },
+      "covers_manual": {
+        "name": "Covers in manual mode"
+      },
+      "covers_locked": {
+        "name": "Covers locked"
       }
     },
     "select": {
       "scenario": {
-        "name": "Scenario"
+        "name": "Scenario",
+        "state": {
+          "everyday": "Everyday",
+          "summer": "Summer",
+          "winter": "Winter",
+          "vacation": "Vacation",
+          "cinema": "Cinema",
+          "manual": "Manual"
+        }
       }
+    },
+    "binary_sensor": {
+      "wind_protection": {
+        "name": "Wind protection"
+      }
+    }
+  },
+  "device": {
+    "facade": {
+      "name": "CoverAutomatic Facade {name}"
+    }
+  },
+  "services": {
+    "pause": {
+      "name": "Pause automation",
+      "description": "Pause automation for a specific cover.",
+      "fields": {
+        "entity_id": {
+          "name": "Cover",
+          "description": "The cover entity to pause automation for."
+        }
+      }
+    },
+    "resume": {
+      "name": "Resume automation",
+      "description": "Resume automation for a specific cover.",
+      "fields": {
+        "entity_id": {
+          "name": "Cover",
+          "description": "The cover entity to resume automation for."
+        }
+      }
+    },
+    "pause_all": {
+      "name": "Pause all",
+      "description": "Pause automation for all managed covers."
+    },
+    "resume_all": {
+      "name": "Resume all",
+      "description": "Resume automation for all managed covers."
+    },
+    "set_scenario": {
+      "name": "Set scenario",
+      "description": "Set the active automation scenario. Use scenario IDs from your configuration.",
+      "fields": {
+        "scenario": {
+          "name": "Scenario",
+          "description": "The scenario ID to activate (e.g., everyday, summer, winter, or custom scenarios)."
+        }
+      }
+    },
+    "export_config": {
+      "name": "Export configuration",
+      "description": "Export the current configuration to a YAML file.",
+      "fields": {
+        "path": {
+          "name": "File path",
+          "description": "Path to save the configuration file. Must be a YAML file (.yaml/.yml) inside the cover_automatic folder below the Home Assistant config directory; relative paths resolve there."
+        }
+      }
+    },
+    "import_config": {
+      "name": "Import configuration",
+      "description": "Import configuration from a YAML file.",
+      "fields": {
+        "path": {
+          "name": "File path",
+          "description": "Path to the configuration file to import."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "admin_required": {
+      "message": "Admin access required for this service."
     }
   }
 }

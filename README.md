@@ -166,8 +166,13 @@ After installation, all configuration is done via the **CoverAutomatic** sidebar
 
 1. **Covers** - Add cover entities to manage
 2. **Facades** - Define building facades by cardinal direction (with compass visualization)
+<<<<<<< Updated upstream
 3. **Rules** - Create automation rules with conditions (sun, temperature, time, weather, etc.); duplicate an existing rule to use it as a starting point
 4. **Scenarios** - Define modes like "Summer", "Winter", "Vacation" to disable specific rules
+=======
+3. **Rules** - Create automation rules with conditions (sun, temperature, time, weather, etc.). Conditions can be negated (NOT) and organised in groups, e.g. (A OR B) AND (C OR D)
+4. **Scenarios** - Define modes like "Summer", "Winter", "Vacation". Each rule chooses the scenarios it belongs to (all by default); inside a scenario a member rule can still be switched off temporarily
+>>>>>>> Stashed changes
 5. **Settings** - Configure sensors, comfort temperatures, wind protection, and more
 
 ### Example: heat protection by outdoor temperature
@@ -188,6 +193,34 @@ The rule closes the cover only while the sun actually hits that facade **and**
 the outdoor temperature is above the threshold, and releases it again once
 either condition clears.
 
+### Conditions on any entity (Home Assistant conditions)
+
+The **Entities** group of the *Add condition* menu adds a condition evaluated
+by Home Assistant itself, in the same format as the `condition:` section of an
+automation:
+
+- **Entity state** / **Entity numeric value** open a form: pick the entity,
+  optionally an attribute, then the states (proposed as buttons, e.g. the zones
+  of a person), *is / is not*, a minimum duration, or above / below / between.
+- **Home Assistant condition (YAML)** accepts any automation condition —
+  templates, zones, devices, nested `and` / `or` / `not`:
+
+```yaml
+condition: or
+conditions:
+  - condition: state
+    entity_id: media_player.living_room
+    state: [playing, paused]
+  - condition: template
+    value_template: "{{ states('sensor.lux') | float(0) > 20000 }}"
+```
+
+Each card has a **Form / YAML** switch, is checked by Home Assistant while you
+type and shows the entities it watches (rules react to them immediately). An
+invalid or incomplete condition is kept but never matches and is marked in red.
+Existing "State is" / "Numeric value" conditions keep working and can be
+converted with one click.
+
 ### Created Entities
 
 For each managed cover, the integration creates:
@@ -201,8 +234,15 @@ For each facade:
 | Entity | Description |
 |--------|-------------|
 | `sensor.*_sun` | Sun on facade indicator (on/off) |
+<<<<<<< Updated upstream
 | `sensor.*_sun_entry` | Time when sun enters facade today (real sun path at your location) |
 | `sensor.*_sun_exit` | Time when sun leaves facade today |
+=======
+| `sensor.*_sun_entry` | Time when sun enters facade (today, computed from the real solar path of your location) |
+| `sensor.*_sun_exit` | Time when sun leaves facade |
+>>>>>>> Stashed changes
+
+Entities are created and removed automatically when covers or facades are added or deleted in the panel -- no reload needed.
 
 Global:
 - `select.cover_automatic_scenario` - Active scenario selector
@@ -235,13 +275,15 @@ By design. After startup, CoverAutomatic waits **120 seconds** before applying a
 
 CoverAutomatic detected a **manual override**: the cover was moved by something other than CoverAutomatic itself — a wall switch, a remote, another automation, or the HA UI. Automation for that cover pauses for the configured pause duration (global or per-cover) so your manual choice is respected, then resumes automatically. Resume earlier via the **X** button in the panel or the `cover_automatic.resume` service.
 
+For slow covers that report neither intermediate positions nor *opening* / *closing*, the integration waits for the cover's **travel time** (measured automatically, or set per cover under *Advanced → Travel time*) before judging a position as manual. If a slow cover is still paused wrongly right after an automatic move, set its travel time a little above the real one.
+
 ### A rule matches but the cover doesn't move
 
 Check in this order:
 
 1. **Status priority** — WIND_PROTECTED, LOCKED (window open), VENTING (window tilted) and PAUSED all override rule evaluation. The covers table in the panel shows the current status and the winning rule per cover.
 2. **Master switch / per-cover automation toggle** — both must be on.
-3. **Active scenario** — scenarios can disable specific rules.
+3. **Active scenario** — only rules that belong to the active scenario (and are not switched off in it) are considered.
 4. **Minimum time between changes** — position changes are rate-limited by the configured interval; the move happens on a later scan.
 
 ### A sun rule doesn't shade

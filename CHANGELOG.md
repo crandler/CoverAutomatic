@@ -5,6 +5,7 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+<<<<<<< Updated upstream
 ## [1.62.1] - 2026-10-01
 
 ### Fixed
@@ -23,6 +24,62 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Fixed
 
 - Reloading the integration failed with "RuntimeError: Added route will never be executed" followed by "has already been setup!" errors for the switch, sensor and select platforms, leaving the entities unavailable until a Home Assistant restart. The panel's static path is now registered once per Home Assistant runtime instead of on every entry setup ([#3](https://github.com/crandler/CoverAutomatic/issues/3)).
+=======
+## [2.0.0] - 2026-10-01
+
+Major release consolidating all changes since 1.61.1.
+
+### Added
+
+**French language**
+- French added alongside English and German throughout the integration: configuration panel, dashboard card, services and error messages, activity log and HA logbook, entities, facade devices, weather states and built-in scenarios (Everyday → Quotidien…). Follows the Home Assistant language, with French typography (narrow no-break space before ":"). The three languages share the same set of texts.
+
+**Rules**
+- **Home Assistant conditions**: any automation condition (state, numeric state, template, zone, sun…), edited with a form or in YAML and validated live.
+- **Condition groups and NOT**: e.g. (A OR B) AND (C OR D). A negated condition is never met while its input is unavailable.
+- **Scenarios per rule**: each rule selects the scenarios it applies in.
+- **Dawn and dusk** conditions with an offset in minutes; sunrise/sunset and dawn/dusk pairs are complementary.
+- **Outdoor air compared to the room** and **Room occupied** conditions, with an occupancy sensor per cover.
+- **Safety rule**: acts even when the cover is paused, in manual mode, wind protected or with automation off. Never overrides the window lock; between rules, priority decides.
+- **Duplicate a rule**; ▲▼ buttons to order conditions, groups and priorities.
+
+**Covers**
+- **Keep current position when the window opens**.
+- **Travel time** entered or learned automatically, with a global default; removes false "manual" pauses on slow covers.
+- **Resume when the position matches the rule** (only pauses caused by a manual move).
+- **Lost commands resent automatically** (radio frame lost), never after a manual counter-order.
+
+**Global settings**
+- Configurable **wind protection position**.
+- **Thresholds driven by an entity** (temperature setpoints, sunshine threshold), with the typed value as fallback.
+- Configurable **"sun on facade" behaviour**, globally and per cover.
+- **Room temperature colours**: by action needed or like a thermometer.
+
+**Entities and dashboard**
+- **Dashboard card** `custom:cover-automatic-card`: one line per cover; header with scenario, master switch, wind, counters and a "Resume all" button.
+- **Sensors per cover**: active rule, target, position, comfort mode, pause end.
+- **Global entities**: wind protection and number of covers paused / manual / locked.
+
+**Log**
+- **Per-cover filter**, with a button on the cover sheet.
+
+### Changed
+
+- **Cover sheet** reorganised into collapsible sections: General, Window, Room, Sun exposure, Automation.
+- **Settings** reorganised (Sensors, Sun exposure…), with "How does it work?" blocks and options greyed when they have no effect.
+- **Rule editor**: collapsible conditions, draft kept, warning before losing unsaved changes.
+- **Scenarios tab**: rules listed by priority, disabled rules greyed, **Safety** badge.
+- **Mobile**: cover sheet header reachable under the notch, shorter labels, focus and scroll position kept.
+- Panel live updates through a dedicated WebSocket subscription instead of a bus event written to the recorder.
+
+### Fixed
+
+- **Window and wind**: the lock (window open) keeps priority over the wind during the whole storm; lock / wind state survives a restart; an unknown window sensor never lowers the cover; a removed sensor no longer blocks the cover forever.
+- **False manual pauses removed**: slow covers, rule change during a move, window closed while the cover moves to the lock position.
+- **Backups**: complete export; validated import (out-of-range values, unknown references, migrations); runtime state no longer restored from the file.
+- Reloading the integration no longer fails; HA deprecation warning fixed; calculation cycles can no longer interleave; an unreadable rule is disabled instead of applying everywhere.
+- Three full code audits; 1325 automated tests.
+>>>>>>> Stashed changes
 
 ## [1.61.1] - 2026-08-18
 

@@ -1,15 +1,29 @@
 {
   "domain": "cover_automatic",
   "name": "CoverAutomatic",
-  "after_dependencies": ["logbook"],
-  "codeowners": ["@crandler"],
+  "after_dependencies": [
+    "logbook",
+    "lovelace"
+  ],
+  "codeowners": [
+    "@crandler"
+  ],
   "config_flow": true,
-  "dependencies": ["frontend", "http", "sun", "websocket_api"],
+  "dependencies": [
+    "frontend",
+    "http",
+    "sun",
+    "websocket_api"
+  ],
   "documentation": "https://github.com/crandler/CoverAutomatic",
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/crandler/CoverAutomatic/issues",
   "requirements": [],
   "single_config_entry": true,
+<<<<<<< Updated upstream
   "version": "1.62.1"
+=======
+  "version": "2.0.0"
+>>>>>>> Stashed changes
 }

@@ -104,7 +104,12 @@ def coordinator(mock_hass, mock_storage):
         coord._hysteresis_info = {}
         coord._last_matching_rules = {}
         coord._last_move_rule = {}
+        coord._last_sent_target = {}
+        coord._move_start = {}
         coord._post_protective_exit = set()
+        coord._safety_holds = {}
+        coord._sensor_unknown_kept = set()
+        coord._wind_sensor_warned = False
         coord._startup_time = -999.0
         coord._startup_skip = False
         coord._grace_synced = True
@@ -1077,7 +1082,9 @@ class TestSetupEntryVersionResolution:
             patch(f"{mod}.async_setup_services", AsyncMock()),
             patch(f"{mod}.async_setup_api") as setup_api,
             patch(f"{mod}.async_register_built_in_panel") as register_panel,
+            patch(f"{mod}.add_extra_js_url"),
             patch(f"{mod}.er.async_get", MagicMock()),
+            patch(f"{mod}.async_cleanup_orphan_entities"),
         ):
             storage_cls.return_value.async_load = AsyncMock()
             storage_cls.return_value.covers = {}
@@ -1124,7 +1131,9 @@ class TestSetupEntryVersionResolution:
             patch(f"{mod}.async_setup_services", AsyncMock()),
             patch(f"{mod}.async_setup_api") as setup_api,
             patch(f"{mod}.async_register_built_in_panel"),
+            patch(f"{mod}.add_extra_js_url"),
             patch(f"{mod}.er.async_get", MagicMock()),
+            patch(f"{mod}.async_cleanup_orphan_entities"),
         ):
             storage_cls.return_value.async_load = AsyncMock()
             storage_cls.return_value.covers = {}

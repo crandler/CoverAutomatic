@@ -317,7 +317,11 @@ class TestConditionType:
         assert ConditionType.TIME_BEFORE_SUNRISE.value == "time_before_sunrise"
         assert ConditionType.TIME_BEFORE_SUNSET.value == "time_before_sunset"
         assert ConditionType.NUMERIC_STATE.value == "numeric_state"
-        assert len(ConditionType) == 16
+        assert ConditionType.HA_CONDITION.value == "ha_condition"
+        assert ConditionType.TIME_AFTER_DUSK.value == "time_after_dusk"
+        assert ConditionType.OUTDOOR_VS_INDOOR.value == "outdoor_vs_indoor"
+        assert ConditionType.ROOM_OCCUPIED.value == "room_occupied"
+        assert len(ConditionType) == 23
 
 
 class TestComfortMode:
@@ -398,11 +402,11 @@ class TestRobustDeserialization:
             cover = CoverConfig.from_dict(data)
             assert cover.status == status
 
-    def test_cover_config_preemptive_shading_default_true(self) -> None:
-        """CoverConfig.preemptive_shading defaults to True when missing (backward compat)."""
+    def test_cover_config_preemptive_shading_default_follows_global(self) -> None:
+        """CoverConfig.preemptive_shading defaults to None (follow global) when missing."""
         data = {"entity_id": "cover.test", "name": "Test Cover"}
         cover = CoverConfig.from_dict(data)
-        assert cover.preemptive_shading is True
+        assert cover.preemptive_shading is None
 
     def test_cover_config_preemptive_shading_roundtrip_false(self) -> None:
         """CoverConfig serializes and restores preemptive_shading=False."""

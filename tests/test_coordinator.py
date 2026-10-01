@@ -94,7 +94,12 @@ def coordinator(mock_hass, mock_storage):
         coord._hysteresis_info = {}
         coord._last_matching_rules = {}
         coord._last_move_rule = {}
+        coord._last_sent_target = {}
+        coord._move_start = {}
         coord._post_protective_exit = set()
+        coord._safety_holds = {}
+        coord._sensor_unknown_kept = set()
+        coord._wind_sensor_warned = False
         coord._startup_time = -999.0
         coord._startup_skip = False
         coord._grace_synced = True
@@ -106,6 +111,7 @@ def coordinator(mock_hass, mock_storage):
         coord.async_request_refresh = AsyncMock()
         # Additional attributes needed by parent class
         coord._unsub_refresh = None
+        coord._unsub_shutdown = None
         coord._debounced_refresh = MagicMock()
         coord._listeners = {}
         coord.last_update_success = True
@@ -364,14 +370,22 @@ class TestContactSensorHandling:
             "cover.test", CoverStatus.AUTO.value, None
         )
 
-    def test_unlock_cover_noop_without_pre_lock_state(self, coordinator, mock_hass, mock_storage) -> None:
-        """Test unlocking cover is a no-op if no pre-lock state exists."""
+    def test_unlock_cover_without_pre_lock_state_falls_back_to_auto(self, coordinator, mock_hass, mock_storage) -> None:
+        """A LOCKED cover without recorded pre-lock state unlocks to AUTO (no stuck LOCKED)."""
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
 
         coordinator._unlock_cover("cover.test")
 
-        # Status unchanged, no storage call
-        assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED
+        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
+        mock_storage.update_cover_status.assert_called_with("cover.test", "auto", None)
+
+    def test_unlock_cover_noop_when_not_protective(self, coordinator, mock_hass, mock_storage) -> None:
+        """Unlocking a cover that is not LOCKED/VENTING changes nothing."""
+        coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
+
+        coordinator._unlock_cover("cover.test")
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.PAUSED
         mock_storage.update_cover_status.assert_not_called()
 
 
@@ -968,6 +982,8 @@ class TestUnlockCoverRestore:
         self, coordinator, mock_storage
     ) -> None:
         """When previous was MANUAL, restores MANUAL without scheduling refresh."""
+        # v1.90: MANUAL is only restored while the automation is still off
+        coordinator.storage.get_cover_raw.return_value = {"auto_enabled": False}
         coordinator._pre_lock_states["cover.test"] = CoverStatus.MANUAL
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
         coordinator.hass.states.get.return_value = MockState(
@@ -1366,6 +1382,7 @@ class TestPendingSettleSync:
         mock_storage.covers = {"cover.test": cover}
         coordinator._cover_states["cover.test"] = CoverStatus.AUTO
         coordinator._last_positions["cover.test"] = 100
+        coordinator._last_sent_target["cover.test"] = 100  # our earlier command
         coordinator._last_command_time["cover.test"] = 0.0
         coordinator._pending_settle.add("cover.test")
         coordinator.data = {
@@ -1632,8 +1649,8 @@ class TestRestoreCoverStates:
             "cover.living", "auto", None
         )
 
-    def test_restore_locked_resets_to_auto(self, coordinator, mock_storage) -> None:
-        """LOCKED covers are reset to AUTO (re-derived from sensors on sync)."""
+    def test_restore_locked_is_kept(self, coordinator, mock_storage) -> None:
+        """LOCKED covers stay LOCKED (v1.87: the window sensor may still be unknown)."""
         mock_storage._data = {
             "covers": {
                 "cover.kitchen": {
@@ -1650,7 +1667,7 @@ class TestRestoreCoverStates:
 
         coordinator._restore_cover_states()
 
-        assert coordinator._cover_states["cover.kitchen"] == CoverStatus.AUTO
+        assert coordinator._cover_states["cover.kitchen"] == CoverStatus.LOCKED
 
     def test_restore_auto_stays_auto(self, coordinator, mock_storage) -> None:
         """AUTO covers stay AUTO."""
@@ -2116,7 +2133,17 @@ class TestUpdateLastPositionFromState:
 
         coordinator._update_last_position_from_state("cover.test")
 
-        # int(None) raises TypeError, reset to None
+        # No position attribute: read from the state (open -> 100)
+        assert coordinator._last_positions["cover.test"] == 100
+
+    def test_update_position_none_value_unknown_state_resets_to_none(
+        self, coordinator, mock_hass
+    ) -> None:
+        coordinator._last_positions["cover.test"] = 50
+        mock_hass.states.get.return_value = MockState(
+            "opening", {"current_position": None}
+        )
+        coordinator._update_last_position_from_state("cover.test")
         assert coordinator._last_positions["cover.test"] is None
 
     def test_update_tilt_invalid_value_resets_to_none(
@@ -2710,6 +2737,10 @@ class TestCommandStagger:
         """Test _send_staggered_commands sends with delay."""
         mock_storage.command_stagger = 0.2
         commands = [("cover.a", 100), ("cover.b", 100), ("cover.c", 100)]
+        # v1.87: each wind command is re-checked right before it is sent
+        coordinator._wind_protected = True
+        for eid, _ in commands:
+            coordinator._cover_states[eid] = CoverStatus.WIND_PROTECTED
 
         with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
             await coordinator._send_staggered_commands(commands)
@@ -2839,7 +2870,7 @@ class TestManualOverrideDuringVenting:
     def test_vent_sensor_close_cancels_pause(
         self, coordinator, mock_hass, mock_storage
     ) -> None:
-        """Vent sensor closing while PAUSED -> immediate AUTO (no stale pause)."""
+        """v1.90: vent sensor closing while PAUSED keeps the pause (timer unchanged)."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
         coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
@@ -2861,15 +2892,13 @@ class TestManualOverrideDuringVenting:
                 MockState("off"),
             )
 
-        assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
-        mock_storage.update_cover_status.assert_called_with(
-            "cover.test", CoverStatus.AUTO.value, None
-        )
+        assert coordinator._cover_states["cover.test"] == CoverStatus.PAUSED
+        mock_storage.update_cover_status.assert_not_called()
 
     def test_paused_to_venting_syncs_last_positions(
         self, coordinator, mock_hass, mock_storage
     ) -> None:
-        """Vent sensor opening while PAUSED syncs _last_positions to prevent false override."""
+        """Vent sensor opening while PAUSED keeps the pause (v1.90) and syncs _last_positions."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
         coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
@@ -2894,7 +2923,7 @@ class TestManualOverrideDuringVenting:
                     MockState("on"),
                 )
 
-        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
+        assert coordinator._cover_states["cover.test"] == CoverStatus.PAUSED
         # _last_positions synced to actual (80), not stale (50)
         assert coordinator._last_positions["cover.test"] == 80
 

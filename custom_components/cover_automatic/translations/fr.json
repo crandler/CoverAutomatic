@@ -1,0 +1,174 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "CoverAutomatic",
+        "description": "Ajouter l'intégration CoverAutomatic. Configurez l'ensemble des réglages dans le panneau CoverAutomatic (barre latérale) après l'installation."
+      }
+    },
+    "abort": {
+      "already_configured": "CoverAutomatic est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configuration de CoverAutomatic",
+        "description": "Utilisez le panneau CoverAutomatic dans la barre latérale pour configurer l'intégration. Accédez à l'entrée CoverAutomatic dans le menu de la barre latérale."
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "auto_enabled": {
+        "name": "Automatisation"
+      },
+      "master_enabled": {
+        "name": "CoverAutomatic"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "Statut",
+        "state": {
+          "auto": "Automatique",
+          "paused": "En pause",
+          "manual": "Manuel",
+          "locked": "Verrouillé",
+          "venting": "Aération",
+          "wind_protected": "Protection vent"
+        }
+      },
+      "sun_on_facade": {
+        "name": "Soleil sur la façade",
+        "state": {
+          "on": "Oui",
+          "off": "Non"
+        }
+      },
+      "sun_entry_time": {
+        "name": "Heure d'arrivée du soleil"
+      },
+      "sun_exit_time": {
+        "name": "Heure de départ du soleil"
+      },
+      "active_rule": {
+        "name": "Règle active"
+      },
+      "target_position": {
+        "name": "Position cible"
+      },
+      "position": {
+        "name": "Position (échelle des règles)"
+      },
+      "comfort_mode": {
+        "name": "Mode confort",
+        "state": {
+          "heating": "Froid",
+          "neutral": "Confort",
+          "cooling": "Chaud"
+        }
+      },
+      "pause_end": {
+        "name": "Fin de pause"
+      },
+      "covers_paused": {
+        "name": "Volets en pause"
+      },
+      "covers_manual": {
+        "name": "Volets en manuel"
+      },
+      "covers_locked": {
+        "name": "Volets verrouillés"
+      }
+    },
+    "select": {
+      "scenario": {
+        "name": "Scénario",
+        "state": {
+          "everyday": "Quotidien",
+          "summer": "Été",
+          "winter": "Hiver",
+          "vacation": "Vacances",
+          "cinema": "Cinéma",
+          "manual": "Manuel"
+        }
+      }
+    },
+    "binary_sensor": {
+      "wind_protection": {
+        "name": "Protection vent"
+      }
+    }
+  },
+  "device": {
+    "facade": {
+      "name": "CoverAutomatic Façade {name}"
+    }
+  },
+  "services": {
+    "pause": {
+      "name": "Mettre en pause l'automatisation",
+      "description": "Met en pause l'automatisation d'un volet.",
+      "fields": {
+        "entity_id": {
+          "name": "Volet",
+          "description": "Le volet dont l'automatisation doit être mise en pause."
+        }
+      }
+    },
+    "resume": {
+      "name": "Reprendre l'automatisation",
+      "description": "Reprend l'automatisation d'un volet.",
+      "fields": {
+        "entity_id": {
+          "name": "Volet",
+          "description": "Le volet dont l'automatisation doit reprendre."
+        }
+      }
+    },
+    "pause_all": {
+      "name": "Tout mettre en pause",
+      "description": "Met en pause l'automatisation de tous les volets gérés."
+    },
+    "resume_all": {
+      "name": "Tout reprendre",
+      "description": "Reprend l'automatisation de tous les volets gérés."
+    },
+    "set_scenario": {
+      "name": "Choisir le scénario",
+      "description": "Définit le scénario actif. Utilisez les identifiants de scénario de votre configuration.",
+      "fields": {
+        "scenario": {
+          "name": "Scénario",
+          "description": "Identifiant du scénario à activer (par ex. everyday, summer, winter ou un scénario personnalisé)."
+        }
+      }
+    },
+    "export_config": {
+      "name": "Exporter la configuration",
+      "description": "Exporte la configuration actuelle dans un fichier YAML.",
+      "fields": {
+        "path": {
+          "name": "Chemin du fichier",
+          "description": "Emplacement du fichier. Il doit s'agir d'un fichier YAML (.yaml/.yml) dans le dossier cover_automatic du répertoire de configuration de Home Assistant ; les chemins relatifs y sont résolus."
+        }
+      }
+    },
+    "import_config": {
+      "name": "Importer la configuration",
+      "description": "Importe la configuration depuis un fichier YAML.",
+      "fields": {
+        "path": {
+          "name": "Chemin du fichier",
+          "description": "Chemin du fichier de configuration à importer."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "admin_required": {
+      "message": "Ce service nécessite les droits administrateur."
+    }
+  }
+}

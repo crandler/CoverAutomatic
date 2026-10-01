@@ -51,19 +51,135 @@
         }
       },
       "sun_on_facade": {
-        "name": "Sonne auf Fassade"
+        "name": "Sonne auf Fassade",
+        "state": {
+          "on": "An",
+          "off": "Aus"
+        }
       },
       "sun_entry_time": {
         "name": "Sonneneintritt"
       },
       "sun_exit_time": {
         "name": "Sonnenaustritt"
+      },
+      "active_rule": {
+        "name": "Aktive Regel"
+      },
+      "target_position": {
+        "name": "Zielposition"
+      },
+      "position": {
+        "name": "Position (Regelskala)"
+      },
+      "comfort_mode": {
+        "name": "Komfortmodus",
+        "state": {
+          "heating": "Kalt",
+          "neutral": "Komfort",
+          "cooling": "Warm"
+        }
+      },
+      "pause_end": {
+        "name": "Pausenende"
+      },
+      "covers_paused": {
+        "name": "Pausierte Rollläden"
+      },
+      "covers_manual": {
+        "name": "Rollläden im manuellen Modus"
+      },
+      "covers_locked": {
+        "name": "Gesperrte Rollläden"
       }
     },
     "select": {
       "scenario": {
-        "name": "Szenario"
+        "name": "Szenario",
+        "state": {
+          "everyday": "Alltag",
+          "summer": "Sommer",
+          "winter": "Winter",
+          "vacation": "Urlaub",
+          "cinema": "Kino",
+          "manual": "Manuell"
+        }
       }
+    },
+    "binary_sensor": {
+      "wind_protection": {
+        "name": "Windschutz"
+      }
+    }
+  },
+  "device": {
+    "facade": {
+      "name": "CoverAutomatic Fassade {name}"
+    }
+  },
+  "services": {
+    "pause": {
+      "name": "Automatik pausieren",
+      "description": "Pausiert die Automatik für einen bestimmten Rollladen.",
+      "fields": {
+        "entity_id": {
+          "name": "Rollladen",
+          "description": "Der Rollladen, dessen Automatik pausiert werden soll."
+        }
+      }
+    },
+    "resume": {
+      "name": "Automatik fortsetzen",
+      "description": "Setzt die Automatik für einen bestimmten Rollladen fort.",
+      "fields": {
+        "entity_id": {
+          "name": "Rollladen",
+          "description": "Der Rollladen, dessen Automatik fortgesetzt werden soll."
+        }
+      }
+    },
+    "pause_all": {
+      "name": "Alle pausieren",
+      "description": "Pausiert die Automatik für alle verwalteten Rollläden."
+    },
+    "resume_all": {
+      "name": "Alle fortsetzen",
+      "description": "Setzt die Automatik für alle verwalteten Rollläden fort."
+    },
+    "set_scenario": {
+      "name": "Szenario setzen",
+      "description": "Setzt das aktive Szenario. Verwende die Szenario-IDs aus deiner Konfiguration.",
+      "fields": {
+        "scenario": {
+          "name": "Szenario",
+          "description": "Die zu aktivierende Szenario-ID (z. B. everyday, summer, winter oder eigene Szenarien)."
+        }
+      }
+    },
+    "export_config": {
+      "name": "Konfiguration exportieren",
+      "description": "Exportiert die aktuelle Konfiguration in eine YAML-Datei.",
+      "fields": {
+        "path": {
+          "name": "Dateipfad",
+          "description": "Speicherort der Datei. Muss eine YAML-Datei (.yaml/.yml) im Ordner cover_automatic unterhalb des Home-Assistant-Konfigurationsverzeichnisses sein; relative Pfade werden dort aufgelöst."
+        }
+      }
+    },
+    "import_config": {
+      "name": "Konfiguration importieren",
+      "description": "Importiert die Konfiguration aus einer YAML-Datei.",
+      "fields": {
+        "path": {
+          "name": "Dateipfad",
+          "description": "Pfad zur zu importierenden Konfigurationsdatei."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "admin_required": {
+      "message": "Für diesen Dienst sind Administratorrechte erforderlich."
     }
   }
 }

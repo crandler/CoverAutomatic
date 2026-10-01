@@ -79,6 +79,7 @@ def _make_storage(
     storage.async_remove_cover = AsyncMock()
     storage.async_add_rule = AsyncMock()
     storage.async_remove_rule = AsyncMock()
+    storage.async_rename_rule = AsyncMock(return_value=True)
     storage.async_add_scenario = AsyncMock()
     storage.async_remove_scenario = AsyncMock()
     storage.async_save = AsyncMock()
@@ -330,7 +331,11 @@ class TestApiSetup:
         ) as mock_ws:
             mock_ws.BASE_COMMAND_MESSAGE_SCHEMA = real_ws.BASE_COMMAND_MESSAGE_SCHEMA
             async_setup_api(hass, storage, coordinator)
+<<<<<<< Updated upstream
             assert mock_ws.async_register_command.call_count == 22
+=======
+            assert mock_ws.async_register_command.call_count == 24  # 21 + subscribe + condition/validate + rule/duplicate
+>>>>>>> Stashed changes
 
     def test_command_names_registered(self) -> None:
         hass = _make_hass()
@@ -352,7 +357,11 @@ class TestApiSetup:
             mock_ws.async_register_command.side_effect = capture_register
             async_setup_api(hass, storage, coordinator)
 
+<<<<<<< Updated upstream
         assert len(registered_schemas) == 22
+=======
+        assert len(registered_schemas) == 24  # 21 + subscribe + condition/validate + rule/duplicate
+>>>>>>> Stashed changes
 
 
 # ---------------------------------------------------------------------------
@@ -1123,6 +1132,7 @@ class TestWsRuleDelete:
         conn.send_error.assert_called_once()
 
 
+<<<<<<< Updated upstream
 class TestWsRuleDuplicate:
     """Tests for cover_automatic/rule/duplicate handler."""
 
@@ -1237,6 +1247,14 @@ class TestWsRuleDuplicate:
         conn.send_error.assert_called_once()
         assert conn.send_error.call_args.args[1] == "not_found"
         storage.async_add_rule.assert_not_awaited()
+=======
+def _real_rule_ordering(storage) -> None:
+    """Use the real rule ordering helpers on a mocked storage."""
+    from custom_components.cover_automatic.storage import CoverAutomaticStorage
+
+    storage.rule_order = lambda: CoverAutomaticStorage.rule_order(storage)
+    storage.renumber_priorities = lambda ids: CoverAutomaticStorage.renumber_priorities(storage, ids)
+>>>>>>> Stashed changes
 
 
 class TestWsRuleReorder:
@@ -1261,6 +1279,7 @@ class TestWsRuleReorder:
             "scenarios": {},
         }
 
+        _real_rule_ordering(storage)
         msg = {
             "id": 1,
             "type": "cover_automatic/rule/reorder",
@@ -1275,6 +1294,21 @@ class TestWsRuleReorder:
         storage._invalidate_cache.assert_called()
         storage.async_save.assert_awaited_once()
         conn.send_result.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_partial_reorder_keeps_the_rest_below(self) -> None:
+        from custom_components.cover_automatic.api import ws_rule_reorder
+
+        storage = _make_storage()
+        storage._data = {"rules": {
+            "a": {"id": "a", "priority": 30}, "b": {"id": "b", "priority": 20},
+            "c": {"id": "c", "priority": 10},
+        }}
+        _real_rule_ordering(storage)
+        msg = {"id": 1, "rule_ids": ["c", "c"]}
+        await ws_rule_reorder(_make_hass(), _make_connection(), msg, storage, _make_coordinator())
+        prios = {k: v["priority"] for k, v in storage._data["rules"].items()}
+        assert prios == {"c": 30, "a": 20, "b": 10}
 
     @pytest.mark.asyncio
     async def test_reorder_unknown_rule_sends_error(self) -> None:
@@ -1667,7 +1701,7 @@ class TestWsExportConfig:
         storage = _make_storage()
         coordinator = _make_coordinator()
         raw = {"facades": {}, "covers": {}, "rules": {}}
-        storage.get_raw_data.return_value = raw
+        storage.get_export_data.return_value = raw
         msg = {"id": 1, "type": "cover_automatic/export"}
 
         await ws_export_config(hass, conn, msg, storage, coordinator)
@@ -1788,8 +1822,8 @@ class TestSettingsValidation:
         conn.send_result.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_active_scenario_accepts_empty_string(self) -> None:
-        """Test that clearing the scenario (empty string = falsy) is accepted."""
+    async def test_active_scenario_rejects_empty_string(self) -> None:
+        """An empty active_scenario is rejected instead of being stored."""
         from custom_components.cover_automatic.api import ws_settings_update
 
         hass = _make_hass()
@@ -1801,7 +1835,9 @@ class TestSettingsValidation:
 
         await ws_settings_update(hass, conn, msg, storage, coordinator)
 
-        conn.send_result.assert_called_once()
+        conn.send_error.assert_called_once()
+        assert "not_found" in conn.send_error.call_args[0]
+        conn.send_result.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_command_stagger_in_config_response(self) -> None:

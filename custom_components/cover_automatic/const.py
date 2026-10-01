@@ -19,6 +19,8 @@ FACADE_PRESETS: Final = {
 # Tilt / slat control
 TILT_COMMAND_DELAY: Final = 1.5  # seconds between position and tilt command
 TILT_FEATURE_FLAG: Final = CoverEntityFeature.SET_TILT_POSITION
+# Covers lacking this feature only support open/close commands
+SET_POSITION_FEATURE_FLAG: Final = CoverEntityFeature.SET_POSITION
 
 # Binary sensor on-states for contact sensors
 BINARY_SENSOR_ON_STATES: Final = frozenset({"on", "open", "true", "1"})
@@ -35,5 +37,7 @@ LOG_EVENT_STATUS: Final = "status"
 LOG_EVENT_RULE: Final = "rule"
 LOG_EVENT_WIND: Final = "wind"
 
-# Panel push event (fired when coordinator data changes)
-EVENT_DATA_UPDATED: Final = f"{DOMAIN}_updated"
+# Panel push signal (dispatched when coordinator data changes). A dispatcher
+# signal instead of a bus event: bus events are written to the recorder
+# database, which grew by one row per update cycle.
+SIGNAL_DATA_UPDATED: Final = f"{DOMAIN}_updated"

@@ -56,6 +56,9 @@ def mock_storage():
     storage.solar_sensor = None
     storage.solar_threshold = 0.0
     storage.solar_hysteresis = 0.0
+    storage.sun_heating_ignore = True
+    storage.sun_neutral_ignore = True
+    storage.preemptive_shading = True
     return storage
 
 

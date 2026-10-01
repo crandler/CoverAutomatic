@@ -550,56 +550,36 @@ class TestExportImport:
 
 
 class TestDebouncedSave:
-    """Tests for debounced save mechanism."""
+    """Tests for the debounced save (delegated to Store.async_delay_save)."""
 
-    def test_schedule_save_creates_task(self, storage, mock_hass) -> None:
-        """Test _schedule_save creates a task."""
-        storage._save_task = None
-        mock_hass.async_create_task = MagicMock(return_value=MagicMock())
-        storage._schedule_save()
-
-        assert storage._save_task is not None
-        mock_hass.async_create_task.assert_called_once()
-
-    def test_schedule_save_cancels_previous_task(self, storage, mock_hass) -> None:
-        """Test _schedule_save cancels previous task."""
-        mock_task = MagicMock()
-        storage._save_task = mock_task
-        mock_hass.async_create_task = MagicMock(return_value=MagicMock())
-        storage._schedule_save()
-
-        mock_task.cancel.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_debounced_save_waits_and_saves(self, storage, mock_store) -> None:
-        """Test _debounced_save waits before saving."""
+    def test_schedule_save_uses_store_delay_save(self, storage, mock_store) -> None:
+        """_schedule_save hands the write to the HA Store with the debounce delay."""
         storage._data = {"test": "data"}
+        storage._schedule_save()
 
-        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-            await storage._debounced_save()
+        mock_store.async_delay_save.assert_called_once()
+        data_func, delay = mock_store.async_delay_save.call_args.args
+        assert delay == SAVE_DEBOUNCE_DELAY
+        # The callback returns the live data at write time
+        assert data_func() is storage._data
 
-            mock_sleep.assert_called_once_with(SAVE_DEBOUNCE_DELAY)
-            mock_store.async_save.assert_called_once_with(storage._data)
+    def test_repeated_schedule_save_is_batched_by_store(self, storage, mock_store) -> None:
+        """Each call re-arms the Store's delayed write (Store keeps only the last)."""
+        storage._schedule_save()
+        storage._schedule_save()
+        assert mock_store.async_delay_save.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_debounced_save_handles_cancellation(
-        self, storage, mock_store
-    ) -> None:
-        """Test _debounced_save handles cancellation gracefully."""
-        with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
-            await storage._debounced_save()
+    async def test_async_save_writes_immediately(self, storage, mock_store) -> None:
+        """async_save writes now (and thereby supersedes a pending delayed save)."""
+        storage._data = {"test": "data"}
+        await storage.async_save()
+        mock_store.async_save.assert_called_once_with(storage._data)
 
+    def test_flush_pending_save_is_noop(self, storage, mock_store) -> None:
+        """flush_pending_save is kept for API compatibility and does not raise."""
+        storage.flush_pending_save()
         mock_store.async_save.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_debounced_save_handles_errors(
-        self, storage, mock_store
-    ) -> None:
-        """Test _debounced_save handles save errors."""
-        mock_store.async_save.side_effect = Exception("Save failed")
-
-        with patch("asyncio.sleep", new_callable=AsyncMock):
-            await storage._debounced_save()
 
 
 class TestImportCorruptEntries:
@@ -994,12 +974,12 @@ class TestActivityLogStorage:
             log._store = mock_store
 
         log.add_entry("position", "cover.test", "moved")
-        assert log._save_task is not None
+        mock_store.async_delay_save.assert_called_once()
 
         await log.async_clear()
 
-        assert log._save_task is None
         assert log._entries == []
+        mock_store.async_save.assert_called_once_with({"entries": []})
 
     @pytest.mark.asyncio
     async def test_async_save_persists_entries(self):
@@ -1021,14 +1001,13 @@ class TestActivityLogStorage:
 
         await log.async_save()
 
-        assert log._save_task is None
         mock_store.async_save.assert_called_once()
         saved_payload = mock_store.async_save.call_args[0][0]
         assert len(saved_payload["entries"]) == 2
 
     @pytest.mark.asyncio
-    async def test_async_save_cancels_pending_debounced_task(self):
-        """async_save cancels any pending debounced save (no double write)."""
+    async def test_async_save_after_scheduled_save(self):
+        """add_entry schedules a delayed Store write; async_save writes now."""
         hass = self._make_log_hass()
         mock_store = MagicMock()
         mock_store.async_load = AsyncMock(return_value=None)
@@ -1042,11 +1021,11 @@ class TestActivityLogStorage:
             log._store = mock_store
 
         log.add_entry("position", "cover.test", "moved")
-        assert log._save_task is not None
+        data_func, _delay = mock_store.async_delay_save.call_args.args
+        assert len(data_func()["entries"]) == 1
 
         await log.async_save()
 
-        assert log._save_task is None
         mock_store.async_save.assert_called_once()
 
 

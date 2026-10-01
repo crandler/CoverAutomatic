@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from . import i18n
 from .const import DOMAIN
 from .coordinator import CoverAutomaticCoordinator
+from .storage import resolve_active_scenario
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -48,7 +50,7 @@ class ScenarioSelect(CoordinatorEntity[CoverAutomaticCoordinator], SelectEntity)
             "identifiers": {(DOMAIN, entry_id)},
             "name": "CoverAutomatic",
             "manufacturer": "CoverAutomatic",
-            "model": "Controller",
+            "model": i18n.text(coordinator.hass, "model_controller"),
         }
 
     @property
@@ -60,11 +62,17 @@ class ScenarioSelect(CoordinatorEntity[CoverAutomaticCoordinator], SelectEntity)
     @property
     def current_option(self) -> str | None:
         """Return current scenario (validated against available options)."""
-        current = self.coordinator.storage.active_scenario
-        available = self.options
-        if current and current in available:
-            return current
-        return available[0] if available else None
+        storage = self.coordinator.storage
+        return resolve_active_scenario(storage.active_scenario, storage.scenarios)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Display names of the scenarios (options are their ids)."""
+        return {
+            "scenario_names": {
+                sid: scenario.name for sid, scenario in self.coordinator.storage.scenarios.items()
+            }
+        }
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected scenario."""

@@ -4,8 +4,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.core import callback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from . import i18n
 from .const import DOMAIN
 from .coordinator import CoverAutomaticCoordinator
 
@@ -28,12 +30,29 @@ async def async_setup_entry(
         CoverAutomaticMasterSwitch(coordinator, entry.entry_id),
     ]
 
+    known: set[str] = set()
     for entity_id, cover in coordinator.storage.covers.items():
         entities.append(
             CoverAutomaticAutoSwitch(coordinator, entity_id, cover.name)
         )
+        known.add(entity_id)
 
     async_add_entities(entities)
+
+    @callback
+    def _async_add_new_covers() -> None:
+        """Add switches for covers added at runtime (panel/import)."""
+        covers = coordinator.storage.covers
+        known.intersection_update(covers)  # forget deleted covers
+        new = [eid for eid in covers if eid not in known]
+        if not new:
+            return
+        known.update(new)
+        async_add_entities(
+            CoverAutomaticAutoSwitch(coordinator, eid, covers[eid].name) for eid in new
+        )
+
+    entry.async_on_unload(coordinator.async_add_listener(_async_add_new_covers))
 
 
 class CoverAutomaticMasterSwitch(CoordinatorEntity[CoverAutomaticCoordinator], SwitchEntity):
@@ -50,7 +69,7 @@ class CoverAutomaticMasterSwitch(CoordinatorEntity[CoverAutomaticCoordinator], S
             "identifiers": {(DOMAIN, entry_id)},
             "name": "CoverAutomatic",
             "manufacturer": "CoverAutomatic",
-            "model": "Controller",
+            "model": i18n.text(coordinator.hass, "model_controller"),
         }
 
     @property
@@ -91,7 +110,7 @@ class CoverAutomaticAutoSwitch(CoordinatorEntity[CoverAutomaticCoordinator], Swi
             "identifiers": {(DOMAIN, cover_entity_id)},
             "name": f"CoverAutomatic {cover_name}",
             "manufacturer": "CoverAutomatic",
-            "model": "Cover Controller",
+            "model": i18n.text(coordinator.hass, "model_cover"),
         }
 
     @property

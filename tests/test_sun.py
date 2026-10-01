@@ -10,6 +10,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.cover_automatic import sun as sun_mod
 from custom_components.cover_automatic.models import Facade
+from custom_components.cover_automatic import sun as sun_module
 from custom_components.cover_automatic.sun import (
     get_facade_sun_times,
     get_sun_position,
@@ -175,6 +176,7 @@ class TestIsSunOnFacade:
         assert result is False
 
 
+<<<<<<< Updated upstream
 # ---------------------------------------------------------------------------
 # Facade sun entry/exit times from the real sun path.
 # Reference values come from an independent 10-second brute-force scan with
@@ -282,3 +284,131 @@ class TestGetFacadeSunTimes:
                 assert calc.call_count > calls
         # Only the current day is kept
         assert {key[0] for key in sun_mod._times_cache} == {date(2026, 10, 2)}
+=======
+def _astral_hass(lat: float, lon: float, tz: str):
+    """Build a mock hass whose sun helpers use the real astral library."""
+    import zoneinfo
+
+    from homeassistant.util import dt as dt_util
+
+    dt_util.set_default_time_zone(zoneinfo.ZoneInfo(tz))
+    hass = MagicMock()
+    hass.data = {}
+    hass.config.latitude = lat
+    hass.config.longitude = lon
+    hass.config.elevation = 0
+    hass.config.time_zone = tz
+    return hass
+
+
+def _patch_sun_events(day, lat: float, lon: float, tz: str):
+    """Patch sunrise/sunset getters with astral's values for the given day."""
+    from astral import LocationInfo
+    from astral.sun import sunrise, sunset
+
+    observer = LocationInfo("", "", tz, lat, lon).observer
+    return (
+        patch(
+            "custom_components.cover_automatic.sun.get_sunrise_time",
+            return_value=sunrise(observer, date=day).timestamp(),
+        ),
+        patch(
+            "custom_components.cover_automatic.sun.get_sunset_time",
+            return_value=sunset(observer, date=day).timestamp(),
+        ),
+    )
+
+
+def _hhmm_to_min(value: str) -> int:
+    hours, minutes = value.split(":")
+    return int(hours) * 60 + int(minutes)
+
+
+PARIS = (48.85, 2.35, "Europe/Paris")
+
+
+class TestGetFacadeSunTimes:
+    """Tests for get_facade_sun_times (sampled real solar path)."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self):
+        sun_module._SUN_TIME_CACHE.clear()
+        yield
+        sun_module._SUN_TIME_CACHE.clear()
+
+    def _times(self, facade, day, where=PARIS):
+        import datetime
+
+        lat, lon, tz = where
+        hass = _astral_hass(lat, lon, tz)
+        p_rise, p_set = _patch_sun_events(datetime.date(*day), lat, lon, tz)
+        with p_rise, p_set:
+            return get_facade_sun_times(hass, facade)
+
+    def test_returns_none_when_sunrise_unavailable(self, mock_hass, south_facade) -> None:
+        with patch(
+            "custom_components.cover_automatic.sun.get_sunrise_time", return_value=None
+        ):
+            assert get_facade_sun_times(mock_hass, south_facade) == (None, None)
+
+    def test_returns_none_when_sunset_unavailable(self, mock_hass, south_facade) -> None:
+        with patch(
+            "custom_components.cover_automatic.sun.get_sunrise_time", return_value=1000.0
+        ), patch(
+            "custom_components.cover_automatic.sun.get_sunset_time", return_value=None
+        ):
+            assert get_facade_sun_times(mock_hass, south_facade) == (None, None)
+
+    def test_east_facade_gets_sun_from_sunrise_in_summer(self, east_facade) -> None:
+        """Default east preset (45-135) must yield an entry time (was None before)."""
+        entry, exit_time = self._times(east_facade, (2026, 6, 21))
+        assert entry is not None and exit_time is not None
+        assert _hhmm_to_min(entry) < 7 * 60  # early morning
+        assert _hhmm_to_min(exit_time) < 13 * 60 + 30
+
+    def test_west_facade_gets_sun_until_sunset_in_summer(self, west_facade) -> None:
+        """Default west preset (225-315) must yield an exit time (was None before)."""
+        entry, exit_time = self._times(west_facade, (2026, 6, 21))
+        assert entry is not None and exit_time is not None
+        assert _hhmm_to_min(exit_time) > 21 * 60
+
+    def test_south_facade_entry_before_exit(self, south_facade) -> None:
+        entry, exit_time = self._times(south_facade, (2026, 6, 21))
+        assert _hhmm_to_min(entry) < _hhmm_to_min(exit_time)
+
+    def test_south_facade_longer_in_winter(self, south_facade) -> None:
+        """Seasonal dependency: the winter sun stays in the south much longer."""
+        s_entry, s_exit = self._times(south_facade, (2026, 6, 21))
+        w_entry, w_exit = self._times(south_facade, (2026, 12, 21))
+        summer = _hhmm_to_min(s_exit) - _hhmm_to_min(s_entry)
+        winter = _hhmm_to_min(w_exit) - _hhmm_to_min(w_entry)
+        assert winter > summer
+
+    def test_north_facade_no_sun_in_paris(self, north_facade) -> None:
+        """In Paris the sun rises/sets south of 45/315 deg: no sun on 315-45."""
+        assert self._times(north_facade, (2026, 6, 21)) == (None, None)
+
+    def test_north_facade_gets_morning_sun_far_north(self, north_facade) -> None:
+        """Wrap-around facade near the arctic circle gets the early sun."""
+        entry, exit_time = self._times(
+            north_facade, (2026, 6, 10), where=(65.0, 25.5, "Europe/Helsinki")
+        )
+        assert entry is not None and exit_time is not None
+        assert _hhmm_to_min(entry) < 6 * 60
+
+    def test_min_elevation_shortens_period(self, south_facade) -> None:
+        low = self._times(south_facade, (2026, 12, 21))
+        sun_module._SUN_TIME_CACHE.clear()
+        high_facade = Facade(
+            id="s2", name="S2", azimuth_start=135.0, azimuth_end=225.0, min_elevation=15.0
+        )
+        high = self._times(high_facade, (2026, 12, 21))
+        assert _hhmm_to_min(high[0]) > _hhmm_to_min(low[0])
+        assert _hhmm_to_min(high[1]) < _hhmm_to_min(low[1])
+
+    def test_result_is_cached(self, south_facade) -> None:
+        first = self._times(south_facade, (2026, 6, 21))
+        assert len(sun_module._SUN_TIME_CACHE) == 1
+        assert self._times(south_facade, (2026, 6, 21)) == first
+        assert len(sun_module._SUN_TIME_CACHE) == 1
+>>>>>>> Stashed changes

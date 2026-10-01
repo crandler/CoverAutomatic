@@ -22,6 +22,10 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+
+class _ImportRejected(Exception):
+    """Import file rejected before reading (message is logged)."""
+
 # Exports are confined to this subdirectory below the HA config dir
 EXPORT_SUBDIR = "cover_automatic"
 EXPORT_ALLOWED_SUFFIXES = (".yaml", ".yml")
@@ -112,8 +116,9 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         entity_id = call.data.get("entity_id")
         for entry_data in _get_entries().values():
             if entity_id in entry_data.coordinator.storage.covers:
+                # Explicit pause: not ended by resume-on-match
                 entry_data.coordinator.pause_cover(
-                    entry_data.coordinator.storage.covers[entity_id]
+                    entry_data.coordinator.storage.covers[entity_id], manual=False
                 )
                 break
 
@@ -129,7 +134,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         """Handle pause_all service call."""
         for entry_data in _get_entries().values():
             for cover in entry_data.coordinator.storage.covers.values():
-                entry_data.coordinator.pause_cover(cover)
+                entry_data.coordinator.pause_cover(cover, manual=False)
 
     async def handle_resume_all(call: ServiceCall) -> None:
         """Handle resume_all service call."""
@@ -171,7 +176,11 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             return  # Internal/automation call -- no user context
         user = await hass.auth.async_get_user(call.context.user_id)
         if not user or not user.is_admin:
-            raise HomeAssistantError("Admin access required for this service")
+            raise HomeAssistantError(
+                "Admin access required for this service",
+                translation_domain=DOMAIN,
+                translation_key="admin_required",
+            )
 
     async def handle_export_config(call: ServiceCall) -> None:
         """Handle export_config service call."""
@@ -180,30 +189,35 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             EXPORT_SUBDIR, "cover_automatic_backup.yaml"
         )
 
-        # Confine exports to <config>/cover_automatic/ with YAML extension
-        validated_path = _validate_export_path(path_str, hass.config.config_dir)
-        if validated_path is None:
-            _LOGGER.error(
-                "Export rejected: path '%s' must be a YAML file inside '%s'",
-                path_str,
-                Path(hass.config.config_dir) / EXPORT_SUBDIR,
-            )
-            return
+        config_dir = hass.config.config_dir
 
         for entry_data in _get_entries().values():
-            data = entry_data.storage.get_raw_data()
+            data = entry_data.storage.get_export_data()
 
-            def write_yaml(export_data=data):
+            def write_yaml(export_data=data) -> Path | None:
+                # Path resolution touches the filesystem: validate here, in
+                # the executor, and write only inside <config>/cover_automatic/
+                validated_path = _validate_export_path(path_str, config_dir)
+                if validated_path is None:
+                    return None
                 validated_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(validated_path, "w", encoding="utf-8") as f:
                     yaml.dump(export_data, f, default_flow_style=False, allow_unicode=True)
+                return validated_path
 
             try:
-                await hass.async_add_executor_job(write_yaml)
+                written = await hass.async_add_executor_job(write_yaml)
             except (OSError, yaml.YAMLError) as err:
                 _LOGGER.error("Export failed: %s", err)
                 return
-            _LOGGER.info("Configuration exported to %s", validated_path)
+            if written is None:
+                _LOGGER.error(
+                    "Export rejected: path '%s' must be a YAML file inside '%s'",
+                    path_str,
+                    Path(config_dir) / EXPORT_SUBDIR,
+                )
+                return
+            _LOGGER.info("Configuration exported to %s", written)
             break
 
     async def handle_import_config(call: ServiceCall) -> None:
@@ -214,38 +228,37 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.error("Import rejected: no path provided")
             return
 
-        # Validate path to prevent path traversal attacks
-        validated_path = _validate_config_path(path_str, hass.config.config_dir)
-        if validated_path is None:
-            _LOGGER.error(
-                "Import rejected: path '%s' is outside allowed directories", path_str
-            )
-            return
-
-        if not validated_path.exists():
-            _LOGGER.error("Import file not found: %s", validated_path)
-            return
-
-        # Check file size before reading
-        try:
-            file_size = validated_path.stat().st_size
-            if file_size > MAX_IMPORT_FILE_SIZE:
-                _LOGGER.error(
-                    "Import rejected: file too large (%d bytes, max %d)",
-                    file_size,
-                    MAX_IMPORT_FILE_SIZE,
-                )
-                return
-        except OSError as err:
-            _LOGGER.error("Import failed: cannot stat file: %s", err)
-            return
+        config_dir = hass.config.config_dir
 
         def read_yaml():
+            # All filesystem access (resolve, exists, stat, read) runs here,
+            # in the executor, never on the event loop.
+            # Validate path to prevent path traversal attacks
+            validated_path = _validate_config_path(path_str, config_dir)
+            if validated_path is None:
+                raise _ImportRejected(
+                    f"Import rejected: path '{path_str}' is outside allowed directories"
+                )
+            if not validated_path.exists():
+                raise _ImportRejected(f"Import file not found: {validated_path}")
+            # Check file size before reading
+            try:
+                file_size = validated_path.stat().st_size
+            except OSError as err:
+                raise _ImportRejected(f"Import failed: cannot stat file: {err}") from err
+            if file_size > MAX_IMPORT_FILE_SIZE:
+                raise _ImportRejected(
+                    f"Import rejected: file too large ({file_size} bytes, "
+                    f"max {MAX_IMPORT_FILE_SIZE})"
+                )
             with open(validated_path, encoding="utf-8") as f:
                 return yaml.safe_load(f)
 
         try:
             data = await hass.async_add_executor_job(read_yaml)
+        except _ImportRejected as err:
+            _LOGGER.error("%s", err)
+            return
         except (OSError, yaml.YAMLError) as err:
             _LOGGER.error("Import failed: could not read file: %s", err)
             return
@@ -257,8 +270,11 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 _LOGGER.error("Import failed: invalid data format: %s", err)
                 return
             entry_data.coordinator.refresh_state_tracking()
+            # auto_enabled may have changed: leave MANUAL / enter it now
+            entry_data.coordinator.reconcile_after_import()
+            entry_data.coordinator.async_sync_entities()
             await entry_data.coordinator.async_request_refresh()
-            _LOGGER.info("Configuration imported from %s", validated_path)
+            _LOGGER.info("Configuration imported from %s", path_str)
             break
 
     schema_entity = vol.Schema({vol.Required("entity_id"): cv.entity_id})

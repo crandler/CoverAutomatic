@@ -181,7 +181,7 @@ class TestPauseResumeServices:
         # Execute pause handler
         await handlers["pause"](call)
 
-        coordinator.pause_cover.assert_called_once_with(cover)
+        coordinator.pause_cover.assert_called_once_with(cover, manual=False)
 
     @pytest.mark.asyncio
     async def test_resume_service_calls_coordinator(
@@ -299,7 +299,7 @@ class TestExportImportServices:
         hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *args: fn(*args) if not args else fn())
 
         mock_storage = MagicMock()
-        mock_storage.get_raw_data = MagicMock(
+        mock_storage.get_export_data = MagicMock(
             return_value={"facades": {}, "covers": {}}
         )
         mock_storage.async_import_data = AsyncMock()
@@ -333,14 +333,17 @@ class TestExportImportServices:
         call.data = {"path": "/etc/passwd"}
         call.context.user_id = None
 
-        with patch(
-            "custom_components.cover_automatic.services._validate_export_path",
-            return_value=None,
+        with (
+            patch(
+                "custom_components.cover_automatic.services._validate_export_path",
+                return_value=None,
+            ),
+            patch("builtins.open") as mock_open,
         ):
             await handlers["export_config"](call)
 
-        # Should not attempt to write
-        hass.async_add_executor_job.assert_not_called()
+        # Validation runs in the executor; nothing may be written
+        mock_open.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_import_validates_path(self, mock_hass_with_export_data) -> None:
@@ -531,7 +534,7 @@ class TestExportHappyPath:
         hass.config.config_dir = "/config"
 
         mock_storage = MagicMock()
-        mock_storage.get_raw_data = MagicMock(return_value={"facades": {}, "covers": {}})
+        mock_storage.get_export_data = MagicMock(return_value={"facades": {}, "covers": {}})
         mock_storage.async_import_data = AsyncMock()
 
         mock_coordinator = MagicMock()
@@ -629,7 +632,7 @@ class TestExportPathRestrictions:
         )
 
         mock_storage = MagicMock()
-        mock_storage.get_raw_data = MagicMock(return_value={"facades": {}, "covers": {}})
+        mock_storage.get_export_data = MagicMock(return_value={"facades": {}, "covers": {}})
 
         mock_coordinator = MagicMock()
         mock_coordinator.storage = mock_storage
@@ -663,9 +666,12 @@ class TestExportPathRestrictions:
         call.data = {"path": "/config/configuration.yaml"}
         call.context.user_id = None
 
-        await handler(call)
+        # Run executor jobs for real: validation happens inside the job
+        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
+        with patch("builtins.open") as mock_open:
+            await handler(call)
 
-        hass.async_add_executor_job.assert_not_called()
+        mock_open.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_export_default_path_in_subdir(self, mock_hass_for_export) -> None:
@@ -701,7 +707,7 @@ class TestImportHappyPath:
         hass.config.config_dir = "/config"
 
         mock_storage = MagicMock()
-        mock_storage.get_raw_data = MagicMock(return_value={"facades": {}, "covers": {}})
+        mock_storage.get_export_data = MagicMock(return_value={"facades": {}, "covers": {}})
         mock_storage.async_import_data = AsyncMock()
 
         mock_coordinator = MagicMock()
@@ -769,7 +775,7 @@ class TestImportValidationErrors:
         hass.config.config_dir = "/config"
 
         mock_storage = MagicMock()
-        mock_storage.get_raw_data = MagicMock(return_value={"facades": {}, "covers": {}})
+        mock_storage.get_export_data = MagicMock(return_value={"facades": {}, "covers": {}})
 
         mock_coordinator = MagicMock()
         mock_coordinator.storage = mock_storage
@@ -871,7 +877,7 @@ class TestAdminRequirement:
         hass.config.config_dir = "/config"
 
         mock_storage = MagicMock()
-        mock_storage.get_raw_data = MagicMock(return_value={"facades": {}, "covers": {}})
+        mock_storage.get_export_data = MagicMock(return_value={"facades": {}, "covers": {}})
         mock_storage.async_import_data = AsyncMock()
 
         mock_coordinator = MagicMock()
