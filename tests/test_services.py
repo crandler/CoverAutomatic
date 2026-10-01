@@ -703,6 +703,8 @@ class TestImportHappyPath:
         mock_storage = MagicMock()
         mock_storage.get_raw_data = MagicMock(return_value={"facades": {}, "covers": {}})
         mock_storage.async_import_data = AsyncMock()
+        mock_storage.covers = {"cover.a": MagicMock()}
+        mock_storage.facades = {"south": MagicMock()}
 
         mock_coordinator = MagicMock()
         mock_coordinator.storage = mock_storage
@@ -750,6 +752,8 @@ class TestImportHappyPath:
 
         storage.async_import_data.assert_called_once_with(import_data)
         coordinator.refresh_state_tracking.assert_called_once()
+        # Devices and entities follow the import, diffed against the pre-import state
+        coordinator.async_sync_entities.assert_called_once_with({"cover.a"}, {"south"})
         coordinator.async_request_refresh.assert_called_once()
 
 

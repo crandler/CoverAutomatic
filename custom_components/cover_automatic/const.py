@@ -37,3 +37,6 @@ LOG_EVENT_WIND: Final = "wind"
 
 # Panel push event (fired when coordinator data changes)
 EVENT_DATA_UPDATED: Final = f"{DOMAIN}_updated"
+
+# Dispatcher signal: covers or facades were added, platforms create missing entities
+SIGNAL_ENTITIES_CHANGED: Final = f"{DOMAIN}_entities_changed"

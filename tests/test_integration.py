@@ -1276,26 +1276,16 @@ async def _real_instance(tmp_path, cover_ids, facade_ids):
             Facade(id=facade_id, name=facade_id, azimuth_start=135.0, azimuth_end=225.0)
         )
 
-    coordinator = MagicMock()
-    coordinator.storage = storage
-    coordinator.config_entry = entry
-    coordinator.data = {}
-    coordinator.get_live_cover = MagicMock(return_value=None)
-    coordinator.get_active_rules = MagicMock(return_value={})
-    coordinator.get_live_cover_data = MagicMock(return_value={})
-    coordinator.get_live_facade_data = MagicMock(return_value={})
+    coordinator = CoverAutomaticCoordinator(hass, storage, 60, config_entry=entry)
     entry.runtime_data = SimpleNamespace(coordinator=coordinator, storage=storage)
 
     for domain, module in (("sensor", sensor), ("switch", switch)):
         platform = EntityPlatform(
             hass=hass, logger=logging.getLogger(__name__), domain=domain,
-            platform_name=DOMAIN, platform=None,
+            platform_name=DOMAIN, platform=module,
             scan_interval=timedelta(seconds=60), entity_namespace=None,
         )
-        platform.config_entry = entry
-        entities: list = []
-        await module.async_setup_entry(hass, entry, entities.extend)
-        await platform.async_add_entities(entities)
+        assert await platform.async_setup_entry(entry)
     await hass.async_block_till_done()
 
     try:
@@ -1396,3 +1386,92 @@ class TestRemoveConfigEntryDevice:
             assert await removable("cover.a") is False
             assert await removable("facade_south") is False
             assert await removable(entry.entry_id) is False
+
+
+class TestEntitiesFollowStorage:
+    """Covers and facades get their device and entities without a restart.
+
+    The platforms created entities only in async_setup_entry, so anything
+    added at runtime (panel or import) stayed without entities until Home
+    Assistant restarted, and an import that dropped covers or facades left
+    their devices behind.
+    """
+
+    @pytest.mark.asyncio
+    async def test_cover_add_creates_device_and_entities(self, tmp_path) -> None:
+        from custom_components.cover_automatic.api import ws_cover_add
+
+        async with _real_instance(tmp_path, ["cover.a"], []) as (
+            hass, entry, storage, coordinator,
+        ):
+            msg = {"id": 1, "entity_ids": ["cover.new"]}
+            await ws_cover_add(hass, MagicMock(), msg, storage, coordinator)
+            await hass.async_block_till_done()
+
+            device, entity_ids = _device_entities(hass, entry, "cover.new")
+            assert device is not None
+            assert len(entity_ids) == 2
+            assert all(hass.states.get(e) is not None for e in entity_ids)
+            assert len(_device_entities(hass, entry, "cover.a")[1]) == 2
+
+    @pytest.mark.asyncio
+    async def test_facade_add_creates_device_and_entities(self, tmp_path) -> None:
+        from custom_components.cover_automatic.api import ws_facade_add
+
+        async with _real_instance(tmp_path, [], ["south"]) as (
+            hass, entry, storage, coordinator,
+        ):
+            msg = {"id": 1, "name": "West", "direction": "west"}
+            await ws_facade_add(hass, MagicMock(), msg, storage, coordinator)
+            await hass.async_block_till_done()
+
+            device, entity_ids = _device_entities(hass, entry, "facade_west")
+            assert device is not None
+            assert len(entity_ids) == 3
+            assert all(hass.states.get(e) is not None for e in entity_ids)
+            assert len(_device_entities(hass, entry, "facade_south")[1]) == 3
+
+    @pytest.mark.asyncio
+    async def test_cover_readded_after_delete_gets_entities_again(self, tmp_path) -> None:
+        from custom_components.cover_automatic.api import ws_cover_add, ws_cover_delete
+
+        async with _real_instance(tmp_path, ["cover.a"], []) as (
+            hass, entry, storage, coordinator,
+        ):
+            await ws_cover_delete(hass, MagicMock(), {"id": 1, "entity_id": "cover.a"}, storage, coordinator)
+            await hass.async_block_till_done()
+            await ws_cover_add(hass, MagicMock(), {"id": 2, "entity_ids": ["cover.a"]}, storage, coordinator)
+            await hass.async_block_till_done()
+
+            _, entity_ids = _device_entities(hass, entry, "cover.a")
+            assert len(entity_ids) == 2
+            assert all(hass.states.get(e) is not None for e in entity_ids)
+
+    @pytest.mark.asyncio
+    async def test_import_adds_and_removes_devices(self, tmp_path) -> None:
+        from custom_components.cover_automatic.api import ws_import_config
+
+        async with _real_instance(tmp_path, ["cover.a", "cover.b"], ["south"]) as (
+            hass, entry, storage, coordinator,
+        ):
+            data = {
+                "covers": {
+                    cid: CoverConfig(entity_id=cid, name=cid).to_dict()
+                    for cid in ("cover.b", "cover.c")
+                },
+                "facades": {
+                    "north": Facade(
+                        id="north", name="North", azimuth_start=315.0, azimuth_end=45.0,
+                    ).to_dict(),
+                },
+                "rules": {},
+                "scenarios": {},
+            }
+            await ws_import_config(hass, MagicMock(), {"id": 1, "data": data}, storage, coordinator)
+            await hass.async_block_till_done()
+
+            assert _device_entities(hass, entry, "cover.a") == (None, [])
+            assert _device_entities(hass, entry, "facade_south") == (None, [])
+            assert len(_device_entities(hass, entry, "cover.b")[1]) == 2
+            assert len(_device_entities(hass, entry, "cover.c")[1]) == 2
+            assert len(_device_entities(hass, entry, "facade_north")[1]) == 3

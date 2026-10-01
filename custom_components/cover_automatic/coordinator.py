@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.logbook import async_log_entry
 from homeassistant.core import callback
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
@@ -22,6 +24,7 @@ from .const import (
     LOG_EVENT_RULE,
     LOG_EVENT_STATUS,
     LOG_EVENT_WIND,
+    SIGNAL_ENTITIES_CHANGED,
     TILT_COMMAND_DELAY,
     TILT_FEATURE_FLAG,
 )
@@ -269,6 +272,23 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         Performs a full refresh to ensure removed entities are no longer tracked.
         """
         self._setup_state_tracking(full_refresh=True)
+
+    @callback
+    def async_sync_entities(self, old_covers: set[str], old_facades: set[str]) -> None:
+        """Align devices and entities with storage after covers or facades changed.
+
+        Removes the device of every cover/facade that is gone (HA removes its
+        entities with it) and lets the platforms add entities for new ones.
+        """
+        gone = (old_covers - set(self.storage.covers)) | {
+            f"facade_{facade_id}" for facade_id in old_facades - set(self.storage.facades)
+        }
+        if gone:
+            registry = dr.async_get(self.hass)
+            for device in dr.async_entries_for_config_entry(registry, self.config_entry.entry_id):
+                if any(domain == DOMAIN and ident in gone for domain, ident in device.identifiers):
+                    registry.async_remove_device(device.id)
+        async_dispatcher_send(self.hass, SIGNAL_ENTITIES_CHANGED)
 
     def _get_covers_by_sensor(self, sensor_id: str) -> tuple[list[str], list[str]]:
         """Get cover entity IDs that use a specific sensor.

@@ -251,12 +251,15 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             return
 
         for entry_data in _get_entries().values():
+            storage = entry_data.storage
+            old_covers, old_facades = set(storage.covers), set(storage.facades)
             try:
-                await entry_data.storage.async_import_data(data)
+                await storage.async_import_data(data)
             except (ValueError, TypeError) as err:
                 _LOGGER.error("Import failed: invalid data format: %s", err)
                 return
             entry_data.coordinator.refresh_state_tracking()
+            entry_data.coordinator.async_sync_entities(old_covers, old_facades)
             await entry_data.coordinator.async_request_refresh()
             _LOGGER.info("Configuration imported from %s", validated_path)
             break

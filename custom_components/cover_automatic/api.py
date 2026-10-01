@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN, FACADE_PRESETS
 from .models import Condition, CoverConfig, Facade, Rule, Scenario
@@ -191,22 +190,6 @@ def _sync_facade_cover_ids(
     storage._invalidate_cache()
 
 
-def _remove_device(
-    hass: HomeAssistant, coordinator: CoverAutomaticCoordinator, identifier: str,
-) -> None:
-    """Remove the device of a deleted cover or facade; HA removes its entities with it."""
-    registry = dr.async_get(hass)
-    device = next(
-        (
-            d for d in dr.async_entries_for_config_entry(registry, coordinator.config_entry.entry_id)
-            if (DOMAIN, identifier) in d.identifiers
-        ),
-        None,
-    )
-    if device is not None:
-        registry.async_remove_device(device.id)
-
-
 def _parse_conditions(raw: list[dict[str, Any]]) -> tuple[list[Condition], list[str]]:
     """Parse condition dicts, collecting errors for invalid ones."""
     conditions: list[Condition] = []
@@ -308,6 +291,7 @@ async def ws_cover_add(
 ) -> None:
     """Handle cover_automatic/cover/add."""
     entity_ids = msg["entity_ids"]
+    old_covers, old_facades = set(storage.covers), set(storage.facades)
     added = False
     for entity_id in entity_ids:
         if entity_id in storage.covers:
@@ -320,6 +304,7 @@ async def ws_cover_add(
     if added:
         await storage.async_save()
     coordinator.refresh_state_tracking()
+    coordinator.async_sync_entities(old_covers, old_facades)
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
@@ -331,8 +316,9 @@ async def ws_cover_delete(
     coordinator: CoverAutomaticCoordinator,
 ) -> None:
     """Handle cover_automatic/cover/delete."""
+    old_covers, old_facades = set(storage.covers), set(storage.facades)
     await storage.async_remove_cover(msg["entity_id"])
-    _remove_device(hass, coordinator, msg["entity_id"])
+    coordinator.async_sync_entities(old_covers, old_facades)
     coordinator.refresh_state_tracking()
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
@@ -354,6 +340,7 @@ async def ws_facade_add(
     if unknown:
         connection.send_error(msg["id"], "not_found", _unknown_refs_msg([], unknown))
         return
+    old_covers, old_facades = set(storage.covers), set(storage.facades)
     facade_id = _unique_id(_sanitize_id(name), storage.facades)
     facade = Facade(
         id=facade_id,
@@ -367,6 +354,7 @@ async def ws_facade_add(
     await storage.async_add_facade(facade, save=False)
     _sync_cover_facade_ids(storage, facade_id, new_cover_ids)
     await storage.async_save()
+    coordinator.async_sync_entities(old_covers, old_facades)
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
@@ -420,8 +408,9 @@ async def ws_facade_delete(
         connection.send_error(msg["id"], "not_found", f"Facade '{facade_id}' not found")
         return
 
+    old_covers, old_facades = set(storage.covers), set(storage.facades)
     await storage.async_remove_facade(facade_id)
-    _remove_device(hass, coordinator, f"facade_{facade_id}")
+    coordinator.async_sync_entities(old_covers, old_facades)
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
@@ -812,12 +801,14 @@ async def ws_import_config(
     if total_entries > _MAX_IMPORT_ENTRIES:
         connection.send_error(msg["id"], "too_large", "Import payload exceeds entry limits")
         return
+    old_covers, old_facades = set(storage.covers), set(storage.facades)
     try:
         await storage.async_import_data(data)
     except (ValueError, TypeError) as err:
         connection.send_error(msg["id"], "invalid_data", str(err))
         return
     coordinator.refresh_state_tracking()
+    coordinator.async_sync_entities(old_covers, old_facades)
     await coordinator.async_request_refresh()
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 

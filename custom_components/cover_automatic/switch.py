@@ -4,9 +4,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.core import callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, SIGNAL_ENTITIES_CHANGED
 from .coordinator import CoverAutomaticCoordinator
 
 if TYPE_CHECKING:
@@ -21,19 +23,30 @@ async def async_setup_entry(
     entry: CoverAutomaticConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up switch entities."""
+    """Set up switch entities, and those of covers added later."""
     coordinator = entry.runtime_data.coordinator
+    storage = coordinator.storage
+    known_covers: set[str] = set()
 
-    entities: list[SwitchEntity] = [
-        CoverAutomaticMasterSwitch(coordinator, entry.entry_id),
-    ]
+    async_add_entities([CoverAutomaticMasterSwitch(coordinator, entry.entry_id)])
 
-    for entity_id, cover in coordinator.storage.covers.items():
-        entities.append(
+    @callback
+    def _async_add_new_entities() -> None:
+        entities: list[SwitchEntity] = [
             CoverAutomaticAutoSwitch(coordinator, entity_id, cover.name)
-        )
+            for entity_id, cover in storage.covers.items()
+            if entity_id not in known_covers
+        ]
+        # Forget removed ones so a re-added cover gets its switch again
+        known_covers.clear()
+        known_covers.update(storage.covers)
+        if entities:
+            async_add_entities(entities)
 
-    async_add_entities(entities)
+    _async_add_new_entities()
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, SIGNAL_ENTITIES_CHANGED, _async_add_new_entities)
+    )
 
 
 class CoverAutomaticMasterSwitch(CoordinatorEntity[CoverAutomaticCoordinator], SwitchEntity):

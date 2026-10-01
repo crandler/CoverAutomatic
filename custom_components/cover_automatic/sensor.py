@@ -5,9 +5,11 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.core import callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, SIGNAL_ENTITIES_CHANGED
 from .coordinator import CoverAutomaticCoordinator
 from .models import CoverStatus
 from .sun import get_facade_sun_times
@@ -35,28 +37,48 @@ async def async_setup_entry(
     entry: CoverAutomaticConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up sensor entities."""
+    """Set up sensor entities, and those of covers/facades added later."""
     coordinator = entry.runtime_data.coordinator
+    storage = coordinator.storage
+    known_covers: set[str] = set()
+    known_facades: set[str] = set()
 
-    entities: list[SensorEntity] = []
+    @callback
+    def _async_add_new_entities() -> None:
+        entities: list[SensorEntity] = []
 
-    for entity_id, cover in coordinator.storage.covers.items():
-        entities.append(
-            CoverAutomaticStatusSensor(coordinator, entity_id, cover.name)
-        )
+        for entity_id, cover in storage.covers.items():
+            if entity_id in known_covers:
+                continue
+            entities.append(
+                CoverAutomaticStatusSensor(coordinator, entity_id, cover.name)
+            )
 
-    for facade_id, facade in coordinator.storage.facades.items():
-        entities.append(
-            FacadeSunSensor(coordinator, facade_id, facade.name)
-        )
-        entities.append(
-            FacadeSunTimeSensor(coordinator, facade_id, facade.name, is_entry=True)
-        )
-        entities.append(
-            FacadeSunTimeSensor(coordinator, facade_id, facade.name, is_entry=False)
-        )
+        for facade_id, facade in storage.facades.items():
+            if facade_id in known_facades:
+                continue
+            entities.append(
+                FacadeSunSensor(coordinator, facade_id, facade.name)
+            )
+            entities.append(
+                FacadeSunTimeSensor(coordinator, facade_id, facade.name, is_entry=True)
+            )
+            entities.append(
+                FacadeSunTimeSensor(coordinator, facade_id, facade.name, is_entry=False)
+            )
 
-    async_add_entities(entities)
+        # Forget removed ones so a re-added cover/facade gets entities again
+        known_covers.clear()
+        known_covers.update(storage.covers)
+        known_facades.clear()
+        known_facades.update(storage.facades)
+        if entities:
+            async_add_entities(entities)
+
+    _async_add_new_entities()
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, SIGNAL_ENTITIES_CHANGED, _async_add_new_entities)
+    )
 
 
 class CoverAutomaticStatusSensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorEntity):
