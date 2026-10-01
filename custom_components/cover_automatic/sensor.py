@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -93,6 +93,16 @@ class CoverAutomaticStatusSensor(CoordinatorEntity[CoverAutomaticCoordinator], S
         """Return icon based on status."""
         status = self.coordinator.get_cover_status(self._cover_entity_id)
         return _STATUS_ICONS.get(status, "mdi:help-circle")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the winning rule and its target position (None when no rule applies)."""
+        live = self.coordinator.get_live_cover(self._cover_entity_id) or {}
+        return {
+            "rule_id": live.get("rule_id"),
+            "rule_name": live.get("rule_name"),
+            "target_position": live.get("target_position"),
+        }
 
 
 class FacadeSunSensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorEntity):

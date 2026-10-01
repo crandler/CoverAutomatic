@@ -1009,28 +1009,40 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def get_live_cover_data(self) -> dict[str, dict[str, Any]]:
         """Get live runtime data for all covers."""
-        result: dict[str, dict[str, Any]] = {}
-        if self.data:
-            for entity_id, cover_data in self.data.get("covers", {}).items():
-                cover_raw = self.storage.get_cover_raw(entity_id)
-                pause_until = cover_raw.get("pause_until") if cover_raw else None
-                rule_id = cover_data.get("matching_rule_id")
-                rule_name = None
-                if rule_id:
-                    rule = self.storage.rules.get(rule_id)
-                    rule_name = rule.name if rule else rule_id
-                # Comfort mode from engine cache
-                comfort = self.engine._last_comfort_mode.get(entity_id)
-                result[entity_id] = {
-                    "target_position": cover_data.get("target_position"),
-                    "hysteresis": self._hysteresis_info.get(entity_id),
-                    "pause_until": pause_until,
-                    "rule_id": rule_id,
-                    "rule_name": rule_name,
-                    "comfort_mode": comfort.value if comfort else None,
-                    "last_change": cover_raw.get("last_position_change") if cover_raw else None,
-                }
-        return result
+        if not self.data:
+            return {}
+        return {
+            entity_id: self._live_cover_entry(entity_id, cover_data)
+            for entity_id, cover_data in self.data.get("covers", {}).items()
+        }
+
+    def get_live_cover(self, entity_id: str) -> dict[str, Any] | None:
+        """Get live runtime data for one cover, None before the first refresh."""
+        cover_data = (self.data or {}).get("covers", {}).get(entity_id)
+        if cover_data is None:
+            return None
+        return self._live_cover_entry(entity_id, cover_data)
+
+    def _live_cover_entry(self, entity_id: str, cover_data: dict[str, Any]) -> dict[str, Any]:
+        """Build the live data dict for one cover from its update-cycle result."""
+        cover_raw = self.storage.get_cover_raw(entity_id)
+        pause_until = cover_raw.get("pause_until") if cover_raw else None
+        rule_id = cover_data.get("matching_rule_id")
+        rule_name = None
+        if rule_id:
+            rule = self.storage.rules.get(rule_id)
+            rule_name = rule.name if rule else rule_id
+        # Comfort mode from engine cache
+        comfort = self.engine._last_comfort_mode.get(entity_id)
+        return {
+            "target_position": cover_data.get("target_position"),
+            "hysteresis": self._hysteresis_info.get(entity_id),
+            "pause_until": pause_until,
+            "rule_id": rule_id,
+            "rule_name": rule_name,
+            "comfort_mode": comfort.value if comfort else None,
+            "last_change": cover_raw.get("last_position_change") if cover_raw else None,
+        }
 
     def get_live_facade_data(self) -> dict[str, dict[str, Any]]:
         """Get live runtime data for facades (sun on facade)."""

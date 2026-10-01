@@ -3624,3 +3624,42 @@ class TestProtectiveStatusExitFreshApply:
         ]
         assert position_calls == []
         assert "cover.test" not in coordinator._post_protective_exit
+
+
+class TestGetLiveCover:
+    """get_live_cover returns one cover's live data, as get_live_cover_data does for all."""
+
+    def test_resolves_rule_name(self, coordinator, mock_storage) -> None:
+        from custom_components.cover_automatic.models import Rule
+
+        coordinator.engine = MagicMock()
+        coordinator.engine._last_comfort_mode = {}
+        mock_storage.rules = {"day": Rule(id="day", name="Day")}
+        coordinator.data = {
+            "covers": {
+                "cover.test": {"status": "auto", "target_position": 40, "matching_rule_id": "day"},
+            }
+        }
+
+        live = coordinator.get_live_cover("cover.test")
+
+        assert live["rule_id"] == "day"
+        assert live["rule_name"] == "Day"
+        assert live["target_position"] == 40
+        assert coordinator.get_live_cover_data()["cover.test"] == live
+
+    def test_deleted_rule_falls_back_to_id(self, coordinator, mock_storage) -> None:
+        coordinator.engine = MagicMock()
+        coordinator.engine._last_comfort_mode = {}
+        mock_storage.rules = {}
+        coordinator.data = {
+            "covers": {"cover.test": {"target_position": 0, "matching_rule_id": "gone"}}
+        }
+
+        assert coordinator.get_live_cover("cover.test")["rule_name"] == "gone"
+
+    def test_unknown_cover_or_no_data(self, coordinator) -> None:
+        coordinator.data = None
+        assert coordinator.get_live_cover("cover.test") is None
+        coordinator.data = {"covers": {}}
+        assert coordinator.get_live_cover("cover.test") is None

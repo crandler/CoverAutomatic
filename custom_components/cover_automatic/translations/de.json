@@ -37,6 +37,17 @@
           "locked": "Gesperrt",
           "venting": "Lüftung",
           "wind_protected": "Windschutz"
+        },
+        "state_attributes": {
+          "rule_id": {
+            "name": "Regel-ID"
+          },
+          "rule_name": {
+            "name": "Regel"
+          },
+          "target_position": {
+            "name": "Zielposition"
+          }
         }
       },
       "sun_on_facade": {

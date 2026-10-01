@@ -37,6 +37,17 @@
           "locked": "Locked",
           "venting": "Venting",
           "wind_protected": "Wind protected"
+        },
+        "state_attributes": {
+          "rule_id": {
+            "name": "Rule ID"
+          },
+          "rule_name": {
+            "name": "Rule"
+          },
+          "target_position": {
+            "name": "Target position"
+          }
         }
       },
       "sun_on_facade": {

@@ -137,6 +137,42 @@ class TestSensorPlatform:
 
         assert sensor.native_value == "paused"
 
+    def test_status_sensor_exposes_winning_rule(self, mock_coordinator) -> None:
+        """Winning rule and target are attributes, usable in automations."""
+        from custom_components.cover_automatic.sensor import CoverAutomaticStatusSensor
+
+        mock_coordinator.get_live_cover = MagicMock(return_value={
+            "rule_id": "day",
+            "rule_name": "Day",
+            "target_position": 40,
+            "comfort_mode": "neutral",
+        })
+
+        sensor = CoverAutomaticStatusSensor(mock_coordinator, "cover.test", "Test")
+        sensor.hass = MagicMock()
+
+        assert sensor.extra_state_attributes == {
+            "rule_id": "day",
+            "rule_name": "Day",
+            "target_position": 40,
+        }
+        mock_coordinator.get_live_cover.assert_called_with("cover.test")
+
+    def test_status_sensor_attributes_without_rule(self, mock_coordinator) -> None:
+        """No winning rule (paused, manual, before first refresh) yields None values."""
+        from custom_components.cover_automatic.sensor import CoverAutomaticStatusSensor
+
+        mock_coordinator.get_live_cover = MagicMock(return_value=None)
+
+        sensor = CoverAutomaticStatusSensor(mock_coordinator, "cover.test", "Test")
+        sensor.hass = MagicMock()
+
+        assert sensor.extra_state_attributes == {
+            "rule_id": None,
+            "rule_name": None,
+            "target_position": None,
+        }
+
     def test_status_sensor_icon_auto(self, mock_coordinator) -> None:
         """Test status sensor icon for AUTO status."""
         from custom_components.cover_automatic.sensor import CoverAutomaticStatusSensor
