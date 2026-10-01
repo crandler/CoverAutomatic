@@ -5,6 +5,13 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.62.0] - 2026-10-01
+
+### Added
+
+- Duplicate rules from the rules list. The copy keeps all conditions, assignments and scenario links, starts disabled so it cannot move covers while you adapt it, and opens in the editor right away ([#1](https://github.com/crandler/CoverAutomatic/issues/1)).
+- The cover status sensor now shows which rule is in control: attributes `rule_name`, `rule_id` and `target_position`, usable in automations, templates and dashboards ([#1](https://github.com/crandler/CoverAutomatic/issues/1)).
+
 ## [1.61.2] - 2026-10-01
 
 ### Fixed

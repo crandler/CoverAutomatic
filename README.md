@@ -166,7 +166,7 @@ After installation, all configuration is done via the **CoverAutomatic** sidebar
 
 1. **Covers** - Add cover entities to manage
 2. **Facades** - Define building facades by cardinal direction (with compass visualization)
-3. **Rules** - Create automation rules with conditions (sun, temperature, time, weather, etc.)
+3. **Rules** - Create automation rules with conditions (sun, temperature, time, weather, etc.); duplicate an existing rule to use it as a starting point
 4. **Scenarios** - Define modes like "Summer", "Winter", "Vacation" to disable specific rules
 5. **Settings** - Configure sensors, comfort temperatures, wind protection, and more
 
@@ -195,7 +195,7 @@ For each managed cover, the integration creates:
 | Entity | Description |
 |--------|-------------|
 | `switch.*_auto` | Enable/disable automation |
-| `sensor.*_status` | Current status (auto/paused/manual/locked/venting/wind_protected) |
+| `sensor.*_status` | Current status (auto/paused/manual/locked/venting/wind_protected). Attributes `rule_name`, `rule_id` and `target_position` show the rule currently in control (empty while paused, manual or protected) |
 
 For each facade:
 | Entity | Description |
@@ -273,13 +273,13 @@ Still stuck? [Open a bug report](https://github.com/crandler/CoverAutomatic/issu
 
 ## Version
 
-1.61.2
+1.62.0
 
 ## Changelog
 
 Full version history is maintained in [CHANGELOG.md](CHANGELOG.md), formatted per [Keep a Changelog](https://keepachangelog.com/).
 
-Latest release: [v1.61.2](https://github.com/crandler/CoverAutomatic/releases/tag/v1.61.2) (2026-10-01).
+Latest release: [v1.62.0](https://github.com/crandler/CoverAutomatic/releases/tag/v1.62.0) (2026-10-01).
 
 ## License
 
