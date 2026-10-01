@@ -2,13 +2,18 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
+from astral import Observer
+from astral.sun import zenith_and_azimuth
 from homeassistant.const import SUN_EVENT_SUNRISE, SUN_EVENT_SUNSET
 from homeassistant.helpers.sun import get_astral_event_date
 from homeassistant.util import dt as dt_util
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from homeassistant.core import HomeAssistant
 
     from .models import Facade
@@ -16,6 +21,13 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 SUN_ENTITY_ID = "sun.sun"
+
+# Facade sun times: coarse scan of the day, then bisection at each boundary
+_SCAN_STEP = timedelta(minutes=5)
+_BOUNDARY_PRECISION = timedelta(seconds=15)
+
+# (day, facade geometry, location) -> (entry, exit); holds the current day only
+_times_cache: dict[tuple[Any, ...], tuple[str | None, str | None]] = {}
 
 
 def get_sun_position(hass: HomeAssistant) -> tuple[float, float] | None:
@@ -60,7 +72,11 @@ def is_sun_on_facade(
         return False
 
     azimuth, elevation = position
+    return _sun_hits_facade(facade, azimuth, elevation)
 
+
+def _sun_hits_facade(facade: Facade, azimuth: float, elevation: float) -> bool:
+    """Return True if a sun at azimuth/elevation shines on the facade."""
     if elevation < facade.min_elevation:
         return False
 
@@ -69,8 +85,7 @@ def is_sun_on_facade(
 
     if start <= end:
         return start <= azimuth <= end
-    else:
-        return azimuth >= start or azimuth <= end
+    return azimuth >= start or azimuth <= end
 
 
 def get_sunrise_time(hass: HomeAssistant) -> float | None:
@@ -89,84 +104,82 @@ def get_sunset_time(hass: HomeAssistant) -> float | None:
     return sunset.timestamp()
 
 
-def _azimuth_to_time(
-    azimuth: float,
-    sunrise: float,
-    day_length: float,
-    az_sunrise: float,
-    az_range: float,
-) -> str | None:
-    """Convert azimuth to time string if within sun path range."""
-    fraction = (azimuth - az_sunrise) / az_range
-    if not 0 <= fraction <= 1:
-        return None
-    timestamp = sunrise + (fraction * day_length)
-    dt_local = dt_util.as_local(dt_util.utc_from_timestamp(timestamp))
-    return dt_local.strftime("%H:%M")
-
-
 def get_facade_sun_times(
     hass: HomeAssistant, facade: Facade,
 ) -> tuple[str | None, str | None]:
-    """Calculate approximate sun entry and exit times for a facade.
+    """Return today's sun entry and exit time (local HH:MM) for a facade.
 
-    Facade azimuth values are real compass bearings (house rotation already
-    applied at configuration time).
+    Derived from the real sun path at the configured location with the same
+    test as is_sun_on_facade, so the times match when the automation sees the
+    sun on the facade. Facade azimuth values are real compass bearings (house
+    rotation already applied at configuration time).
 
-    Uses linear interpolation based on typical sun path for temperate latitudes.
-    Returns times in HH:MM format or None if unavailable.
-
-    For wrap-around facades (e.g., north: 315-45), calculates times for both
-    morning (0-end) and evening (start-360) sun exposure periods.
+    A facade lit in two separate periods (wrap-around facade in summer) reports
+    the first one. Returns (None, None) if the sun does not reach it today.
+    Computed once per day and facade, both sensors share the result.
     """
-    sunrise = get_sunrise_time(hass)
-    sunset = get_sunset_time(hass)
+    today = dt_util.now().date()
+    key = (
+        today,
+        facade.azimuth_start,
+        facade.azimuth_end,
+        facade.min_elevation,
+        hass.config.latitude,
+        hass.config.longitude,
+        hass.config.elevation,
+    )
+    if key not in _times_cache:
+        for stale in [k for k in _times_cache if k[0] != today]:
+            del _times_cache[stale]
+        _times_cache[key] = _compute_facade_sun_times(hass, facade, today)
+    return _times_cache[key]
 
-    if sunrise is None or sunset is None:
+
+def _compute_facade_sun_times(
+    hass: HomeAssistant, facade: Facade, day: date,
+) -> tuple[str | None, str | None]:
+    """Scan the local day for the first period the sun shines on the facade."""
+    observer = Observer(hass.config.latitude, hass.config.longitude, hass.config.elevation)
+
+    def lit(moment: datetime) -> bool:
+        zenith, azimuth = zenith_and_azimuth(observer, moment)
+        return _sun_hits_facade(facade, azimuth, 90.0 - zenith)
+
+    day_start = dt_util.start_of_local_day(day)
+    day_end = dt_util.start_of_local_day(day + timedelta(days=1))
+
+    entry: datetime | None = None
+    exit_: datetime | None = None
+    previous: datetime | None = None
+    moment = day_start
+    while moment < day_end:
+        if lit(moment):
+            if entry is None:
+                entry = _boundary(lit, moment, previous) if previous else moment
+            exit_ = moment
+        elif entry is not None:
+            exit_ = _boundary(lit, exit_, moment)
+            break
+        previous = moment
+        moment += _SCAN_STEP
+
+    if entry is None or exit_ is None:
         return None, None
+    return _format_local(entry), _format_local(exit_)
 
-    day_length = sunset - sunrise
-    if day_length <= 0:
-        return None, None
 
-    # Realistic azimuth range for temperate latitudes (e.g., Central Europe)
-    # Summer: sunrise ~50-60, sunset ~300-310
-    # Winter: sunrise ~120-130, sunset ~230-240
-    # Using moderate values that work year-round
-    az_sunrise = 60.0
-    az_sunset = 300.0
-    az_range = az_sunset - az_sunrise  # 240 degrees
+def _boundary(
+    lit: Callable[[datetime], bool], inside: datetime, outside: datetime,
+) -> datetime:
+    """Bisect between a lit and an unlit moment, return the lit side of the edge."""
+    while abs(outside - inside) > _BOUNDARY_PRECISION:
+        middle = inside + (outside - inside) / 2
+        if lit(middle):
+            inside = middle
+        else:
+            outside = middle
+    return inside
 
-    start_az = facade.azimuth_start
-    end_az = facade.azimuth_end
 
-    # Handle wrap-around facades (e.g., north: 315-45)
-    if start_az > end_az:
-        # Facade wraps around 0/360. Sun can hit it in two periods:
-        # 1. Morning: azimuth 60 -> end_az (e.g., 60 -> 45 = early morning)
-        # 2. Evening: start_az -> 300 (e.g., 315 -> 300 = won't happen if start > sunset)
-
-        # Morning period: sun rises at az_sunrise, facade ends at end_az
-        # Sun hits facade from sunrise until it passes end_az
-        if end_az >= az_sunrise:
-            # Facade end is reachable from sunrise
-            entry_time = _azimuth_to_time(az_sunrise, sunrise, day_length, az_sunrise, az_range)
-            exit_time = _azimuth_to_time(end_az, sunrise, day_length, az_sunrise, az_range)
-            if entry_time and exit_time:
-                return entry_time, exit_time
-
-        # Evening period: sun enters at start_az, sets at az_sunset
-        if start_az <= az_sunset:
-            entry_time = _azimuth_to_time(start_az, sunrise, day_length, az_sunrise, az_range)
-            exit_time = _azimuth_to_time(az_sunset, sunrise, day_length, az_sunrise, az_range)
-            if entry_time and exit_time:
-                return entry_time, exit_time
-
-        # Facade is outside sun path (e.g., winter when sun stays in south)
-        return None, None
-
-    # Normal case: start <= end (e.g., south: 135-225)
-    entry_time = _azimuth_to_time(start_az, sunrise, day_length, az_sunrise, az_range)
-    exit_time = _azimuth_to_time(end_az, sunrise, day_length, az_sunrise, az_range)
-
-    return entry_time, exit_time
+def _format_local(moment: datetime) -> str:
+    return dt_util.as_local(moment).strftime("%H:%M")

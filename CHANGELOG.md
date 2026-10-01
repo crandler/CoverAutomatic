@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.62.1] - 2026-10-01
+
+### Fixed
+
+- Facade sun entry and exit sensors now follow the real sun path at your location. They used a fixed summer approximation before, which left some of them unknown and was off by up to 1.5 hours in spring, autumn and winter. Shading decisions were not affected, they always used the real sun position.
+
 ## [1.62.0] - 2026-10-01
 
 ### Added

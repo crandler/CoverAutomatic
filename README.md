@@ -201,8 +201,8 @@ For each facade:
 | Entity | Description |
 |--------|-------------|
 | `sensor.*_sun` | Sun on facade indicator (on/off) |
-| `sensor.*_sun_entry` | Time when sun enters facade |
-| `sensor.*_sun_exit` | Time when sun leaves facade |
+| `sensor.*_sun_entry` | Time when sun enters facade today (real sun path at your location) |
+| `sensor.*_sun_exit` | Time when sun leaves facade today |
 
 Global:
 - `select.cover_automatic_scenario` - Active scenario selector
@@ -273,13 +273,13 @@ Still stuck? [Open a bug report](https://github.com/crandler/CoverAutomatic/issu
 
 ## Version
 
-1.62.0
+1.62.1
 
 ## Changelog
 
 Full version history is maintained in [CHANGELOG.md](CHANGELOG.md), formatted per [Keep a Changelog](https://keepachangelog.com/).
 
-Latest release: [v1.62.0](https://github.com/crandler/CoverAutomatic/releases/tag/v1.62.0) (2026-10-01).
+Latest release: [v1.62.1](https://github.com/crandler/CoverAutomatic/releases/tag/v1.62.1) (2026-10-01).
 
 ## License
 

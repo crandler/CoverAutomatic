@@ -1,13 +1,16 @@
 """Tests for sun position calculations."""
 from __future__ import annotations
 
+from datetime import date, datetime
 from unittest.mock import MagicMock, patch
+from zoneinfo import ZoneInfo
 
 import pytest
+from homeassistant.util import dt as dt_util
 
+from custom_components.cover_automatic import sun as sun_mod
 from custom_components.cover_automatic.models import Facade
 from custom_components.cover_automatic.sun import (
-    _azimuth_to_time,
     get_facade_sun_times,
     get_sun_position,
     is_sun_on_facade,
@@ -172,262 +175,110 @@ class TestIsSunOnFacade:
         assert result is False
 
 
-class TestAzimuthToTime:
-    """Tests for _azimuth_to_time helper function."""
+# ---------------------------------------------------------------------------
+# Facade sun entry/exit times from the real sun path.
+# Reference values come from an independent 10-second brute-force scan with
+# astral for lat 50.4, lon 7.8, 0 m, Europe/Berlin, using the same rule as
+# is_sun_on_facade: azimuth inside the facade range and elevation >= min_elevation.
+# ---------------------------------------------------------------------------
 
-    def test_converts_azimuth_to_time(self) -> None:
-        """Test converting azimuth to time string."""
-        # Sunrise at 6:00 (21600s), day length 12h (43200s)
-        # Azimuth range 60-300 (240 degrees)
-        sunrise = 21600.0
-        day_length = 43200.0
-        az_sunrise = 60.0
-        az_range = 240.0
+_BERLIN = ZoneInfo("Europe/Berlin")
 
-        with patch(
-            "custom_components.cover_automatic.sun.dt_util"
-        ) as mock_dt:
-            mock_dt_obj = MagicMock()
-            mock_dt_obj.strftime.return_value = "12:00"
-            mock_dt.as_local.return_value = mock_dt_obj
-            mock_dt.utc_from_timestamp.return_value = MagicMock()
 
-            # Azimuth 180 = midday (50% through day)
-            result = _azimuth_to_time(180.0, sunrise, day_length, az_sunrise, az_range)
-            assert result == "12:00"
+@pytest.fixture
+def located_hass():
+    """Mock hass with a real location, dt_util switched to its time zone."""
+    hass = MagicMock()
+    hass.config.latitude = 50.4
+    hass.config.longitude = 7.8
+    hass.config.elevation = 0
+    hass.config.time_zone = "Europe/Berlin"
+    previous = dt_util.get_default_time_zone()
+    dt_util.set_default_time_zone(_BERLIN)
+    sun_mod._times_cache.clear()
+    yield hass
+    sun_mod._times_cache.clear()
+    dt_util.set_default_time_zone(previous)
 
-    def test_returns_none_for_azimuth_before_sunrise(self) -> None:
-        """Test returns None when azimuth is before sunrise position."""
-        result = _azimuth_to_time(50.0, 21600.0, 43200.0, 60.0, 240.0)
-        assert result is None
 
-    def test_returns_none_for_azimuth_after_sunset(self) -> None:
-        """Test returns None when azimuth is after sunset position."""
-        result = _azimuth_to_time(310.0, 21600.0, 43200.0, 60.0, 240.0)
-        assert result is None
+def _on(day: date):
+    """Freeze 'today' for get_facade_sun_times."""
+    noon = datetime(day.year, day.month, day.day, 12, tzinfo=_BERLIN)
+    return patch("homeassistant.util.dt.now", return_value=noon)
+
+
+def _facade(start: float, end: float, min_elevation: float = 0.0) -> Facade:
+    return Facade(
+        id="f", name="F", azimuth_start=start, azimuth_end=end,
+        direction="custom", min_elevation=min_elevation,
+    )
+
+
+def _assert_near(actual: str | None, expected: str, tolerance_min: int = 1) -> None:
+    assert actual is not None, f"expected ~{expected}, got None"
+    ah, am = map(int, actual.split(":"))
+    eh, em = map(int, expected.split(":"))
+    assert abs((ah * 60 + am) - (eh * 60 + em)) <= tolerance_min, f"{actual} vs {expected}"
+
+
+OCT_1 = date(2026, 10, 1)
 
 
 class TestGetFacadeSunTimes:
-    """Tests for get_facade_sun_times function."""
+    """Entry/exit times follow the real sun path, not a fixed 60-300 degree model."""
 
-    def test_returns_none_when_sunrise_unavailable(
-        self, mock_hass, south_facade
-    ) -> None:
-        """Test returns None tuple when sunrise is unavailable."""
+    @pytest.mark.parametrize(
+        ("start", "end", "entry", "exit_"),
+        [
+            # Start below 60 degrees: the old model reported no entry at all
+            pytest.param(1, 170, "07:30", "12:46", id="east-1-170"),
+            # End above 300 degrees: the old model reported no exit at all
+            pytest.param(170, 350, "12:46", "19:05", id="west-170-350"),
+            pytest.param(260, 359, "18:37", "19:05", id="north-260-359"),
+            # Inside 60-300 the old model was off by up to 1.5 h in October
+            pytest.param(95, 260, "07:34", "18:37", id="south-95-260"),
+            pytest.param(95, 210, "07:34", "14:58", id="south-east-95-210"),
+        ],
+    )
+    def test_times_match_real_sun_path(self, located_hass, start, end, entry, exit_) -> None:
+        with _on(OCT_1):
+            got_entry, got_exit = get_facade_sun_times(located_hass, _facade(start, end))
+        _assert_near(got_entry, entry)
+        _assert_near(got_exit, exit_)
+
+    def test_facade_never_lit_returns_none(self, located_hass) -> None:
+        """In October the sun never reaches 330-30 degrees."""
+        with _on(OCT_1):
+            assert get_facade_sun_times(located_hass, _facade(330, 30)) == (None, None)
+
+    def test_wrap_around_facade_reports_first_period(self, located_hass) -> None:
+        """At midsummer 300-60 is lit in the morning and the evening; the morning wins."""
+        with _on(date(2026, 6, 21)):
+            entry, exit_ = get_facade_sun_times(located_hass, _facade(300, 60))
+        _assert_near(entry, "05:19")
+        _assert_near(exit_, "06:09")
+
+    def test_min_elevation_narrows_window(self, located_hass) -> None:
+        with _on(OCT_1):
+            entry, exit_ = get_facade_sun_times(located_hass, _facade(95, 260, min_elevation=20))
+        _assert_near(entry, "09:47")
+        _assert_near(exit_, "16:48")
+
+    def test_computed_once_per_day(self, located_hass) -> None:
+        """Both sensors of a facade and every refresh cycle share one daily result."""
+        facade = _facade(95, 260)
         with patch(
-            "custom_components.cover_automatic.sun.get_sunrise_time",
-            return_value=None,
-        ):
-            result = get_facade_sun_times(mock_hass, south_facade)
-            assert result == (None, None)
-
-    def test_returns_none_when_sunset_unavailable(
-        self, mock_hass, south_facade
-    ) -> None:
-        """Test returns None tuple when sunset is unavailable."""
-        with patch(
-            "custom_components.cover_automatic.sun.get_sunrise_time",
-            return_value=21600.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.get_sunset_time",
-            return_value=None,
-        ):
-            result = get_facade_sun_times(mock_hass, south_facade)
-            assert result == (None, None)
-
-    def test_south_facade_returns_times(self, mock_hass, south_facade) -> None:
-        """Test south facade returns entry and exit times."""
-        # Sunrise at 6:00, sunset at 18:00
-        with patch(
-            "custom_components.cover_automatic.sun.get_sunrise_time",
-            return_value=21600.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.get_sunset_time",
-            return_value=64800.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.dt_util"
-        ) as mock_dt:
-            mock_entry_dt = MagicMock()
-            mock_entry_dt.strftime.return_value = "09:45"
-            mock_exit_dt = MagicMock()
-            mock_exit_dt.strftime.return_value = "14:15"
-            mock_dt.as_local.side_effect = [mock_entry_dt, mock_exit_dt]
-            mock_dt.utc_from_timestamp.return_value = MagicMock()
-
-            entry, exit_time = get_facade_sun_times(mock_hass, south_facade)
-            assert entry == "09:45"
-            assert exit_time == "14:15"
-
-    def test_east_facade_partial_coverage(self, mock_hass, east_facade) -> None:
-        """Test east facade partial coverage due to model limits.
-
-        East facade is 45-135 degrees, but the model starts at 60 degrees.
-        So entry is None (45 < 60), but exit is valid (135 within 60-300).
-        """
-        with patch(
-            "custom_components.cover_automatic.sun.get_sunrise_time",
-            return_value=21600.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.get_sunset_time",
-            return_value=64800.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.dt_util"
-        ) as mock_dt:
-            mock_exit_dt = MagicMock()
-            mock_exit_dt.strftime.return_value = "09:45"
-            mock_dt.as_local.return_value = mock_exit_dt
-            mock_dt.utc_from_timestamp.return_value = MagicMock()
-
-            entry, exit_time = get_facade_sun_times(mock_hass, east_facade)
-            # East facade: 45-135 degrees
-            # Model uses az_sunrise=60, so 45 < 60 means no entry time
-            # Exit at 135 is within 60-300 range, so exit_time is valid
-            assert entry is None  # 45 < 60 (model start)
-            assert exit_time == "09:45"
-
-    def test_north_facade_wrap_around_returns_times(
-        self, mock_hass, north_facade
-    ) -> None:
-        """Test north facade with wrap-around returns times (summer scenario)."""
-        # In summer, sun can reach north facade in morning/evening
-        with patch(
-            "custom_components.cover_automatic.sun.get_sunrise_time",
-            return_value=21600.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.get_sunset_time",
-            return_value=64800.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.dt_util"
-        ) as mock_dt:
-            mock_entry_dt = MagicMock()
-            mock_entry_dt.strftime.return_value = "17:00"
-            mock_exit_dt = MagicMock()
-            mock_exit_dt.strftime.return_value = "18:00"
-            mock_dt.as_local.side_effect = [mock_entry_dt, mock_exit_dt]
-            mock_dt.utc_from_timestamp.return_value = MagicMock()
-
-            entry, exit_time = get_facade_sun_times(mock_hass, north_facade)
-            # North facade (315-45): evening period when start_az <= az_sunset (300)
-            # Since 315 > 300, evening period won't work
-            # But morning period: end_az (45) < az_sunrise (60), so won't work either
-            # In this model, north facade might still return None
-            # This tests that it doesn't crash at least
-            assert isinstance(entry, str | type(None))
-            assert isinstance(exit_time, str | type(None))
-
-    def test_north_facade_no_crash_on_wrap_around(
-        self, mock_hass, north_facade
-    ) -> None:
-        """Test north facade wrap-around doesn't crash (regression test)."""
-        with patch(
-            "custom_components.cover_automatic.sun.get_sunrise_time",
-            return_value=21600.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.get_sunset_time",
-            return_value=64800.0,
-        ):
-            # This should not raise an exception (the original bug)
-            result = get_facade_sun_times(mock_hass, north_facade)
-            assert isinstance(result, tuple)
-            assert len(result) == 2
-
-    def test_west_facade_partial_coverage(
-        self, mock_hass, west_facade
-    ) -> None:
-        """Test west facade partial coverage due to model limits.
-
-        West facade is 225-315 degrees, but the model ends at 300 degrees.
-        So entry is valid (225 within 60-300), but exit is None (315 > 300).
-        """
-        with patch(
-            "custom_components.cover_automatic.sun.get_sunrise_time",
-            return_value=21600.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.get_sunset_time",
-            return_value=64800.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.dt_util"
-        ) as mock_dt:
-            mock_entry_dt = MagicMock()
-            mock_entry_dt.strftime.return_value = "14:15"
-            mock_dt.as_local.return_value = mock_entry_dt
-            mock_dt.utc_from_timestamp.return_value = MagicMock()
-
-            entry, exit_time = get_facade_sun_times(mock_hass, west_facade)
-            # West facade: 225-315 degrees
-            # Model uses az_sunset=300, so 315 > 300 means no exit time
-            # Entry at 225 is within 60-300 range, so entry is valid
-            assert entry == "14:15"
-            assert exit_time is None  # 315 > 300 (model end)
-
-
-class TestNorthFacadeEdgeCases:
-    """Specific edge case tests for north facade wrap-around bug fix."""
-
-    def test_north_facade_morning_period_when_end_reachable(
-        self, mock_hass
-    ) -> None:
-        """Test north facade morning period when end_az >= az_sunrise."""
-        # Create a north-ish facade where end (65) >= az_sunrise (60)
-        facade = Facade(
-            id="north_extended",
-            name="North Extended",
-            azimuth_start=315.0,
-            azimuth_end=65.0,  # Extended to be reachable
-            direction="north",
-        )
-
-        with patch(
-            "custom_components.cover_automatic.sun.get_sunrise_time",
-            return_value=21600.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.get_sunset_time",
-            return_value=64800.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.dt_util"
-        ) as mock_dt:
-            mock_entry_dt = MagicMock()
-            mock_entry_dt.strftime.return_value = "06:00"
-            mock_exit_dt = MagicMock()
-            mock_exit_dt.strftime.return_value = "06:15"
-            mock_dt.as_local.side_effect = [mock_entry_dt, mock_exit_dt]
-            mock_dt.utc_from_timestamp.return_value = MagicMock()
-
-            entry, exit_time = get_facade_sun_times(mock_hass, facade)
-            # Morning period should be calculated
-            assert entry == "06:00"
-            assert exit_time == "06:15"
-
-    def test_north_facade_evening_period_when_start_reachable(
-        self, mock_hass
-    ) -> None:
-        """Test north facade evening period when start_az <= az_sunset."""
-        # Create a facade where start (290) <= az_sunset (300)
-        facade = Facade(
-            id="northwest",
-            name="Northwest",
-            azimuth_start=290.0,
-            azimuth_end=45.0,
-            direction="north",
-        )
-
-        with patch(
-            "custom_components.cover_automatic.sun.get_sunrise_time",
-            return_value=21600.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.get_sunset_time",
-            return_value=64800.0,
-        ), patch(
-            "custom_components.cover_automatic.sun.dt_util"
-        ) as mock_dt:
-            mock_entry_dt = MagicMock()
-            mock_entry_dt.strftime.return_value = "17:30"
-            mock_exit_dt = MagicMock()
-            mock_exit_dt.strftime.return_value = "18:00"
-            mock_dt.as_local.side_effect = [mock_entry_dt, mock_exit_dt]
-            mock_dt.utc_from_timestamp.return_value = MagicMock()
-
-            entry, exit_time = get_facade_sun_times(mock_hass, facade)
-            # Evening period should be calculated (290-300)
-            assert entry == "17:30"
-            assert exit_time == "18:00"
+            "custom_components.cover_automatic.sun.zenith_and_azimuth",
+            wraps=sun_mod.zenith_and_azimuth,
+        ) as calc:
+            with _on(OCT_1):
+                first = get_facade_sun_times(located_hass, facade)
+                calls = calc.call_count
+                assert calls > 0
+                assert get_facade_sun_times(located_hass, facade) == first
+                assert calc.call_count == calls
+            with _on(date(2026, 10, 2)):
+                get_facade_sun_times(located_hass, facade)
+                assert calc.call_count > calls
+        # Only the current day is kept
+        assert {key[0] for key in sun_mod._times_cache} == {date(2026, 10, 2)}
