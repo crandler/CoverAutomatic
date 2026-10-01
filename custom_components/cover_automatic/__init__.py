@@ -11,6 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
@@ -181,3 +182,22 @@ async def async_unload_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEnt
             async_remove_panel(hass, "cover-automatic")
 
     return unload_ok
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, entry: CoverAutomaticConfigEntry, device: dr.DeviceEntry
+) -> bool:
+    """Allow deleting devices of covers and facades that are no longer configured."""
+    runtime_data = getattr(entry, "runtime_data", None)
+    if runtime_data is None:
+        return False
+    storage = runtime_data.storage
+    active = {
+        entry.entry_id,
+        *storage.covers,
+        *(f"facade_{facade_id}" for facade_id in storage.facades),
+    }
+    return not any(
+        domain == DOMAIN and identifier in active
+        for domain, identifier in device.identifiers
+    )

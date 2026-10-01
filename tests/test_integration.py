@@ -1,6 +1,7 @@
 """Integration tests for CoverAutomatic coordinator flows."""
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -1227,3 +1228,171 @@ class TestSetupEntryReload:
             if route.method == "GET" and route.resource.canonical == self.PANEL_URL
         ]
         assert len(panel_routes) == 1
+
+
+@asynccontextmanager
+async def _real_instance(tmp_path, cover_ids, facade_ids):
+    """Real Home Assistant with real registries and the integration's entities.
+
+    Sensor and switch entities come from the integration's own platform setup,
+    added through real EntityPlatforms, so devices, registry entries and states
+    match what a user sees in Home Assistant.
+    """
+    import logging
+    from datetime import timedelta
+    from types import SimpleNamespace
+
+    from homeassistant import loader
+    from homeassistant.config_entries import ConfigEntries, ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers import device_registry as dr
+    from homeassistant.helpers import entity_registry as er
+    from homeassistant.helpers.entity_platform import EntityPlatform
+
+    from custom_components.cover_automatic import sensor, switch
+    from custom_components.cover_automatic.const import DOMAIN
+
+    hass = HomeAssistant(str(tmp_path))
+    loader.async_setup(hass)
+    hass.config_entries = ConfigEntries(hass, {})
+    await hass.config_entries.async_initialize()
+    dr.async_setup(hass)
+    await dr.async_load(hass, load_empty=True)
+    await er.async_load(hass, load_empty=True)
+
+    entry = ConfigEntry(
+        domain=DOMAIN, data={}, options={}, title="CoverAutomatic", source="user",
+        version=1, minor_version=1, unique_id=None, discovery_keys={},
+        subentries_data=None,
+    )
+    hass.config_entries._entries[entry.entry_id] = entry
+
+    storage = CoverAutomaticStorage(hass)
+    await storage.async_load()
+    for cover_id in cover_ids:
+        await storage.async_add_cover(CoverConfig(entity_id=cover_id, name=cover_id))
+    for facade_id in facade_ids:
+        await storage.async_add_facade(
+            Facade(id=facade_id, name=facade_id, azimuth_start=135.0, azimuth_end=225.0)
+        )
+
+    coordinator = MagicMock()
+    coordinator.storage = storage
+    coordinator.config_entry = entry
+    coordinator.data = {}
+    coordinator.get_live_cover = MagicMock(return_value=None)
+    coordinator.get_active_rules = MagicMock(return_value={})
+    coordinator.get_live_cover_data = MagicMock(return_value={})
+    coordinator.get_live_facade_data = MagicMock(return_value={})
+    entry.runtime_data = SimpleNamespace(coordinator=coordinator, storage=storage)
+
+    for domain, module in (("sensor", sensor), ("switch", switch)):
+        platform = EntityPlatform(
+            hass=hass, logger=logging.getLogger(__name__), domain=domain,
+            platform_name=DOMAIN, platform=None,
+            scan_interval=timedelta(seconds=60), entity_namespace=None,
+        )
+        platform.config_entry = entry
+        entities: list = []
+        await module.async_setup_entry(hass, entry, entities.extend)
+        await platform.async_add_entities(entities)
+    await hass.async_block_till_done()
+
+    try:
+        yield hass, entry, storage, coordinator
+    finally:
+        await hass.async_stop(force=True)
+
+
+def _device_entities(hass, entry, identifier):
+    """Return (device, entity ids) for a CoverAutomatic device identifier."""
+    from homeassistant.helpers import device_registry as dr
+    from homeassistant.helpers import entity_registry as er
+
+    from custom_components.cover_automatic.const import DOMAIN
+
+    device = next(
+        (
+            d for d in dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+            if (DOMAIN, identifier) in d.identifiers
+        ),
+        None,
+    )
+    if device is None:
+        return None, []
+    entities = er.async_entries_for_device(er.async_get(hass), device.id)
+    return device, [e.entity_id for e in entities]
+
+
+class TestDeleteRemovesDevice:
+    """Deleting a cover or facade in the panel removes its device and entities.
+
+    Both delete handlers only touched the storage, so the device and its
+    entities stayed in Home Assistant (reported on PR #4).
+    """
+
+    @pytest.mark.asyncio
+    async def test_cover_delete_removes_device_entities_and_states(self, tmp_path) -> None:
+        from custom_components.cover_automatic.api import ws_cover_delete
+
+        async with _real_instance(tmp_path, ["cover.a", "cover.b"], []) as (
+            hass, entry, storage, coordinator,
+        ):
+            _, entity_ids = _device_entities(hass, entry, "cover.a")
+            assert len(entity_ids) == 2  # status sensor + automation switch
+
+            msg = {"id": 1, "entity_id": "cover.a"}
+            await ws_cover_delete(hass, MagicMock(), msg, storage, coordinator)
+            await hass.async_block_till_done()
+
+            device, remaining = _device_entities(hass, entry, "cover.a")
+            assert device is None
+            assert remaining == []
+            assert all(hass.states.get(e) is None for e in entity_ids)
+            # Other covers and the integration device are untouched
+            assert len(_device_entities(hass, entry, "cover.b")[1]) == 2
+            assert len(_device_entities(hass, entry, entry.entry_id)[1]) == 1
+
+    @pytest.mark.asyncio
+    async def test_facade_delete_removes_device_and_entities(self, tmp_path) -> None:
+        from custom_components.cover_automatic.api import ws_facade_delete
+
+        async with _real_instance(tmp_path, ["cover.a"], ["south", "west"]) as (
+            hass, entry, storage, coordinator,
+        ):
+            _, entity_ids = _device_entities(hass, entry, "facade_south")
+            assert len(entity_ids) == 3  # sun on facade + entry/exit time
+
+            msg = {"id": 1, "facade_id": "south"}
+            await ws_facade_delete(hass, MagicMock(), msg, storage, coordinator)
+            await hass.async_block_till_done()
+
+            device, remaining = _device_entities(hass, entry, "facade_south")
+            assert device is None
+            assert remaining == []
+            assert all(hass.states.get(e) is None for e in entity_ids)
+            assert len(_device_entities(hass, entry, "facade_west")[1]) == 3
+            assert len(_device_entities(hass, entry, "cover.a")[1]) == 2
+
+
+class TestRemoveConfigEntryDevice:
+    """Orphaned devices from earlier versions can be deleted in Home Assistant."""
+
+    @pytest.mark.asyncio
+    async def test_only_orphaned_devices_are_removable(self, tmp_path) -> None:
+        from custom_components.cover_automatic import async_remove_config_entry_device
+
+        async with _real_instance(tmp_path, ["cover.a", "cover.gone"], ["south"]) as (
+            hass, entry, storage, coordinator,
+        ):
+            # Pre-fix delete: storage only, device stays behind
+            await storage.async_remove_cover("cover.gone")
+
+            def removable(identifier: str) -> bool:
+                device, _ = _device_entities(hass, entry, identifier)
+                return async_remove_config_entry_device(hass, entry, device)
+
+            assert await removable("cover.gone") is True
+            assert await removable("cover.a") is False
+            assert await removable("facade_south") is False
+            assert await removable(entry.entry_id) is False

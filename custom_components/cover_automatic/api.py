@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN, FACADE_PRESETS
 from .models import Condition, CoverConfig, Facade, Rule, Scenario
@@ -190,6 +191,22 @@ def _sync_facade_cover_ids(
     storage._invalidate_cache()
 
 
+def _remove_device(
+    hass: HomeAssistant, coordinator: CoverAutomaticCoordinator, identifier: str,
+) -> None:
+    """Remove the device of a deleted cover or facade; HA removes its entities with it."""
+    registry = dr.async_get(hass)
+    device = next(
+        (
+            d for d in dr.async_entries_for_config_entry(registry, coordinator.config_entry.entry_id)
+            if (DOMAIN, identifier) in d.identifiers
+        ),
+        None,
+    )
+    if device is not None:
+        registry.async_remove_device(device.id)
+
+
 def _parse_conditions(raw: list[dict[str, Any]]) -> tuple[list[Condition], list[str]]:
     """Parse condition dicts, collecting errors for invalid ones."""
     conditions: list[Condition] = []
@@ -315,6 +332,7 @@ async def ws_cover_delete(
 ) -> None:
     """Handle cover_automatic/cover/delete."""
     await storage.async_remove_cover(msg["entity_id"])
+    _remove_device(hass, coordinator, msg["entity_id"])
     coordinator.refresh_state_tracking()
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
@@ -403,6 +421,7 @@ async def ws_facade_delete(
         return
 
     await storage.async_remove_facade(facade_id)
+    _remove_device(hass, coordinator, f"facade_{facade_id}")
     connection.send_result(msg["id"], _build_config_response(storage, hass, coordinator))
 
 
