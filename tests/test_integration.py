@@ -1550,7 +1550,11 @@ class TestPanelAutoToggleUpdatesEntities:
 
     @pytest.mark.asyncio
     async def test_rapid_disable_updates_switch_during_refresh_cooldown(self, tmp_path) -> None:
-        """A refresh requested within the debounce cooldown is deferred."""
+        """Toggling again within the 10 s refresh cooldown still updates at once.
+
+        set_cover_manual() notifies via async_set_updated_data, which also
+        cancels the debouncer cooldown, so the requested refresh is not deferred.
+        """
         from custom_components.cover_automatic.api import ws_cover_update
 
         async with _real_instance(tmp_path, ["cover.a"], []) as (
