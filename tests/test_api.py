@@ -330,7 +330,7 @@ class TestApiSetup:
         ) as mock_ws:
             mock_ws.BASE_COMMAND_MESSAGE_SCHEMA = real_ws.BASE_COMMAND_MESSAGE_SCHEMA
             async_setup_api(hass, storage, coordinator)
-            assert mock_ws.async_register_command.call_count == 21
+            assert mock_ws.async_register_command.call_count == 22
 
     def test_command_names_registered(self) -> None:
         hass = _make_hass()
@@ -352,7 +352,7 @@ class TestApiSetup:
             mock_ws.async_register_command.side_effect = capture_register
             async_setup_api(hass, storage, coordinator)
 
-        assert len(registered_schemas) == 21
+        assert len(registered_schemas) == 22
 
 
 # ---------------------------------------------------------------------------
@@ -1121,6 +1121,122 @@ class TestWsRuleDelete:
         await ws_rule_delete(hass, conn, msg, storage, coordinator)
 
         conn.send_error.assert_called_once()
+
+
+class TestWsRuleDuplicate:
+    """Tests for cover_automatic/rule/duplicate handler."""
+
+    @staticmethod
+    def _source_rule() -> Rule:
+        return Rule(
+            id="day",
+            name="Day",
+            enabled=True,
+            priority=30,
+            condition_operator="or",
+            facade_ids=["south"],
+            cover_ids=["cover.office"],
+            conditions=[
+                Condition(type=ConditionType.SUN_ELEVATION_ABOVE, params={"elevation": 10}),
+            ],
+            target_position=40,
+            target_tilt_position=50,
+        )
+
+    @pytest.mark.asyncio
+    async def test_copy_keeps_settings_but_starts_disabled(self) -> None:
+        from custom_components.cover_automatic.api import ws_rule_duplicate
+
+        source = self._source_rule()
+        storage = _make_storage(rules={"day": source})
+        coordinator = _make_coordinator()
+        conn = _make_connection()
+        msg = {"id": 1, "type": "cover_automatic/rule/duplicate", "rule_id": "day", "name": "Day (copy)"}
+
+        await ws_rule_duplicate(_make_hass(), conn, msg, storage, coordinator)
+
+        storage.async_add_rule.assert_awaited_once()
+        copy = storage.async_add_rule.await_args.args[0]
+        assert copy.id == "day_copy"
+        assert copy.name == "Day (copy)"
+        # A live copy would act while the user is still editing it
+        assert copy.enabled is False
+        assert copy.priority == 30
+        assert copy.condition_operator == "or"
+        assert copy.facade_ids == ["south"]
+        assert copy.cover_ids == ["cover.office"]
+        assert copy.target_position == 40
+        assert copy.target_tilt_position == 50
+        assert [c.to_dict() for c in copy.conditions] == [c.to_dict() for c in source.conditions]
+        # Deep copy: editing the copy must never reach the original
+        copy.conditions[0].params["elevation"] = 99
+        copy.facade_ids.append("west")
+        assert source.conditions[0].params["elevation"] == 10
+        assert source.facade_ids == ["south"]
+        coordinator.async_request_refresh.assert_awaited_once()
+        conn.send_result.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_blank_name_falls_back_to_copy_suffix(self) -> None:
+        from custom_components.cover_automatic.api import ws_rule_duplicate
+
+        storage = _make_storage(rules={"day": self._source_rule()})
+        msg = {"id": 1, "type": "cover_automatic/rule/duplicate", "rule_id": "day", "name": "  "}
+
+        await ws_rule_duplicate(_make_hass(), _make_connection(), msg, storage, _make_coordinator())
+
+        assert storage.async_add_rule.await_args.args[0].name == "Day (copy)"
+
+    @pytest.mark.asyncio
+    async def test_repeated_copies_get_unique_ids(self) -> None:
+        from custom_components.cover_automatic.api import ws_rule_duplicate
+
+        source = self._source_rule()
+        existing_copy = Rule(id="day_copy", name="Day (copy)")
+        storage = _make_storage(rules={"day": source, "day_copy": existing_copy})
+        msg = {"id": 1, "type": "cover_automatic/rule/duplicate", "rule_id": "day"}
+
+        await ws_rule_duplicate(_make_hass(), _make_connection(), msg, storage, _make_coordinator())
+
+        copy = storage.async_add_rule.await_args.args[0]
+        assert copy.id not in ("day", "day_copy")
+
+    @pytest.mark.asyncio
+    async def test_copy_inherits_scenario_links(self) -> None:
+        """A rule disabled in a scenario must stay disabled there as a copy."""
+        from custom_components.cover_automatic.api import ws_rule_duplicate
+
+        away = Scenario(id="away", name="Away", rules_disabled=["day"])
+        summer = Scenario(id="summer", name="Summer", rules_disabled=["night"])
+        storage = _make_storage(
+            rules={"day": self._source_rule()},
+            scenarios={"away": away, "summer": summer},
+        )
+        msg = {"id": 1, "type": "cover_automatic/rule/duplicate", "rule_id": "day"}
+
+        await ws_rule_duplicate(_make_hass(), _make_connection(), msg, storage, _make_coordinator())
+
+        copy = storage.async_add_rule.await_args.args[0]
+        storage.async_add_scenario.assert_awaited_once()
+        updated = storage.async_add_scenario.await_args.args[0]
+        assert updated.id == "away"
+        assert updated.rules_disabled == ["day", copy.id]
+        # The stored scenario object itself is not mutated in place
+        assert away.rules_disabled == ["day"]
+
+    @pytest.mark.asyncio
+    async def test_unknown_rule_sends_error(self) -> None:
+        from custom_components.cover_automatic.api import ws_rule_duplicate
+
+        storage = _make_storage()
+        conn = _make_connection()
+        msg = {"id": 1, "type": "cover_automatic/rule/duplicate", "rule_id": "nope"}
+
+        await ws_rule_duplicate(_make_hass(), conn, msg, storage, _make_coordinator())
+
+        conn.send_error.assert_called_once()
+        assert conn.send_error.call_args.args[1] == "not_found"
+        storage.async_add_rule.assert_not_awaited()
 
 
 class TestWsRuleReorder:

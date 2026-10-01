@@ -139,6 +139,8 @@ const I18N = {
     rule_covers: "Covers",
     rule_assignment_hint: "Limit this rule to specific facades/covers. Empty = applies to all covers.",
     rule_add: "Add rule",
+    rule_duplicate: "Duplicate",
+    rule_copy_suffix: "(copy)",
     rule_add_condition: "Add condition",
     rule_no_conditions: "No conditions",
     rule_reorder_hint: "Drag to reorder. Top rule wins when multiple rules match.",
@@ -407,6 +409,8 @@ const I18N = {
     rule_covers: "Behänge",
     rule_assignment_hint: "Regel auf bestimmte Fassaden/Behänge beschränken. Leer = gilt für alle.",
     rule_add: "Regel hinzufügen",
+    rule_duplicate: "Duplizieren",
+    rule_copy_suffix: "(Kopie)",
     rule_add_condition: "Bedingung hinzufügen",
     rule_no_conditions: "Keine Bedingungen",
     rule_reorder_hint: "Ziehen zum Sortieren. Obere Regel gewinnt bei Überschneidung.",
@@ -1627,6 +1631,8 @@ const PANEL_STYLES = `
     background: rgba(0,0,0,0.06);
     color: var(--primary-text-color);
   }
+  /* SVG icon buttons: drop the inline baseline gap */
+  .btn-icon svg { display: block; }
   .btn-sm { padding: 4px 10px; font-size: 12px; }
   .btn-sm.active { background: var(--ca-primary); color: #fff; }
 
@@ -2763,6 +2769,7 @@ class CoverAutomaticPanel extends HTMLElement {
       menu: '<line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/>',
       info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
       sliders: '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
+      copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
       move_vertical: '<polyline points="8 18 12 22 16 18"/><polyline points="8 6 12 2 16 6"/><line x1="12" x2="12" y1="2" y2="22"/>',
       activity: '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.5.5 0 0 1-.96 0L9.24 2.18a.5.5 0 0 0-.96 0l-2.35 8.36A2 2 0 0 1 4 12H2"/>',
       sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>'
@@ -3304,6 +3311,7 @@ class CoverAutomaticPanel extends HTMLElement {
         <span class="toggle-slider"></span>
       </label>`;
 
+      html += `<button class="btn-icon" data-action="rule-duplicate" data-id="${this._esc(r.id)}" title="${this._t("rule_duplicate")}" aria-label="${this._t("rule_duplicate")}">${this._lucideIcon("copy", 16)}</button>`;
       html += `<button class="btn-icon" data-action="rule-delete" data-id="${this._esc(r.id)}" title="${this._t("delete")}">&#10005;</button>`;
       html += '</div>'; // rule-row
 
@@ -4560,15 +4568,7 @@ class CoverAutomaticPanel extends HTMLElement {
         this._expandedRule = null;
         this._stopLiveRefresh();
         this._render();
-        // Scroll-to + highlight after the new tab has rendered
-        setTimeout(() => {
-          if (!ruleId) return;
-          const rEl = this.shadowRoot.querySelector('.rule-row[data-rule-id="' + CSS.escape(ruleId) + '"]');
-          if (!rEl) return;
-          rEl.scrollIntoView({ behavior: "smooth", block: "center" });
-          rEl.classList.add("rule-highlight");
-          setTimeout(() => rEl.classList.remove("rule-highlight"), 2000);
-        }, 60);
+        this._highlightRule(ruleId);
         break;
       }
       case "close-slide":
@@ -4620,6 +4620,7 @@ class CoverAutomaticPanel extends HTMLElement {
         if (this._expandedRule) this._startCondPreview(); else this._stopCondPreview();
         break;
       case "rule-delete": this._onRuleDelete(actionEl.dataset.id); break;
+      case "rule-duplicate": this._onRuleDuplicate(actionEl.dataset.id); break;
       case "rule-save": this._onRuleSave(actionEl.dataset.id); break;
       case "rule-delete-condition": this._onRuleDeleteCondition(actionEl.dataset.rule, actionEl.dataset.idx); break;
       case "rule-facade-toggle": actionEl.classList.toggle("selected"); break;
@@ -4992,6 +4993,38 @@ class CoverAutomaticPanel extends HTMLElement {
       const result = await this._ws("cover_automatic/rule/update", { rule_id: ruleId, enabled: checked });
       this._updateConfigFromResult(result);
     } catch (e) { console.error(e); }
+  }
+
+  async _onRuleDuplicate(ruleId) {
+    const rule = (this._config.rules || {})[ruleId];
+    if (!rule) return;
+    const before = new Set(Object.keys(this._config.rules || {}));
+    try {
+      const result = await this._ws("cover_automatic/rule/duplicate", {
+        rule_id: ruleId,
+        name: `${rule.name} ${this._t("rule_copy_suffix")}`,
+      });
+      // Open the copy right away; it starts disabled, ready to be adapted
+      const newId = Object.keys(result?.rules || {}).find(id => !before.has(id));
+      if (newId) this._expandedRule = newId;
+      this._updateConfigFromResult(result);
+      if (newId) {
+        this._startCondPreview();
+        this._highlightRule(newId);
+      }
+    } catch (e) { console.error(e); }
+  }
+
+  // Scroll to a rule row and pulse it once the current render has settled
+  _highlightRule(ruleId) {
+    setTimeout(() => {
+      if (!ruleId) return;
+      const rEl = this.shadowRoot.querySelector('.rule-row[data-rule-id="' + CSS.escape(ruleId) + '"]');
+      if (!rEl) return;
+      rEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      rEl.classList.add("rule-highlight");
+      setTimeout(() => rEl.classList.remove("rule-highlight"), 2000);
+    }, 60);
   }
 
   _onRuleDelete(ruleId) {
