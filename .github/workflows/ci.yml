@@ -18,16 +18,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
         with:
-          # Deps are pinned inline below, so key the uv cache on this workflow file
-          cache-dependency-glob: ".github/workflows/ci.yml"
-
-      - name: Set up Python
-        run: uv python install 3.14
+          cache-dependency-glob: "uv.lock"
 
       - name: Install ruff
-        run: |
-          uv venv
-          uv pip install ruff==0.14.10
+        run: uv sync --locked --only-group lint
 
       - name: Ruff check
         run: |
@@ -47,18 +41,12 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
         with:
-          # Deps are pinned inline below, so key the uv cache on this workflow file
-          cache-dependency-glob: ".github/workflows/ci.yml"
-
-      - name: Set up Python
-        env:
-          PYTHON_VERSION: ${{ matrix.python-version }}
-        run: uv python install "$PYTHON_VERSION"
+          cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
-        run: |
-          uv venv
-          uv pip install pytest==9.1.1 pytest-asyncio==1.4.0 homeassistant==2026.9.1
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+        run: uv sync --locked --only-group test --python "$PYTHON_VERSION"
 
       - name: Syntax check
         run: |
