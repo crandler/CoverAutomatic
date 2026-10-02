@@ -134,6 +134,8 @@ const I18N = {
     rule_operator_hint: "AND = all conditions must match. OR = any condition is enough.",
     rule_operator_and: "AND (all must match)",
     rule_operator_or: "OR (any must match)",
+    rule_operator_and_short: "AND",
+    rule_operator_or_short: "OR",
     rule_conditions: "Conditions",
     rule_facades: "Facades",
     rule_covers: "Covers",
@@ -404,6 +406,8 @@ const I18N = {
     rule_operator_hint: "UND = alle Bedingungen müssen zutreffen. ODER = eine reicht.",
     rule_operator_and: "UND (alle müssen zutreffen)",
     rule_operator_or: "ODER (eine muss zutreffen)",
+    rule_operator_and_short: "UND",
+    rule_operator_or_short: "ODER",
     rule_conditions: "Bedingungen",
     rule_facades: "Fassaden",
     rule_covers: "Behänge",
@@ -673,6 +677,8 @@ const I18N = {
     rule_operator_hint: "ET = toutes les conditions doivent être remplies. OU = une seule condition suffit.",
     rule_operator_and: "ET (toutes requises)",
     rule_operator_or: "OU (une seule suffit)",
+    rule_operator_and_short: "ET",
+    rule_operator_or_short: "OU",
     rule_conditions: "Conditions",
     rule_facades: "Façades",
     rule_covers: "Volets",
@@ -3564,7 +3570,7 @@ class CoverAutomaticPanel extends HTMLElement {
       html += `${this._esc(r.name)}</div>`;
       html += '<div class="rule-meta">';
       html += `<span class="priority-badge">#${idx + 1}</span>`;
-      html += `<span>${r.condition_operator === "or" ? "OR" : "AND"}</span>`;
+      html += `<span>${this._t(r.condition_operator === "or" ? "rule_operator_or_short" : "rule_operator_and_short")}</span>`;
       html += `<span class="rule-target">${this._t("rule_target_pos")}:${this._posBar(r.target_position, "compact")}</span>`;
       if (r.target_tilt_position != null) {
         html += `<span class="rule-target">${this._t("rule_target_tilt")}:${this._posBar(r.target_tilt_position, "compact")}</span>`;
