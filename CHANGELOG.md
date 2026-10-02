@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.63.1] - 2026-10-02
+
+### Fixed
+
+- A cover locked because its window is open now stays locked while the window sensor is unavailable, for example during a Zigbee outage or right after a Home Assistant restart. Before, the lock was released and a rule could lower the cover at the open window.
+
 ## [1.63.0] - 2026-10-02
 
 ### Added

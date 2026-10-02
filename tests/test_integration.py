@@ -106,6 +106,7 @@ def coordinator(mock_hass, mock_storage):
         coord._last_matching_rules = {}
         coord._last_move_rule = {}
         coord._post_protective_exit = set()
+        coord._locked_at_shutdown = set()
         coord._startup_time = -999.0
         coord._startup_skip = False
         coord._grace_synced = True
@@ -1568,3 +1569,163 @@ class TestPanelAutoToggleUpdatesEntities:
 
             assert hass.states.get(switch_id).state == "off"
             assert hass.states.get(sensor_id).state == "manual"
+
+
+class TestUnreadableLockSensor:
+    """An unreadable window sensor must not release a lock.
+
+    The sync treated an unavailable, unknown or missing lock sensor as a
+    closed window: a LOCKED cover was unlocked on the next cycle and the
+    matching rule could lower it at a window that is still open (Zigbee
+    bridge restart, empty battery, sensor not loaded yet after a restart).
+    """
+
+    WINDOW = "binary_sensor.window"
+
+    @pytest.fixture(autouse=True)
+    def _instant_save(self, monkeypatch) -> None:
+        """Skip the 2 s save debounce that async_block_till_done would wait for."""
+        monkeypatch.setattr("custom_components.cover_automatic.storage.SAVE_DEBOUNCE_DELAY", 0)
+
+    async def _setup(self, hass, storage, coordinator, window_state: str = "on"):
+        """Cover at 100 % with a window sensor and a rule closing it to 0 %.
+
+        Returns the list that records every set_cover_position call.
+        """
+        calls: list[dict] = []
+
+        async def _record(call) -> None:
+            calls.append(dict(call.data))
+
+        hass.services.async_register("cover", "set_cover_position", _record)
+        hass.states.async_set("cover.a", "open", {"current_position": 100})
+        hass.states.async_set(self.WINDOW, window_state)
+        hass.states.async_set("sensor.outdoor_temp", "25")
+        storage.get_cover_raw("cover.a")["lock_sensor"] = self.WINDOW
+        storage._invalidate_cache()
+        await storage.async_add_rule(Rule(
+            id="close", name="Close", enabled=True, priority=10, cover_ids=["cover.a"],
+            conditions=[Condition(
+                type=ConditionType.TEMPERATURE_ABOVE,
+                params={"sensor": "sensor.outdoor_temp", "value": 20},
+            )],
+            target_position=0,
+        ))
+        coordinator._startup_time = -999.0  # past the startup grace period
+        coordinator._setup_state_tracking()
+        return calls
+
+    async def _cycle(self, hass, coordinator) -> None:
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("unreadable", ["unavailable", "unknown"])
+    async def test_unreadable_sensor_keeps_cover_locked(self, tmp_path, unreadable) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = await self._setup(hass, storage, coordinator)
+            await self._cycle(hass, coordinator)
+            assert coordinator.get_cover_status("cover.a") == CoverStatus.LOCKED
+
+            hass.states.async_set(self.WINDOW, unreadable)
+            await self._cycle(hass, coordinator)
+
+            assert coordinator.get_cover_status("cover.a") == CoverStatus.LOCKED
+            assert calls == []
+
+    @pytest.mark.asyncio
+    async def test_missing_sensor_entity_keeps_cover_locked(self, tmp_path) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = await self._setup(hass, storage, coordinator)
+            await self._cycle(hass, coordinator)
+
+            hass.states.async_remove(self.WINDOW)
+            await self._cycle(hass, coordinator)
+
+            assert coordinator.get_cover_status("cover.a") == CoverStatus.LOCKED
+            assert calls == []
+
+    @pytest.mark.asyncio
+    async def test_lock_released_once_sensor_reports_closed(self, tmp_path) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = await self._setup(hass, storage, coordinator)
+            await self._cycle(hass, coordinator)
+            hass.states.async_set(self.WINDOW, "unavailable")
+            await self._cycle(hass, coordinator)
+
+            hass.states.async_set(self.WINDOW, "off")
+            await hass.async_block_till_done()
+            await self._cycle(hass, coordinator)
+
+            assert coordinator.get_cover_status("cover.a") == CoverStatus.AUTO
+            assert calls == [{"entity_id": "cover.a", "position": 0}]
+
+    @pytest.mark.asyncio
+    async def test_lock_held_after_restart_while_sensor_unreadable(self, tmp_path) -> None:
+        """A cover locked at shutdown stays locked until its sensor reports."""
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, entry, storage, _):
+            calls = await self._setup(hass, storage, CoverAutomaticCoordinator(hass, storage, 60))
+            storage.update_cover_status("cover.a", CoverStatus.LOCKED.value, None)
+            hass.states.async_set(self.WINDOW, "unavailable")
+
+            restarted = CoverAutomaticCoordinator(hass, storage, 60, config_entry=entry)
+            restarted._restore_cover_states()
+            restarted._startup_time = -999.0
+            restarted._setup_state_tracking()
+            await self._cycle(hass, restarted)
+
+            assert restarted.get_cover_status("cover.a") == CoverStatus.LOCKED
+            assert calls == []
+
+            hass.states.async_set(self.WINDOW, "off")
+            await hass.async_block_till_done()
+            await self._cycle(hass, restarted)
+
+            assert restarted.get_cover_status("cover.a") == CoverStatus.AUTO
+            assert calls == [{"entity_id": "cover.a", "position": 0}]
+
+    @pytest.mark.asyncio
+    async def test_restart_with_known_closed_sensor_does_not_lock(self, tmp_path) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, entry, storage, _):
+            calls = await self._setup(
+                hass, storage, CoverAutomaticCoordinator(hass, storage, 60), window_state="off",
+            )
+            storage.update_cover_status("cover.a", CoverStatus.LOCKED.value, None)
+
+            restarted = CoverAutomaticCoordinator(hass, storage, 60, config_entry=entry)
+            restarted._restore_cover_states()
+            restarted._startup_time = -999.0
+            await self._cycle(hass, restarted)
+
+            assert restarted.get_cover_status("cover.a") == CoverStatus.AUTO
+            assert calls == [{"entity_id": "cover.a", "position": 0}]
+
+    @pytest.mark.asyncio
+    async def test_resume_releases_a_held_lock(self, tmp_path) -> None:
+        """Resume stays the way out when the sensor never comes back."""
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, entry, storage, _):
+            calls = await self._setup(hass, storage, CoverAutomaticCoordinator(hass, storage, 60))
+            storage.update_cover_status("cover.a", CoverStatus.LOCKED.value, None)
+            hass.states.async_set(self.WINDOW, "unavailable")
+
+            restarted = CoverAutomaticCoordinator(hass, storage, 60, config_entry=entry)
+            restarted._restore_cover_states()
+            restarted._startup_time = -999.0
+            await self._cycle(hass, restarted)
+            assert restarted.get_cover_status("cover.a") == CoverStatus.LOCKED
+
+            restarted.resume_cover("cover.a")
+            await self._cycle(hass, restarted)
+
+            assert restarted.get_cover_status("cover.a") == CoverStatus.AUTO
+            assert calls == [{"entity_id": "cover.a", "position": 0}]
+
+    @pytest.mark.asyncio
+    async def test_unreadable_sensor_does_not_lock_an_unlocked_cover(self, tmp_path) -> None:
+        """Without a lock to hold, an unreadable sensor changes nothing."""
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = await self._setup(hass, storage, coordinator, window_state="unavailable")
+            await self._cycle(hass, coordinator)
+
+            assert coordinator.get_cover_status("cover.a") == CoverStatus.AUTO
+            assert calls == [{"entity_id": "cover.a", "position": 0}]

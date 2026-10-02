@@ -87,6 +87,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # min_time_between_changes leaves the cover at vent/lock position
         # long after the sensor has cleared.
         self._post_protective_exit: set[str] = set()
+        # Covers LOCKED at shutdown. Consumed by the first status sync: if the
+        # lock sensor is still unreadable then, the lock is kept.
+        self._locked_at_shutdown: set[str] = set()
         self._startup_time: float = time_mod.monotonic()
         self._startup_skip: bool = True
         self._grace_synced: bool = False
@@ -129,6 +132,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         Only restores PAUSED (with unexpired timer). All other statuses start
         as AUTO and get re-derived from sensor states by _sync_cover_statuses.
+        LOCKED covers are remembered so the sync can keep the lock while the
+        lock sensor has no readable state yet.
         """
         for entity_id, cover_data in self.storage._data.get("covers", {}).items():
             stored_status = cover_data.get("status", "auto")
@@ -137,6 +142,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if pause_until and dt_util.now().timestamp() < pause_until:
                     self._cover_states[entity_id] = CoverStatus.PAUSED
                     continue
+            if stored_status == CoverStatus.LOCKED.value and cover_data.get("lock_sensor"):
+                self._locked_at_shutdown.add(entity_id)
             # Reset everything else to AUTO (lock/vent re-detected from sensors)
             if stored_status != CoverStatus.AUTO.value:
                 _LOGGER.debug("[%s] Startup: reset %s -> AUTO", entity_id, stored_status)
@@ -219,7 +226,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     if isinstance(value, asyncio.Task) and not value.done():
                         value.cancel()
             # Per-entity sets: drop orphaned entity ids as well
-            for state_set in (self._pending_settle, self._post_protective_exit):
+            for state_set in (
+                self._pending_settle, self._post_protective_exit, self._locked_at_shutdown,
+            ):
                 state_set -= set(state_set) - current_covers
 
         entities_to_track: set[str] = {SUN_ENTITY_ID}
@@ -487,6 +496,14 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if sensor_state is None:
             return False
         return sensor_state.state in BINARY_SENSOR_ON_STATES
+
+    def _is_sensor_unknown(self, cover_raw: dict[str, Any], key: str) -> bool:
+        """Check if a configured sensor has no readable state (missing/unavailable/unknown)."""
+        sensor = cover_raw.get(key)
+        if not sensor:
+            return False
+        sensor_state = self.hass.states.get(sensor)
+        return sensor_state is None or sensor_state.state in ("unavailable", "unknown")
 
     def _handle_contact_sensor_change(
         self,
@@ -933,6 +950,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._activate_wind_protection()
                 continue
 
+            locked_at_shutdown = entity_id in self._locked_at_shutdown
+            self._locked_at_shutdown.discard(entity_id)
+
             # Check lock sensor state (window contact)
             if self._is_sensor_open(cover_raw, "lock_sensor"):
                 if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
@@ -947,6 +967,24 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self._cover_states[entity_id] = CoverStatus.LOCKED
                         self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
                         self._update_last_position_from_state(entity_id)
+                continue
+
+            # Lock sensor unreadable (unavailable, unknown, not loaded yet): keep
+            # the lock, the window may still be open. The event handler ignores
+            # unreadable states for the same reason. A readable sensor state or
+            # a resume ends it. Never moves the cover.
+            if self._is_sensor_unknown(cover_raw, "lock_sensor") and (
+                self._cover_states.get(entity_id) == CoverStatus.LOCKED or locked_at_shutdown
+            ):
+                if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
+                    prev = self._cover_states.get(entity_id, CoverStatus.AUTO)
+                    _LOGGER.info("[%s] Lock sensor unreadable after startup, keeping lock", entity_id)
+                    self._pre_lock_states[entity_id] = CoverStatus.AUTO if prev == CoverStatus.PAUSED else prev
+                    self._cover_states[entity_id] = CoverStatus.LOCKED
+                    self._log(LOG_EVENT_STATUS, entity_id, f"{prev.value} -> locked")
+                    self._logbook("kept locked (window sensor unavailable)", entity_id)
+                    self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
+                    self._update_last_position_from_state(entity_id)
                 continue
 
             # Check vent sensor state - also above auto_enabled
