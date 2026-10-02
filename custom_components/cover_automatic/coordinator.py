@@ -87,9 +87,11 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # min_time_between_changes leaves the cover at vent/lock position
         # long after the sensor has cleared.
         self._post_protective_exit: set[str] = set()
-        # Covers LOCKED at shutdown. Consumed by the first status sync: if the
-        # lock sensor is still unreadable then, the lock is kept.
-        self._locked_at_shutdown: set[str] = set()
+        # Covers whose lock was interrupted (LOCKED at shutdown or when wind
+        # protection started). Consumed by the next status sync outside wind
+        # protection: if the lock sensor is still unreadable then, the lock is
+        # restored. Any readable lock sensor state drops the entry.
+        self._lock_to_restore: set[str] = set()
         self._startup_time: float = time_mod.monotonic()
         self._startup_skip: bool = True
         self._grace_synced: bool = False
@@ -143,7 +145,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._cover_states[entity_id] = CoverStatus.PAUSED
                     continue
             if stored_status == CoverStatus.LOCKED.value and cover_data.get("lock_sensor"):
-                self._locked_at_shutdown.add(entity_id)
+                self._lock_to_restore.add(entity_id)
             # Reset everything else to AUTO (lock/vent re-detected from sensors)
             if stored_status != CoverStatus.AUTO.value:
                 _LOGGER.debug("[%s] Startup: reset %s -> AUTO", entity_id, stored_status)
@@ -227,7 +229,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         value.cancel()
             # Per-entity sets: drop orphaned entity ids as well
             for state_set in (
-                self._pending_settle, self._post_protective_exit, self._locked_at_shutdown,
+                self._pending_settle, self._post_protective_exit, self._lock_to_restore,
             ):
                 state_set -= set(state_set) - current_covers
 
@@ -367,6 +369,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if prev not in (CoverStatus.WIND_PROTECTED,):
                 if entity_id not in self._pre_lock_states:
                     self._pre_lock_states[entity_id] = CoverStatus.AUTO if prev == CoverStatus.PAUSED else prev
+            if prev == CoverStatus.LOCKED and cover_raw.get("lock_sensor"):
+                self._lock_to_restore.add(entity_id)
 
             self._cover_states[entity_id] = CoverStatus.WIND_PROTECTED
             self.storage.update_cover_status(entity_id, CoverStatus.WIND_PROTECTED.value, None)
@@ -543,6 +547,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             cover_raw = self.storage.get_cover_raw(cover_id)
             if cover_raw is None:
                 continue
+            self._lock_to_restore.discard(cover_id)
 
             if is_open:
                 lock_pos = self._cover_val(cover_raw, "lock_position")
@@ -911,9 +916,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
         cover_raw = self.storage.get_cover_raw(entity_id)
         if cover_raw:
-            # Don't override LOCKED status if lock/vent sensor is still active
+            # Don't override LOCKED status while the window is open. An open vent
+            # sensor resumes to VENTING below.
             if self._cover_states.get(entity_id) == CoverStatus.LOCKED:
-                if self._is_sensor_open(cover_raw, "lock_sensor") or self._is_sensor_open(cover_raw, "vent_sensor"):
+                if self._is_sensor_open(cover_raw, "lock_sensor"):
                     return
             # Resume to VENTING if vent sensor is still open
             if self._is_sensor_open(cover_raw, "vent_sensor"):
@@ -944,14 +950,18 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if cover_raw is None:
                 continue
 
+            # A readable lock sensor state supersedes an interrupted lock
+            if not self._is_sensor_unknown(cover_raw, "lock_sensor"):
+                self._lock_to_restore.discard(entity_id)
+
             # Wind protection has highest priority - skip all other checks
             if self._wind_protected:
                 if self._cover_states.get(entity_id) != CoverStatus.WIND_PROTECTED:
                     self._activate_wind_protection()
                 continue
 
-            locked_at_shutdown = entity_id in self._locked_at_shutdown
-            self._locked_at_shutdown.discard(entity_id)
+            restore_lock = entity_id in self._lock_to_restore
+            self._lock_to_restore.discard(entity_id)
 
             # Check lock sensor state (window contact)
             if self._is_sensor_open(cover_raw, "lock_sensor"):
@@ -971,14 +981,15 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Lock sensor unreadable (unavailable, unknown, not loaded yet): keep
             # the lock, the window may still be open. The event handler ignores
-            # unreadable states for the same reason. A readable sensor state or
-            # a resume ends it. Never moves the cover.
+            # unreadable states for the same reason. Restores a lock interrupted
+            # by a restart or wind protection. A readable sensor state or a
+            # resume ends it. Never moves the cover.
             if self._is_sensor_unknown(cover_raw, "lock_sensor") and (
-                self._cover_states.get(entity_id) == CoverStatus.LOCKED or locked_at_shutdown
+                self._cover_states.get(entity_id) == CoverStatus.LOCKED or restore_lock
             ):
                 if self._cover_states.get(entity_id) != CoverStatus.LOCKED:
                     prev = self._cover_states.get(entity_id, CoverStatus.AUTO)
-                    _LOGGER.info("[%s] Lock sensor unreadable after startup, keeping lock", entity_id)
+                    _LOGGER.info("[%s] Lock sensor unreadable, keeping lock", entity_id)
                     self._pre_lock_states[entity_id] = CoverStatus.AUTO if prev == CoverStatus.PAUSED else prev
                     self._cover_states[entity_id] = CoverStatus.LOCKED
                     self._log(LOG_EVENT_STATUS, entity_id, f"{prev.value} -> locked")
