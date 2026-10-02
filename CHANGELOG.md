@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.63.0] - 2026-10-02
+
+### Added
+
+- French translation for the panel and the integration's entities. Home Assistant users with French as their language now see CoverAutomatic in French.
+
 ## [1.62.4] - 2026-10-01
 
 ### Fixed

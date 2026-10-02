@@ -1,0 +1,69 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "CoverAutomatic",
+        "description": "Ajouter l'intégration CoverAutomatic. Configurez l'ensemble des réglages dans le panneau CoverAutomatic (barre latérale) après l'installation."
+      }
+    },
+    "abort": {
+      "already_configured": "CoverAutomatic est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configuration de CoverAutomatic",
+        "description": "Utilisez le panneau CoverAutomatic dans la barre latérale pour configurer l'intégration. Accédez à l'entrée CoverAutomatic dans le menu de la barre latérale."
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "auto_enabled": {
+        "name": "Automatisation"
+      },
+      "master_enabled": {
+        "name": "CoverAutomatic"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "Statut",
+        "state": {
+          "auto": "Automatique",
+          "paused": "En pause",
+          "manual": "Manuel",
+          "locked": "Verrouillé",
+          "venting": "Aération",
+          "wind_protected": "Protection vent"
+        },
+        "state_attributes": {
+          "rule_id": {
+            "name": "ID de règle"
+          },
+          "rule_name": {
+            "name": "Règle"
+          },
+          "target_position": {
+            "name": "Position cible"
+          }
+        }
+      },
+      "sun_on_facade": {
+        "name": "Soleil sur la façade"
+      },
+      "sun_entry_time": {
+        "name": "Heure d'arrivée du soleil"
+      },
+      "sun_exit_time": {
+        "name": "Heure de départ du soleil"
+      }
+    },
+    "select": {
+      "scenario": {
+        "name": "Scénario"
+      }
+    }
+  }
+}

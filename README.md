@@ -54,6 +54,7 @@ In no event shall the author be liable for any claim, damages or other liability
 - **Inverted covers** - Support for covers where 100% = closed
 - **UI-first configuration** - Full setup via Home Assistant UI
 - **Device agnostic** - Works with any cover entity (Homematic IP, Shelly, etc.)
+- **Multilingual** - Panel and entities in English, German and French
 
 ## Screenshots
 
@@ -273,13 +274,13 @@ Still stuck? [Open a bug report](https://github.com/crandler/CoverAutomatic/issu
 
 ## Version
 
-1.62.4
+1.63.0
 
 ## Changelog
 
 Full version history is maintained in [CHANGELOG.md](CHANGELOG.md), formatted per [Keep a Changelog](https://keepachangelog.com/).
 
-Latest release: [v1.62.4](https://github.com/crandler/CoverAutomatic/releases/tag/v1.62.4) (2026-10-01).
+Latest release: [v1.63.0](https://github.com/crandler/CoverAutomatic/releases/tag/v1.63.0) (2026-10-02).
 
 ## License
 
