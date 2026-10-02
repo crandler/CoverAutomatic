@@ -925,8 +925,8 @@ def async_setup_api(
                 vol.Optional("facade_ids"): [str],
                 vol.Optional("cover_ids"): [str],
                 vol.Optional("conditions"): list,
-                vol.Optional("target_position"): int,
-                vol.Optional("target_tilt_position"): vol.Any(int, None),
+                vol.Optional("target_position"): vol.All(int, vol.Range(min=0, max=100)),
+                vol.Optional("target_tilt_position"): vol.Any(vol.All(int, vol.Range(min=0, max=100)), None),
             },
         ),
         (
@@ -941,8 +941,8 @@ def async_setup_api(
                 vol.Optional("facade_ids"): [str],
                 vol.Optional("cover_ids"): [str],
                 vol.Optional("conditions"): list,
-                vol.Optional("target_position"): int,
-                vol.Optional("target_tilt_position"): vol.Any(int, None),
+                vol.Optional("target_position"): vol.All(int, vol.Range(min=0, max=100)),
+                vol.Optional("target_tilt_position"): vol.Any(vol.All(int, vol.Range(min=0, max=100)), None),
             },
         ),
         (

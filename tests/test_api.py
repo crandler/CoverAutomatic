@@ -900,6 +900,62 @@ class TestWsRuleUpdate:
         conn.send_error.assert_called_once()
 
 
+def _registered_schema(command: str):
+    """Schema Home Assistant validates an incoming `command` message against."""
+    from homeassistant.components.websocket_api import DOMAIN as WS_DOMAIN
+
+    hass = _make_hass()
+    hass.data = {}
+    async_setup_api(hass, _make_storage(), _make_coordinator())
+    return hass.data[WS_DOMAIN][f"cover_automatic/{command}"][1]
+
+
+_RULE_COMMANDS = [("rule/add", {"name": "Day"}), ("rule/update", {"rule_id": "day"})]
+
+
+class TestRuleTargetRange:
+    """#242: rule targets outside 0-100 are rejected before they are stored.
+
+    The schema only required an int, so a target of 150 was saved. Home
+    Assistant rejects set_cover_position for it, the exception aborted the
+    apply cycle and the cover ended up in a false pause.
+    """
+
+    @pytest.mark.parametrize(("command", "base"), _RULE_COMMANDS)
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("target_position", 150),
+            ("target_position", -1),
+            ("target_tilt_position", 101),
+            ("target_tilt_position", -5),
+        ],
+    )
+    def test_out_of_range_rejected(self, command, base, field, value) -> None:
+        import voluptuous as vol
+
+        schema = _registered_schema(command)
+        msg = {"id": 1, "type": f"cover_automatic/{command}", **base, field: value}
+
+        with pytest.raises(vol.Invalid):
+            schema(msg)
+
+    @pytest.mark.parametrize(("command", "base"), _RULE_COMMANDS)
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            {"target_position": 0, "target_tilt_position": 0},
+            {"target_position": 100, "target_tilt_position": 100},
+            {"target_tilt_position": None},
+        ],
+    )
+    def test_bounds_accepted(self, command, base, fields) -> None:
+        schema = _registered_schema(command)
+        msg = {"id": 1, "type": f"cover_automatic/{command}", **base, **fields}
+
+        assert schema(msg) == msg
+
+
 class TestApiReferenceValidation:
     """Tests for #136: reject ghost references to non-existent facades/covers."""
 

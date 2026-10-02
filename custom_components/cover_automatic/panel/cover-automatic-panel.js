@@ -4736,6 +4736,14 @@ class CoverAutomaticPanel extends HTMLElement {
     return Number.isFinite(n) ? n : fallback;
   }
 
+  // Parse a position input clamped to 0-100 (the WS schema rejects values
+  // outside), so a typo like 150 saves as 100. Empty/invalid -> fallback.
+  _parsePos(v, fallback) {
+    if (v === null || v === undefined || v === "") return fallback;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : fallback;
+  }
+
   /* ============================================================
    * Event delegation (bound once, routes all events)
    * ============================================================ */
@@ -5384,14 +5392,11 @@ class CoverAutomaticPanel extends HTMLElement {
     if (!form) return;
     const name = form.querySelector('[data-rule-new-field="name"]')?.value || "";
     if (!name.trim()) return;
-    const tp = (() => { const v = form.querySelector('[data-rule-new-field="target_position"]')?.value; return v !== "" && v != null ? parseInt(v, 10) : 0; })();
-    const ttp = form.querySelector('[data-rule-new-field="target_tilt_position"]')?.value;
+    const tp = this._parsePos(form.querySelector('[data-rule-new-field="target_position"]')?.value, 0);
+    const ttp = this._parsePos(form.querySelector('[data-rule-new-field="target_tilt_position"]')?.value, null);
     try {
       const data = { name: name.trim(), target_position: tp };
-      if (ttp !== "" && ttp != null) {
-        const n = parseInt(ttp, 10);
-        if (Number.isFinite(n)) data.target_tilt_position = n;
-      }
+      if (ttp !== null) data.target_tilt_position = ttp;
       const result = await this._ws("cover_automatic/rule/add", data);
       this._addingRule = false;
       this._updateConfigFromResult(result);
@@ -5616,13 +5621,8 @@ class CoverAutomaticPanel extends HTMLElement {
     const opEl = root.querySelector(`[data-action="rule-field"][data-id="${ruleId}"][data-field="condition_operator"]`);
 
     const name = nameEl ? nameEl.value.trim() : rule.name;
-    const tp = tpEl && tpEl.value !== "" ? parseInt(tpEl.value, 10) : rule.target_position;
-    const ttpVal = ttpEl ? ttpEl.value : null;
-    const ttp = (() => {
-      if (ttpVal === "" || ttpVal == null) return null;
-      const n = parseInt(ttpVal, 10);
-      return Number.isFinite(n) ? n : null;
-    })();
+    const tp = this._parsePos(tpEl?.value, rule.target_position);
+    const ttp = this._parsePos(ttpEl?.value, null);
     const op = opEl ? opEl.value : rule.condition_operator;
 
     // Collect selected facades
