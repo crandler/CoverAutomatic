@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.63.2] - 2026-10-02
+
+### Fixed
+
+- A cover whose window was still open when wind protection ended now returns to automatic mode once the window is closed. Before, it stayed locked until it was resumed, its automation was switched off and on, or Home Assistant restarted.
+
 ## [1.63.1] - 2026-10-02
 
 ### Fixed

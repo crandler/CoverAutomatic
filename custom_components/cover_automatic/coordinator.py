@@ -426,6 +426,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     lock_tilt = self._cover_val(cover_raw, "lock_tilt_position")
                     self._lock_cover(entity_id, lock_pos, lock_tilt=lock_tilt)
                 else:
+                    # _unlock_cover needs the entry; AUTO as in the no-sensor branch below
+                    self._pre_lock_states[entity_id] = CoverStatus.AUTO
                     self._cover_states[entity_id] = CoverStatus.LOCKED
                     self.storage.update_cover_status(entity_id, CoverStatus.LOCKED.value, None)
                     self._update_last_position_from_state(entity_id)

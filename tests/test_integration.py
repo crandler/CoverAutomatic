@@ -1571,14 +1571,8 @@ class TestPanelAutoToggleUpdatesEntities:
             assert hass.states.get(sensor_id).state == "manual"
 
 
-class TestUnreadableLockSensor:
-    """An unreadable window sensor must not release a lock.
-
-    The sync treated an unavailable, unknown or missing lock sensor as a
-    closed window: a LOCKED cover was unlocked on the next cycle and the
-    matching rule could lower it at a window that is still open (Zigbee
-    bridge restart, empty battery, sensor not loaded yet after a restart).
-    """
+class _LockSensorScenario:
+    """Real instance with a window-sensor cover; shared by the lock test classes."""
 
     WINDOW = "binary_sensor.window"
     TILT = "binary_sensor.tilt"
@@ -1640,6 +1634,16 @@ class TestUnreadableLockSensor:
     async def _set(self, hass, entity_id: str, state: str) -> None:
         hass.states.async_set(entity_id, state)
         await hass.async_block_till_done()
+
+
+class TestUnreadableLockSensor(_LockSensorScenario):
+    """An unreadable window sensor must not release a lock.
+
+    The sync treated an unavailable, unknown or missing lock sensor as a
+    closed window: a LOCKED cover was unlocked on the next cycle and the
+    matching rule could lower it at a window that is still open (Zigbee
+    bridge restart, empty battery, sensor not loaded yet after a restart).
+    """
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("unreadable", ["unavailable", "unknown"])
@@ -1802,6 +1806,66 @@ class TestUnreadableLockSensor:
 
             assert coordinator.get_cover_status("cover.a") == CoverStatus.AUTO
             assert calls == [self.CLOSE]
+
+
+class TestLockAfterWindProtection(_LockSensorScenario):
+    """A window still open when the storm ends must not keep the cover locked.
+
+    Ending wind protection re-locked such a cover without remembering its
+    previous status, so closing the window left it LOCKED until a resume,
+    the automation switch or a restart.
+    """
+
+    @staticmethod
+    def _shown(storage) -> str:
+        """Persisted status, the one the panel shows."""
+        return storage.get_cover_raw("cover.a")["status"]
+
+    async def _storm(self, hass, storage, coordinator, calls, position_at_end: int = 100) -> None:
+        """Window open before the storm and still open when the wind drops."""
+        self._start(coordinator)
+        await self._cycle(hass, coordinator)
+        assert self._shown(storage) == CoverStatus.LOCKED.value
+        await self._set(hass, self.WIND, "20")
+        await self._cycle(hass, coordinator)
+        assert self._shown(storage) == CoverStatus.WIND_PROTECTED.value
+
+        hass.states.async_set("cover.a", "open", {"current_position": position_at_end})
+        await self._set(hass, self.WIND, "0")
+        await self._cycle(hass, coordinator)
+
+        assert self._shown(storage) == CoverStatus.LOCKED.value
+        assert self.CLOSE not in calls
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("position_at_end", [100, 50])
+    async def test_closing_the_window_releases_the_lock(self, tmp_path, position_at_end) -> None:
+        """100 = already at the lock position, 50 = moved there again."""
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = await self._setup(hass, storage, wind=True)
+            await self._storm(hass, storage, coordinator, calls, position_at_end)
+
+            await self._set(hass, self.WINDOW, "off")
+            await self._cycle(hass, coordinator)
+
+            assert self._shown(storage) == CoverStatus.AUTO.value
+            assert coordinator.get_cover_status("cover.a") == CoverStatus.AUTO
+            assert calls[-1] == self.CLOSE
+
+    @pytest.mark.asyncio
+    async def test_disabled_cover_returns_to_manual_without_moving(self, tmp_path) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = await self._setup(hass, storage, wind=True)
+            storage.get_cover_raw("cover.a")["auto_enabled"] = False
+            storage._invalidate_cache()
+            await self._storm(hass, storage, coordinator, calls)
+            moves = len(calls)
+
+            await self._set(hass, self.WINDOW, "off")
+            await self._cycle(hass, coordinator)
+
+            assert self._shown(storage) == CoverStatus.MANUAL.value
+            assert len(calls) == moves
 
 
 class TestDeleteKeepsRuleScope:
