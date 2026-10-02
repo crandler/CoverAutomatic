@@ -1818,3 +1818,115 @@ class TestDeleteKeepsRuleScope:
             await ws_cover_delete(hass, MagicMock(), {"id": 1, "entity_id": "cover.a"}, storage, coordinator)
 
             assert storage.rules["everywhere"].enabled is True
+
+
+class TestImportKeepsSettingsUsable:
+    """Importing a backup must not empty settings that were never saved.
+
+    The panel saves settings per section, so a fresh or partly configured
+    instance has no stored value for many of them. The import copied the
+    current value for every setting missing in the file and wrote None where
+    there was none: the master switch read as off and the next move raised a
+    TypeError on min_position_change.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _instant_save(self, monkeypatch) -> None:
+        """Skip the 2 s save debounce that async_block_till_done would wait for."""
+        monkeypatch.setattr("custom_components.cover_automatic.storage.SAVE_DEBOUNCE_DELAY", 0)
+
+    @staticmethod
+    async def _export(hass, storage, coordinator) -> dict:
+        from custom_components.cover_automatic.api import ws_export_config
+
+        connection = MagicMock()
+        await ws_export_config(hass, connection, {"id": 1}, storage, coordinator)
+        return connection.send_result.call_args[0][1]["data"]
+
+    @staticmethod
+    async def _import(hass, storage, coordinator, data: dict) -> None:
+        from custom_components.cover_automatic.api import ws_import_config
+
+        await ws_import_config(hass, MagicMock(), {"id": 2, "data": data}, storage, coordinator)
+        await hass.async_block_till_done()
+
+    @pytest.mark.asyncio
+    async def test_roundtrip_of_fresh_install_keeps_automation_working(self, tmp_path) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls: list[dict] = []
+
+            async def _record(call) -> None:
+                calls.append(dict(call.data))
+
+            hass.services.async_register("cover", "set_cover_position", _record)
+            hass.states.async_set("cover.a", "open", {"current_position": 100})
+            hass.states.async_set("sensor.outdoor_temp", "25")
+            await storage.async_add_rule(Rule(
+                id="close", name="Close", enabled=True, priority=10, cover_ids=["cover.a"],
+                conditions=[Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.outdoor_temp", "value": 20},
+                )],
+                target_position=0,
+            ))
+
+            await self._import(hass, storage, coordinator, await self._export(hass, storage, coordinator))
+
+            assert storage.enabled is True
+            assert storage.min_position_change == 5
+            assert storage.pause_duration == 10
+            assert storage.command_stagger == 0.0
+            coordinator._startup_time = -999.0
+            await coordinator.async_refresh()
+            await hass.async_block_till_done()
+            assert coordinator.last_update_success is True
+            assert calls == [{"entity_id": "cover.a", "position": 0}]
+
+    @pytest.mark.asyncio
+    async def test_import_keeps_current_value_of_settings_missing_in_file(self, tmp_path) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            storage.update_check_enabled = False
+            storage.min_position_change = 8
+            data = await self._export(hass, storage, coordinator)
+            del data["update_check_enabled"], data["min_position_change"]
+
+            await self._import(hass, storage, coordinator, data)
+
+            assert storage.update_check_enabled is False
+            assert storage.min_position_change == 8
+
+    @pytest.mark.asyncio
+    async def test_import_repairs_empty_settings_in_file(self, tmp_path) -> None:
+        """Backups written after the faulty import carry the empty values."""
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            data = await self._export(hass, storage, coordinator)
+            data.update(enabled=None, min_position_change=None, lock_position=None, wind_sensor=None)
+
+            await self._import(hass, storage, coordinator, data)
+
+            assert storage.enabled is False  # None read as off before, stays off
+            assert storage.min_position_change == 5
+            assert storage.lock_position == 100
+            assert storage.wind_sensor is None  # None is a valid "not set" here
+
+    @pytest.mark.asyncio
+    async def test_load_repairs_settings_emptied_by_an_earlier_import(self, tmp_path) -> None:
+        async with _real_instance(tmp_path, [], []) as (hass, _, storage, _coordinator):
+            raw = storage.get_raw_data()
+            raw.update(
+                enabled=None, logbook_enabled=None, min_position_change=None,
+                min_time_between_changes=None, comfort_temp_min=None,
+                lock_tilt_position=None, outdoor_temp_sensor=None,
+            )
+            await storage._store.async_save(raw)
+
+            reloaded = CoverAutomaticStorage(hass)
+            await reloaded.async_load()
+
+            assert reloaded.enabled is False
+            assert reloaded.logbook_enabled is False
+            assert reloaded.min_position_change == 5
+            assert reloaded.min_time_between_changes == 300
+            assert reloaded.comfort_temp_min == 21.0
+            assert reloaded.lock_tilt_position is None
+            assert reloaded.outdoor_temp_sensor is None

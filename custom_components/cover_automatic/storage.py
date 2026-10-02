@@ -24,6 +24,73 @@ SAVE_DEBOUNCE_DELAY = 2.0
 # Required top-level keys for import validation
 _REQUIRED_DICT_KEYS = ("facades", "covers", "rules", "scenarios")
 
+# Global settings an import keeps from the current config when the file lacks them
+_GLOBAL_KEYS = (
+    "enabled",
+    "outdoor_temp_sensor",
+    "indoor_temp_sensor",
+    "weather_entity",
+    "comfort_temp_min",
+    "comfort_temp_max",
+    "comfort_hysteresis",
+    "threshold_hysteresis",
+    "pause_duration",
+    "lock_position",
+    "vent_position",
+    "lock_tilt_position",
+    "vent_tilt_position",
+    "min_position_change",
+    "min_time_between_changes",
+    "house_rotation",
+    "workday_sensor",
+    "wind_sensor",
+    "wind_speed_threshold",
+    "wind_speed_hysteresis",
+    "solar_sensor",
+    "solar_threshold",
+    "solar_hysteresis",
+    "command_stagger",
+    "logbook_enabled",
+    "update_check_enabled",
+)
+
+# Global settings that must never be None (older imports wrote None for unsaved
+# ones). Switches become False, which is how None was read; numbers fall back
+# to their property default.
+_BOOL_GLOBALS = ("enabled", "logbook_enabled", "update_check_enabled")
+_NUMERIC_GLOBALS = (
+    "comfort_temp_min",
+    "comfort_temp_max",
+    "comfort_hysteresis",
+    "threshold_hysteresis",
+    "pause_duration",
+    "lock_position",
+    "vent_position",
+    "min_position_change",
+    "min_time_between_changes",
+    "house_rotation",
+    "wind_speed_threshold",
+    "wind_speed_hysteresis",
+    "solar_threshold",
+    "solar_hysteresis",
+    "command_stagger",
+)
+
+
+def _repair_null_globals(data: dict[str, Any]) -> None:
+    """Replace None in global settings that need a value."""
+    repaired: list[str] = []
+    for key in _BOOL_GLOBALS:
+        if key in data and data[key] is None:
+            data[key] = False
+            repaired.append(key)
+    for key in _NUMERIC_GLOBALS:
+        if key in data and data[key] is None:
+            del data[key]
+            repaired.append(key)
+    if repaired:
+        _LOGGER.warning("Repaired empty settings: %s", ", ".join(repaired))
+
 
 class CoverAutomaticStorage:
     """Manage persistent storage for CoverAutomatic."""
@@ -83,6 +150,8 @@ class CoverAutomaticStorage:
         for cover_data in self._data.get("covers", {}).values():
             if cover_data.get("pause_duration") == 120:
                 cover_data["pause_duration"] = None
+        # v1.63.1: settings emptied to None by an import before this version
+        _repair_null_globals(self._data)
 
     async def async_save(self) -> None:
         """Save data to storage.
@@ -566,37 +635,12 @@ class CoverAutomaticStorage:
             first_scenario = next(iter(data.get("scenarios", {})), "everyday")
             data["active_scenario"] = first_scenario
 
-        # Preserve global settings not present in import data
-        _global_keys = (
-            "enabled",
-            "outdoor_temp_sensor",
-            "indoor_temp_sensor",
-            "weather_entity",
-            "comfort_temp_min",
-            "comfort_temp_max",
-            "comfort_hysteresis",
-            "threshold_hysteresis",
-            "pause_duration",
-            "lock_position",
-            "vent_position",
-            "lock_tilt_position",
-            "vent_tilt_position",
-            "min_position_change",
-            "min_time_between_changes",
-            "house_rotation",
-            "workday_sensor",
-            "wind_sensor",
-            "wind_speed_threshold",
-            "wind_speed_hysteresis",
-            "solar_sensor",
-            "solar_threshold",
-            "solar_hysteresis",
-            "command_stagger",
-            "logbook_enabled",
-        )
-        for gkey in _global_keys:
-            if gkey not in data:
-                data[gkey] = self._data.get(gkey)
+        # Preserve global settings not present in import data. A setting that
+        # was never saved stays unset, so its property default keeps applying.
+        for gkey in _GLOBAL_KEYS:
+            if gkey not in data and gkey in self._data:
+                data[gkey] = self._data[gkey]
+        _repair_null_globals(data)
 
         self._data = data
         self._invalidate_cache()
