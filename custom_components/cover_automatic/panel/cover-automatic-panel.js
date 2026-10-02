@@ -4135,7 +4135,7 @@ class CoverAutomaticPanel extends HTMLElement {
     let html = '<div class="settings-shell">';
 
     // Sidebar navigation
-    html += '<aside class="settings-nav" role="tablist" aria-label="Settings">';
+    html += '<aside class="settings-nav" role="tablist" aria-label="' + this._esc(this._tt("tabs", "settings")) + '">';
     for (const sec of sections) {
       const isActive = sec.id === active;
       const cls = "settings-nav-btn" + (isActive ? " active" : "");
