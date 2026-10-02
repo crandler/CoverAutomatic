@@ -1729,3 +1729,92 @@ class TestUnreadableLockSensor:
 
             assert coordinator.get_cover_status("cover.a") == CoverStatus.AUTO
             assert calls == [{"entity_id": "cover.a", "position": 0}]
+
+
+class TestDeleteKeepsRuleScope:
+    """Deleting the last cover or facade of a rule must not make it global.
+
+    Deleting only removed the reference. A rule left without any cover or
+    facade counts as global and applied to every cover, so a bathroom-only
+    rule suddenly moved the whole house.
+    """
+
+    @staticmethod
+    def _rule(rule_id: str, cover_ids=(), facade_ids=()) -> Rule:
+        return Rule(
+            id=rule_id, name=rule_id, enabled=True, priority=10,
+            cover_ids=list(cover_ids), facade_ids=list(facade_ids),
+            conditions=[Condition(
+                type=ConditionType.TEMPERATURE_ABOVE,
+                params={"sensor": "sensor.outdoor_temp", "value": 20},
+            )],
+            target_position=0,
+        )
+
+    @pytest.mark.asyncio
+    async def test_cover_delete_disables_rule_that_lost_its_last_cover(self, tmp_path) -> None:
+        from custom_components.cover_automatic.api import ws_cover_delete
+
+        async with _real_instance(tmp_path, ["cover.a", "cover.b"], []) as (
+            hass, _, storage, coordinator,
+        ):
+            hass.states.async_set("sensor.outdoor_temp", "25")
+            await storage.async_add_rule(self._rule("bath", cover_ids=["cover.a"]))
+
+            await ws_cover_delete(hass, MagicMock(), {"id": 1, "entity_id": "cover.a"}, storage, coordinator)
+
+            rule = storage.rules["bath"]
+            assert rule.enabled is False
+            assert coordinator.engine.evaluate_cover(storage.covers["cover.b"]) is None
+
+    @pytest.mark.asyncio
+    async def test_facade_delete_disables_rule_that_lost_its_last_facade(self, tmp_path) -> None:
+        from custom_components.cover_automatic.api import ws_facade_delete
+
+        async with _real_instance(tmp_path, ["cover.a"], ["south"]) as (
+            hass, _, storage, coordinator,
+        ):
+            hass.states.async_set("sensor.outdoor_temp", "25")
+            await storage.async_add_rule(self._rule("south_rule", facade_ids=["south"]))
+
+            await ws_facade_delete(hass, MagicMock(), {"id": 1, "facade_id": "south"}, storage, coordinator)
+
+            assert storage.rules["south_rule"].enabled is False
+            assert coordinator.engine.evaluate_cover(storage.covers["cover.a"]) is None
+
+    @pytest.mark.asyncio
+    async def test_rule_with_remaining_targets_stays_enabled(self, tmp_path) -> None:
+        from custom_components.cover_automatic.api import ws_cover_delete, ws_facade_delete
+
+        async with _real_instance(tmp_path, ["cover.a", "cover.b"], ["south"]) as (
+            hass, _, storage, coordinator,
+        ):
+            await storage.async_add_rule(self._rule("two_covers", cover_ids=["cover.a", "cover.b"]))
+            await storage.async_add_rule(
+                self._rule("cover_and_facade", cover_ids=["cover.a"], facade_ids=["south"])
+            )
+
+            await ws_cover_delete(hass, MagicMock(), {"id": 1, "entity_id": "cover.a"}, storage, coordinator)
+
+            assert storage.rules["two_covers"].enabled is True
+            assert storage.rules["two_covers"].cover_ids == ["cover.b"]
+            assert storage.rules["cover_and_facade"].enabled is True
+            assert storage.rules["cover_and_facade"].facade_ids == ["south"]
+
+            await ws_facade_delete(hass, MagicMock(), {"id": 2, "facade_id": "south"}, storage, coordinator)
+
+            assert storage.rules["cover_and_facade"].enabled is False
+
+    @pytest.mark.asyncio
+    async def test_global_rule_is_left_alone(self, tmp_path) -> None:
+        """A rule that was global on purpose is not touched by a delete."""
+        from custom_components.cover_automatic.api import ws_cover_delete
+
+        async with _real_instance(tmp_path, ["cover.a", "cover.b"], []) as (
+            hass, _, storage, coordinator,
+        ):
+            await storage.async_add_rule(self._rule("everywhere"))
+
+            await ws_cover_delete(hass, MagicMock(), {"id": 1, "entity_id": "cover.a"}, storage, coordinator)
+
+            assert storage.rules["everywhere"].enabled is True

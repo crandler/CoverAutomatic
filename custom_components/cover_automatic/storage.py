@@ -427,8 +427,25 @@ class CoverAutomaticStorage:
                 fids = rule_data.get("facade_ids", [])
                 if facade_id in fids:
                     fids.remove(facade_id)
+                    self._disable_if_unassigned(rule_data)
             self._cache_rules = None
             await self.async_save()
+
+    @staticmethod
+    def _disable_if_unassigned(rule_data: dict[str, Any]) -> None:
+        """Disable a rule that just lost its last cover and facade.
+
+        A rule without assignments counts as global and applies to every
+        cover, so deleting its last target must not widen its scope.
+        """
+        if rule_data.get("cover_ids") or rule_data.get("facade_ids"):
+            return
+        if rule_data.get("enabled", True):
+            rule_data["enabled"] = False
+            _LOGGER.warning(
+                "Rule '%s' disabled: its last cover or facade was deleted",
+                rule_data.get("name", rule_data.get("id")),
+            )
 
     async def async_add_cover(self, cover: CoverConfig, *, save: bool = True) -> None:
         """Add or update a cover configuration."""
@@ -455,6 +472,7 @@ class CoverAutomaticStorage:
                 cids = rule_data.get("cover_ids", [])
                 if entity_id in cids:
                     cids.remove(entity_id)
+                    self._disable_if_unassigned(rule_data)
             self._cache_rules = None
             await self.async_save()
 

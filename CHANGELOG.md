@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Fixed
 
 - A cover locked because its window is open now stays locked while the window sensor is unavailable, for example during a Zigbee outage or right after a Home Assistant restart. Before, the lock was released and a rule could lower the cover at the open window.
+- Deleting the last cover or facade of a rule no longer makes that rule apply to all covers. The rule is switched off instead, so you can assign it again or delete it.
 
 ## [1.63.0] - 2026-10-02
 
