@@ -13,6 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Deleting the last cover or facade of a rule no longer makes that rule apply to all covers. The rule is switched off instead, so you can assign it again or delete it.
 - Importing a configuration backup no longer empties settings that had never been saved, which could switch the automation off and stop covers from moving. Settings emptied by an earlier import are repaired on startup; if that import switched the automation off, switch it back on in the panel.
 - Importing a backup that lacks the "Check for updates" setting keeps your current choice.
+- Importing a backup no longer restores the old pause or lock status of a cover from the file. Before, a pause running during the import could last forever.
 
 ## [1.63.0] - 2026-10-02
 

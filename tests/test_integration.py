@@ -2004,3 +2004,74 @@ class TestImportKeepsSettingsUsable:
             assert reloaded.lock_tilt_position is None
             assert reloaded.outdoor_temp_sensor is None
 
+
+class TestImportKeepsRuntimeStatus:
+    """A backup must not bring back the runtime status stored in it.
+
+    The import replaced each cover's status, pause_until and
+    last_position_change with the values from the file. A cover paused live
+    got pause_until None and its pause never expired, and a file status
+    "locked" made the cover count as locked at shutdown on the next restart.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _instant_save(self, monkeypatch) -> None:
+        """Skip the 2 s save debounce that async_block_till_done would wait for."""
+        monkeypatch.setattr("custom_components.cover_automatic.storage.SAVE_DEBOUNCE_DELAY", 0)
+
+    @staticmethod
+    async def _import(hass, storage, coordinator, data: dict) -> None:
+        from custom_components.cover_automatic.api import ws_import_config
+
+        await ws_import_config(hass, MagicMock(), {"id": 1, "data": data}, storage, coordinator)
+        await hass.async_block_till_done()
+
+    @staticmethod
+    def _file(*covers: CoverConfig) -> dict:
+        return {
+            "covers": {c.entity_id: c.to_dict() for c in covers},
+            "facades": {}, "rules": {}, "scenarios": {},
+        }
+
+    @pytest.mark.asyncio
+    async def test_import_keeps_live_status_of_existing_cover(self, tmp_path) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            coordinator.pause_cover(storage.covers["cover.a"])
+            paused_until = storage.get_cover_raw("cover.a")["pause_until"]
+            assert paused_until is not None
+
+            await self._import(hass, storage, coordinator, self._file(
+                CoverConfig(entity_id="cover.a", name="A", status=CoverStatus.AUTO, pause_until=None),
+            ))
+
+            raw = storage.get_cover_raw("cover.a")
+            assert raw["status"] == CoverStatus.PAUSED.value
+            assert raw["pause_until"] == paused_until
+
+    @pytest.mark.asyncio
+    async def test_import_starts_new_cover_without_runtime_status(self, tmp_path) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            await self._import(hass, storage, coordinator, self._file(CoverConfig(
+                entity_id="cover.new", name="New", status=CoverStatus.LOCKED,
+                pause_until=1.0, last_position_change=2.0,
+            )))
+
+            raw = storage.get_cover_raw("cover.new")
+            assert raw["status"] == CoverStatus.AUTO.value
+            assert raw["pause_until"] is None
+            assert raw["last_position_change"] is None
+
+    @pytest.mark.asyncio
+    async def test_imported_locked_status_does_not_lock_after_restart(self, tmp_path) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, entry, storage, coordinator):
+            hass.states.async_set("binary_sensor.window", "unavailable")
+            await self._import(hass, storage, coordinator, self._file(CoverConfig(
+                entity_id="cover.a", name="A", status=CoverStatus.LOCKED,
+                lock_sensor="binary_sensor.window",
+            )))
+
+            restarted = CoverAutomaticCoordinator(hass, storage, 60, config_entry=entry)
+            restarted._restore_cover_states()
+            await restarted.async_refresh()
+
+            assert restarted.get_cover_status("cover.a") == CoverStatus.AUTO

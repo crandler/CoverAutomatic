@@ -11,7 +11,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import LOG_RETENTION_DAYS, LOG_STORAGE_KEY, STORAGE_KEY, STORAGE_VERSION
-from .models import CoverConfig, Facade, Rule, Scenario
+from .models import CoverConfig, CoverStatus, Facade, Rule, Scenario
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -629,6 +629,16 @@ class CoverAutomaticStorage:
                         section, k, err,
                     )
             data[section] = valid
+
+        # Runtime status is not configuration: existing covers keep their live
+        # values, new ones start in AUTO. A backup must not revive a stale
+        # pause or lock.
+        live_covers = self._data.get("covers", {})
+        for entity_id, cover_data in data["covers"].items():
+            live = live_covers.get(entity_id, {})
+            cover_data["status"] = live.get("status", CoverStatus.AUTO.value)
+            cover_data["pause_until"] = live.get("pause_until")
+            cover_data["last_position_change"] = live.get("last_position_change")
 
         # Validate active_scenario exists in imported scenarios
         if data.get("active_scenario") not in data.get("scenarios", {}):
