@@ -1413,6 +1413,11 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if position_changed:
                 if command_sent and stagger > 0:
                     await asyncio.sleep(stagger)
+                    # A window opened during the pause (LOCKED/VENTING) or a
+                    # manual move outdates the target; the next cycle decides.
+                    if self._cover_states.get(entity_id, CoverStatus.AUTO) != status:
+                        self._hysteresis_info[entity_id] = None
+                        continue
                 _LOGGER.info("[%s] Moving %d%% -> %d%%", entity_id, current, target)
                 self._hysteresis_info[entity_id] = None
                 self._last_positions[entity_id] = target

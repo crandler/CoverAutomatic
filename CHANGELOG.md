@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.63.4] - 2026-10-02
+
+### Fixed
+
+- A window opened or tilted while several covers move one after another no longer lets the rule close its cover anyway. Only affects setups with a command stagger delay above 0.
+
 ## [1.63.3] - 2026-10-02
 
 ### Fixed

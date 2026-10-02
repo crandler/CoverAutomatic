@@ -2028,6 +2028,60 @@ class TestWindowClosedDuringLockMove(_LockSensorScenario):
             assert calls[-1] == self.CLOSE
 
 
+class TestWindowOpenedDuringStagger(_LockSensorScenario):
+    """A window opened during the stagger pause between two cover commands.
+
+    The apply cycle read the status before the pause and sent the stale rule
+    target afterwards: a cover locked by the open window closed anyway, a
+    tilted one went below the vent minimum.
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("sensor", "status", "follow_up"),
+        [
+            ("lock", CoverStatus.LOCKED, []),
+            ("vent", CoverStatus.VENTING, [{"entity_id": "cover.a", "position": 30}]),
+            (None, CoverStatus.AUTO, [{"entity_id": "cover.a", "position": 0}]),
+        ],
+        ids=["window-opened", "window-tilted", "nothing-changed"],
+    )
+    async def test_window_opened_during_stagger_pause(
+        self, tmp_path, sensor, status, follow_up
+    ) -> None:
+        async with _real_instance(tmp_path, ["cover.b", "cover.a"], []) as (hass, _, storage, coordinator):
+            calls = await self._setup(hass, storage, "off")
+            hass.states.async_set(self.TILT, "off")
+            storage.get_cover_raw("cover.a")["vent_sensor"] = self.TILT
+            storage._invalidate_cache()
+            hass.states.async_set("cover.b", "open", {"current_position": 100})
+            await storage.async_add_rule(Rule(
+                id="close_b", name="Close B", enabled=True, priority=10, cover_ids=["cover.b"],
+                conditions=[Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.outdoor_temp", "value": 20},
+                )],
+                target_position=0,
+            ))
+            storage.command_stagger = 0.1
+            opened = {"lock": self.WINDOW, "vent": self.TILT}.get(sensor)
+
+            async def _record(call) -> None:
+                calls.append(dict(call.data))
+                if call.data["entity_id"] == "cover.b" and opened:
+                    # Handler runs eagerly inside async_call, so delay the window
+                    # into the 0.1 s pause the apply cycle takes before cover.a.
+                    hass.loop.call_later(0.05, hass.states.async_set, opened, "on")
+
+            hass.services.async_register("cover", "set_cover_position", _record)
+            self._start(coordinator)
+            await self._cycle(hass, coordinator)
+            assert coordinator.get_cover_status("cover.a") == status
+            await self._cycle(hass, coordinator)
+
+            assert calls == [{"entity_id": "cover.b", "position": 0}, *follow_up]
+
+
 class TestDeleteKeepsRuleScope:
     """Deleting the last cover or facade of a rule must not make it global.
 
