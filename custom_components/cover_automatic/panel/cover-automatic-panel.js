@@ -146,6 +146,7 @@ const I18N = {
     rule_add_condition: "Add condition",
     rule_no_conditions: "No conditions",
     rule_reorder_hint: "Drag to reorder. Top rule wins when multiple rules match.",
+    rule_drag_handle: "Drag to reorder",
     // Condition types
     cond_sun_on_facade: "Sun on facade",
     cond_sun_elevation_above: "Sun elevation above",
@@ -418,6 +419,7 @@ const I18N = {
     rule_add_condition: "Bedingung hinzufügen",
     rule_no_conditions: "Keine Bedingungen",
     rule_reorder_hint: "Ziehen zum Sortieren. Obere Regel gewinnt bei Überschneidung.",
+    rule_drag_handle: "Ziehen zum Sortieren",
     cond_sun_on_facade: "Sonne auf Fassade",
     cond_sun_elevation_above: "Sonnenhöhe über",
     cond_sun_elevation_below: "Sonnenhöhe unter",
@@ -689,6 +691,7 @@ const I18N = {
     rule_add_condition: "Ajouter une condition",
     rule_no_conditions: "Aucune condition",
     rule_reorder_hint: "Glisser pour réordonner. La règle la plus haute l'emporte si plusieurs règles s'appliquent.",
+    rule_drag_handle: "Glisser pour réordonner",
     // Condition types
     cond_sun_on_facade: "Soleil sur la façade",
     cond_sun_elevation_above: "Élévation solaire supérieure à",
@@ -3563,7 +3566,7 @@ class CoverAutomaticPanel extends HTMLElement {
 
       const activeClass = isActive ? " rule-active" : "";
       html += `<div class="rule-row${activeClass}${dragging}${dragOver}" draggable="true" data-rule-id="${this._esc(r.id)}" data-action="rule-drag">`;
-      html += `<span class="drag-handle" title="Drag">&#9783;</span>`;
+      html += `<span class="drag-handle" title="${this._esc(this._t("rule_drag_handle"))}">&#9783;</span>`;
       html += `<div class="rule-info" data-action="rule-expand" data-id="${this._esc(r.id)}">`;
       html += `<div class="rule-name">`;
       html += `<span class="rule-active-dot ${isActive ? "active" : ""}" title="${isActive ? this._t("rule_active_for") + " " + matchedCovers.length + " " + this._t("rule_covers_count") : this._t("rule_inactive")}"></span>`;
