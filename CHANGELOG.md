@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Fixed
 
 - A cover whose window was still open when wind protection ended now returns to automatic mode once the window is closed. Before, it stayed locked until it was resumed, its automation was switched off and on, or Home Assistant restarted.
+- Opening or tilting a window while wind protection is active no longer stops that cover partway while it opens for the storm. Wind protection stays in charge until the wind drops, then the window position applies.
 
 ## [1.63.1] - 2026-10-02
 

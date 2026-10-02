@@ -527,6 +527,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.warning("[%s] Sensor unavailable, ignoring state change", sensor_id)
             return
 
+        # Wind protection outranks lock and vent; ending it re-derives both
+        if self._wind_protected:
+            return
+
         is_open = new_state.state in BINARY_SENSOR_ON_STATES
 
         # Cache sensor states to avoid repeated hass.states.get() calls

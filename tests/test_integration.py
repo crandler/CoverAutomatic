@@ -1868,6 +1868,47 @@ class TestLockAfterWindProtection(_LockSensorScenario):
             assert len(calls) == moves
 
 
+class TestWindowOpenedDuringStorm(_LockSensorScenario):
+    """A window opened during wind protection must not override it.
+
+    The contact sensor handler set LOCKED or VENTING over WIND_PROTECTED and
+    could send the lock or vent position to a cover still opening for the
+    storm. The next sync then re-activated wind protection for every cover.
+    """
+
+    OPEN = {"entity_id": "cover.a", "position": 100}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("sensor", "after_storm"),
+        [("lock", CoverStatus.LOCKED), ("vent", CoverStatus.VENTING)],
+    )
+    async def test_window_opened_during_storm(self, tmp_path, sensor, after_storm) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = await self._setup(hass, storage, "off", wind=True)
+            hass.states.async_set(self.TILT, "off")
+            storage.get_cover_raw("cover.a")["vent_sensor"] = self.TILT
+            storage._invalidate_cache()
+            hass.states.async_set("cover.a", "open", {"current_position": 20})  # still opening
+            hass.states.async_set(self.WIND, "20")
+            self._start(coordinator)
+            await self._cycle(hass, coordinator)
+            assert calls == [self.OPEN]
+
+            await self._set(hass, self.WINDOW if sensor == "lock" else self.TILT, "on")
+            assert calls == [self.OPEN]
+            assert storage.get_cover_raw("cover.a")["status"] == CoverStatus.WIND_PROTECTED.value
+            await self._cycle(hass, coordinator)
+
+            assert coordinator.get_cover_status("cover.a") == CoverStatus.WIND_PROTECTED
+            assert calls == [self.OPEN]
+
+            await self._set(hass, self.WIND, "0")
+            await self._cycle(hass, coordinator)
+
+            assert coordinator.get_cover_status("cover.a") == after_storm
+
+
 class TestDeleteKeepsRuleScope:
     """Deleting the last cover or facade of a rule must not make it global.
 
