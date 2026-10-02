@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.63.6] - 2026-10-02
+
+### Fixed
+
+- A cover-specific pause of exactly 120 minutes is now kept after a restart. Before, it fell back to the global pause duration on every restart.
+
 ## [1.63.5] - 2026-10-02
 
 ### Fixed

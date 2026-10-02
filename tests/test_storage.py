@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -1084,3 +1085,77 @@ class TestSolarHysteresisSetting:
         storage._data = {}
         storage.solar_hysteresis = "2000"
         assert storage._data["solar_hysteresis"] == 2000.0
+
+
+async def _restart(hass) -> CoverAutomaticStorage:
+    """Load the storage from disk the way a Home Assistant restart does."""
+    storage = CoverAutomaticStorage(hass)
+    await storage.async_load()
+    return storage
+
+
+class TestPauseDurationMigrationRunsOnce:
+    """#244: the v1.6.0 migration 120 -> None must not undo a deliberate 120.
+
+    It ran on every load, so a per-cover pause of 120 min set in the panel
+    fell back to the global pause after each restart.
+    """
+
+    @staticmethod
+    @asynccontextmanager
+    async def _hass(tmp_path):
+        from homeassistant.core import HomeAssistant
+
+        hass = HomeAssistant(str(tmp_path))
+        try:
+            yield hass
+        finally:
+            await hass.async_stop(force=True)
+
+    @staticmethod
+    async def _set_pause(hass, storage, minutes) -> None:
+        """Set the per-cover pause through the panel's cover/update command."""
+        from custom_components.cover_automatic.api import ws_cover_update
+
+        conn = MagicMock()
+        msg = {"id": 1, "type": "cover_automatic/cover/update",
+               "entity_id": "cover.a", "pause_duration": minutes}
+        await ws_cover_update(hass, conn, msg, storage, MagicMock())
+        conn.send_result.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_pause_of_120_survives_restart(self, tmp_path) -> None:
+        async with self._hass(tmp_path) as hass:
+            storage = await _restart(hass)
+            await storage.async_add_cover(CoverConfig(entity_id="cover.a", name="A"))
+            await self._set_pause(hass, storage, 120)
+
+            storage = await _restart(hass)
+
+            assert storage.covers["cover.a"].pause_duration == 120
+
+    @pytest.mark.asyncio
+    async def test_legacy_default_is_migrated_once(self, tmp_path) -> None:
+        """Data from before the fix still gets the old default removed, once."""
+        import json
+        import os
+
+        from custom_components.cover_automatic.const import STORAGE_KEY
+
+        async with self._hass(tmp_path) as hass:
+            path = hass.config.path(".storage", STORAGE_KEY)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            cover = CoverConfig(entity_id="cover.a", name="A").to_dict()
+            cover["pause_duration"] = 120
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump({"version": 1, "minor_version": 1, "key": STORAGE_KEY,
+                           "data": {"covers": {"cover.a": cover}}}, fh)
+
+            storage = await _restart(hass)
+            assert storage.covers["cover.a"].pause_duration is None
+            with open(path, encoding="utf-8") as fh:
+                assert json.load(fh)["minor_version"] == 2
+
+            await self._set_pause(hass, storage, 120)
+            storage = await _restart(hass)
+            assert storage.covers["cover.a"].pause_duration == 120

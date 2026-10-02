@@ -26,6 +26,8 @@ BINARY_SENSOR_ON_STATES: Final = frozenset({"on", "open", "true", "1"})
 # Storage
 STORAGE_KEY: Final = f"{DOMAIN}.storage"
 STORAGE_VERSION: Final = 1
+# 2: v1.6.0 pause_duration migration done (runs once, not on every load)
+STORAGE_MINOR_VERSION: Final = 2
 
 # Activity log
 LOG_STORAGE_KEY: Final = f"{DOMAIN}.log"

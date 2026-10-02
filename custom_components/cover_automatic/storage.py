@@ -10,7 +10,13 @@ from homeassistant.helpers.storage import Store
 
 from homeassistant.util import dt as dt_util
 
-from .const import LOG_RETENTION_DAYS, LOG_STORAGE_KEY, STORAGE_KEY, STORAGE_VERSION
+from .const import (
+    LOG_RETENTION_DAYS,
+    LOG_STORAGE_KEY,
+    STORAGE_KEY,
+    STORAGE_MINOR_VERSION,
+    STORAGE_VERSION,
+)
 from .models import CoverConfig, CoverStatus, Facade, Rule, Scenario
 
 if TYPE_CHECKING:
@@ -92,14 +98,29 @@ def _repair_null_globals(data: dict[str, Any]) -> None:
         _LOGGER.warning("Repaired empty settings: %s", ", ".join(repaired))
 
 
+class _ConfigStore(Store[dict[str, Any]]):
+    """Store that migrates older minor versions once, then saves the result."""
+
+    async def _async_migrate_func(
+        self, old_major_version: int, old_minor_version: int, old_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        if old_minor_version < 2:
+            # v1.6.0: 120 was the old per-cover default, None = global fallback.
+            # Only once: a 120 set later is a deliberate value.
+            for cover_data in old_data.get("covers", {}).values():
+                if cover_data.get("pause_duration") == 120:
+                    cover_data["pause_duration"] = None
+        return old_data
+
+
 class CoverAutomaticStorage:
     """Manage persistent storage for CoverAutomatic."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize storage."""
         self.hass = hass
-        self._store: Store[dict[str, Any]] = Store(
-            hass, STORAGE_VERSION, STORAGE_KEY
+        self._store: Store[dict[str, Any]] = _ConfigStore(
+            hass, STORAGE_VERSION, STORAGE_KEY, minor_version=STORAGE_MINOR_VERSION
         )
         self._data: dict[str, Any] = {}
         self._save_task: asyncio.Task[None] | None = None
@@ -145,11 +166,7 @@ class CoverAutomaticStorage:
         self._invalidate_cache()
 
     def _migrate(self) -> None:
-        """Run data migrations for older storage versions."""
-        # v1.6.0: Remove per-cover pause_duration if it matches the old default (120)
-        for cover_data in self._data.get("covers", {}).values():
-            if cover_data.get("pause_duration") == 120:
-                cover_data["pause_duration"] = None
+        """Repair stored data on every load (version migrations: _ConfigStore)."""
         # v1.63.1: settings emptied to None by an import before this version
         _repair_null_globals(self._data)
 
