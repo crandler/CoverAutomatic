@@ -1836,6 +1836,9 @@ class TestLockAfterWindProtection(_LockSensorScenario):
 
         assert self._shown(storage) == CoverStatus.LOCKED.value
         assert self.CLOSE not in calls
+        # The cover reaches the lock position before the window closes
+        hass.states.async_set("cover.a", "open", {"current_position": 100})
+        await hass.async_block_till_done()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("position_at_end", [100, 50])
@@ -1907,6 +1910,122 @@ class TestWindowOpenedDuringStorm(_LockSensorScenario):
             await self._cycle(hass, coordinator)
 
             assert coordinator.get_cover_status("cover.a") == after_storm
+
+
+class TestWindowClosedDuringLockMove(_LockSensorScenario):
+    """Closing the window while the cover still travels to the lock position.
+
+    The unlock took the intermediate or stale position as the expected one.
+    The arrival at the lock position then read as a manual override and the
+    cover stayed open for the pause duration (door opened briefly).
+    """
+
+    OPEN = {"entity_id": "cover.a", "position": 100}
+
+    @pytest.fixture
+    def clock(self, monkeypatch) -> list[float]:
+        """Controllable monotonic clock for the settle time checks."""
+        from types import SimpleNamespace
+
+        now = [1000.0]
+        monkeypatch.setattr(
+            "custom_components.cover_automatic.coordinator.time_mod",
+            SimpleNamespace(monotonic=lambda: now[0]),
+        )
+        return now
+
+    async def _report(self, hass, state: str, position: int) -> None:
+        hass.states.async_set("cover.a", state, {"current_position": position})
+        await hass.async_block_till_done()
+
+    async def _lock_closed_cover(self, hass, storage, coordinator) -> list[dict]:
+        """Closed cover in AUTO, then the window opens."""
+        calls = await self._setup(hass, storage, "off")
+        await self._report(hass, "closed", 0)
+        self._start(coordinator)
+        await self._cycle(hass, coordinator)
+        assert calls == []
+        await self._set(hass, self.WINDOW, "on")
+        assert calls == [self.OPEN]
+        return calls
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("moving", "unlock_at", "arrive_at"),
+        [(30, 10, 25), (None, 10, 25), (80, 35, 45)],
+        ids=["reports-motion", "silent-until-arrival", "slower-than-settle"],
+    )
+    async def test_cover_returns_to_rule_target(
+        self, tmp_path, clock, moving, unlock_at, arrive_at
+    ) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = await self._lock_closed_cover(hass, storage, coordinator)
+            start = clock[0]
+
+            if moving is not None:
+                clock[0] = start + unlock_at - 1
+                await self._report(hass, "opening", moving)
+            clock[0] = start + unlock_at
+            await self._set(hass, self.WINDOW, "off")
+            clock[0] = start + arrive_at
+            await self._report(hass, "open", 100)
+            clock[0] = start + arrive_at + 60
+            await self._cycle(hass, coordinator)
+
+            assert coordinator.get_cover_status("cover.a") == CoverStatus.AUTO
+            assert calls[-1] == self.CLOSE
+
+    @pytest.mark.asyncio
+    async def test_window_tilted_during_lock_move_keeps_venting(self, tmp_path, clock) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            hass.states.async_set(self.TILT, "off")
+            storage.get_cover_raw("cover.a")["vent_sensor"] = self.TILT
+            storage._invalidate_cache()
+            calls = await self._lock_closed_cover(hass, storage, coordinator)
+            start = clock[0]
+
+            clock[0] = start + 9
+            await self._report(hass, "opening", 50)
+            await self._set(hass, self.TILT, "on")
+            clock[0] = start + 10
+            await self._set(hass, self.WINDOW, "off")
+            clock[0] = start + 25
+            await self._report(hass, "open", 100)
+            clock[0] = start + 85
+            await self._cycle(hass, coordinator)
+
+            assert coordinator.get_cover_status("cover.a") == CoverStatus.VENTING
+            assert calls[-1] == {"entity_id": "cover.a", "position": 30}  # vent minimum
+
+    @pytest.mark.asyncio
+    async def test_window_closed_after_arrival_applies_rule_at_once(self, tmp_path, clock) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = await self._lock_closed_cover(hass, storage, coordinator)
+            clock[0] += 20
+            await self._report(hass, "open", 100)
+            clock[0] += 5
+
+            await self._set(hass, self.WINDOW, "off")
+
+            assert coordinator.get_cover_status("cover.a") == CoverStatus.AUTO
+            assert calls[-1] == self.CLOSE
+
+    @pytest.mark.asyncio
+    async def test_manual_move_during_long_lock_does_not_pause(self, tmp_path, clock) -> None:
+        """Closing the window hands a cover moved by hand back to the rules."""
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = await self._lock_closed_cover(hass, storage, coordinator)
+            clock[0] += 20
+            await self._report(hass, "open", 100)
+            clock[0] += 600
+            await self._report(hass, "open", 50)
+            clock[0] += 10
+
+            await self._set(hass, self.WINDOW, "off")
+            await self._cycle(hass, coordinator)
+
+            assert coordinator.get_cover_status("cover.a") == CoverStatus.AUTO
+            assert calls[-1] == self.CLOSE
 
 
 class TestDeleteKeepsRuleScope:

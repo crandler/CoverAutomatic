@@ -2987,7 +2987,8 @@ class TestManualOverrideDuringVenting:
         # Cover at 60% (user moved during LOCKED, above vent_min)
         mock_hass.states.get.return_value = MockState("on", {"current_position": 60})
 
-        with patch("custom_components.cover_automatic.coordinator.time_mod"):
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
+            mock_time.monotonic.return_value = 9999.0  # long after the lock command
             with patch.object(coordinator, "_cover_val", return_value=30):
                 with patch.object(coordinator, "_get_current_position", return_value=60):
                     coordinator._handle_contact_sensor_change(

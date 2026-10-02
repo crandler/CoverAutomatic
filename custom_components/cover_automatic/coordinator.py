@@ -595,7 +595,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             )
                         )
                     else:
-                        self._update_last_position_from_state(cover_id)
+                        self._sync_position_after_unlock(cover_id)
                     self._pre_lock_states.pop(cover_id, None)
                     self._cover_states[cover_id] = CoverStatus.VENTING
                     self.storage.update_cover_status(cover_id, CoverStatus.VENTING.value, None)
@@ -769,7 +769,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.storage.update_cover_status(
                     entity_id, CoverStatus.VENTING.value, None
                 )
-                self._update_last_position_from_state(entity_id)
+                self._sync_position_after_unlock(entity_id)
                 if self.data is not None:
                     self.async_set_updated_data(self.data)
                 return
@@ -777,10 +777,32 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._cover_states[entity_id] = CoverStatus.AUTO
         self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
         # Update expected position to current to prevent false override
-        self._update_last_position_from_state(entity_id)
+        self._sync_position_after_unlock(entity_id)
         # One-shot time-hysteresis bypass for the next apply cycle.
         self._post_protective_exit.add(entity_id)
         self.hass.async_create_task(self.async_request_refresh())
+
+    def _sync_position_after_unlock(self, entity_id: str) -> None:
+        """Sync the expected position, unless the cover still travels to the lock target.
+
+        Right after the lock command the reported position is intermediate or
+        stale. Syncing it would turn the arrival into a false manual override,
+        so the lock target stays expected and the settle check reconciles it.
+        """
+        state = self.hass.states.get(entity_id)
+        expected = self._last_positions.get(entity_id)
+        if state is not None and expected is not None:
+            settling = (time_mod.monotonic() - self._last_command_time.get(entity_id, 0)) < SETTLE_TIME
+            moving = state.state in ("opening", "closing")
+            try:
+                current = int(state.attributes.get("current_position", 0))
+            except (ValueError, TypeError):
+                current = None
+            arrived = current is not None and abs(current - expected) <= MANUAL_OVERRIDE_TOLERANCE
+            if (settling or moving) and not arrived:
+                self._pending_settle.add(entity_id)
+                return
+        self._update_last_position_from_state(entity_id)
 
     def _update_last_position_from_state(self, entity_id: str) -> None:
         """Update _last_positions and _last_tilt_positions from current HA state."""

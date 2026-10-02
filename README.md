@@ -274,13 +274,13 @@ Still stuck? [Open a bug report](https://github.com/crandler/CoverAutomatic/issu
 
 ## Version
 
-1.63.2
+1.63.3
 
 ## Changelog
 
 Full version history is maintained in [CHANGELOG.md](CHANGELOG.md), formatted per [Keep a Changelog](https://keepachangelog.com/).
 
-Latest release: [v1.63.2](https://github.com/crandler/CoverAutomatic/releases/tag/v1.63.2) (2026-10-02).
+Latest release: [v1.63.3](https://github.com/crandler/CoverAutomatic/releases/tag/v1.63.3) (2026-10-02).
 
 ## License
 
