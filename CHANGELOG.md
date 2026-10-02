@@ -11,6 +11,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 - French translation for the panel and the integration's entities. Home Assistant users with French as their language now see CoverAutomatic in French.
 
+### Fixed
+
+- On phones, the settings section bar no longer makes the whole page scroll sideways. It scrolls on its own and keeps the selected section in view.
+
 ## [1.62.4] - 2026-10-01
 
 ### Fixed

@@ -2490,6 +2490,8 @@ const PANEL_STYLES = `
     }
     .settings-nav {
       flex: 0 0 auto;
+      /* Shell keeps align-items: flex-start; without stretch the strip grows to its content and never scrolls */
+      align-self: stretch;
       flex-direction: row;
       position: static;
       padding: 6px;
@@ -4854,10 +4856,19 @@ class CoverAutomaticPanel extends HTMLElement {
         this._expandedSections[actionEl.dataset.section] = !this._expandedSections[actionEl.dataset.section];
         this._render();
         break;
-      case "settings-section":
+      case "settings-section": {
         this._activeSettingsSection = actionEl.dataset.section;
         this._render();
+        // Re-render resets the mobile pill strip to the start; center the active pill
+        const nav = this.shadowRoot.querySelector(".settings-nav");
+        const activeBtn = nav && nav.querySelector(".settings-nav-btn.active");
+        if (activeBtn && nav.scrollWidth > nav.clientWidth) {
+          const navRect = nav.getBoundingClientRect();
+          const btnRect = activeBtn.getBoundingClientRect();
+          nav.scrollLeft += btnRect.left - navRect.left - (navRect.width - btnRect.width) / 2;
+        }
         break;
+      }
       case "rotate-by": {
         const input = this.shadowRoot.querySelector("#house-rotation-input");
         if (!input) break;
