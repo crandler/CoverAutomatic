@@ -1,7 +1,7 @@
 """Integration tests for CoverAutomatic coordinator flows."""
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -2353,3 +2353,72 @@ class TestImportKeepsRuntimeStatus:
             await restarted.async_refresh()
 
             assert restarted.get_cover_status("cover.a") == CoverStatus.AUTO
+
+
+@contextmanager
+def _disk_calls_from_services_on_loop():
+    """Record stat/exists/realpath calls made by services.py on the event loop.
+
+    Home Assistant's block_async_io only guards open/listdir/scandir and
+    friends, not Path.stat(), Path.exists() or Path.resolve().
+    """
+    import asyncio
+    import os
+    import posixpath
+    import sys
+
+    from custom_components.cover_automatic import services
+
+    calls = []
+
+    def wrap(name, original):
+        def wrapper(*args, **kwargs):
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                pass  # executor thread
+            else:
+                frame = sys._getframe(1)
+                while frame is not None:
+                    if frame.f_code.co_filename == services.__file__:
+                        calls.append((name, str(args[0])))
+                        break
+                    frame = frame.f_back
+            return original(*args, **kwargs)
+
+        return wrapper
+
+    with (
+        patch.object(os, "stat", wrap("stat", os.stat)),
+        patch.object(posixpath, "exists", wrap("exists", posixpath.exists)),
+        patch.object(posixpath, "realpath", wrap("realpath", posixpath.realpath)),
+    ):
+        yield calls
+
+
+class TestFileServicesOffTheEventLoop:
+    """export_config/import_config touch the disk only in the executor (hacs/default#11490)."""
+
+    @pytest.mark.asyncio
+    async def test_export_and_import_keep_disk_access_off_the_loop(self, tmp_path) -> None:
+        from custom_components.cover_automatic.const import DOMAIN
+        from custom_components.cover_automatic.services import (
+            EXPORT_SUBDIR,
+            async_setup_services,
+        )
+
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, _):
+            await async_setup_services(hass)
+            backup = tmp_path / EXPORT_SUBDIR / "cover_automatic_backup.yaml"
+
+            with _disk_calls_from_services_on_loop() as calls:
+                await hass.services.async_call(DOMAIN, "export_config", {}, blocking=True)
+                await storage.async_remove_cover("cover.a")
+                await hass.services.async_call(
+                    DOMAIN, "import_config", {"path": str(backup)}, blocking=True
+                )
+                await hass.async_block_till_done()
+
+            assert calls == []
+            assert backup.is_file()
+            assert set(storage.covers) == {"cover.a"}

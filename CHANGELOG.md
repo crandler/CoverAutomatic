@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.63.7] - 2026-10-20
+
+### Fixed
+
+- Importing and exporting the configuration no longer blocks Home Assistant while the file is checked, which could stall the whole system on slow storage such as SD cards or network shares.
+
 ## [1.63.6] - 2026-10-02
 
 ### Fixed

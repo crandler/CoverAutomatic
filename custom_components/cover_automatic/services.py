@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 import yaml
@@ -90,6 +90,50 @@ def _validate_config_path(path: str, config_dir: str) -> Path | None:
     except Exception as err:
         _LOGGER.error("Path validation error for %s: %s", path, err)
         return None
+
+
+class _ImportFileError(Exception):
+    """Import file rejected before reading."""
+
+
+def _write_export_file(path: str, config_dir: str, data: dict[str, Any]) -> Path | None:
+    """Validate the export target and write data to it as YAML.
+
+    Blocking I/O: run in the executor, never on the event loop.
+
+    Returns:
+        Written Path, None if the path is unsafe.
+    """
+    validated_path = _validate_export_path(path, config_dir)
+    if validated_path is None:
+        return None
+    validated_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(validated_path, "w", encoding="utf-8") as f:
+        yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+    return validated_path
+
+
+def _read_import_file(path: str, config_dir: str) -> Any:
+    """Validate, size-check and read an import file.
+
+    Blocking I/O: run in the executor, never on the event loop.
+
+    Raises:
+        _ImportFileError: unsafe path, missing file or file too large.
+        OSError, yaml.YAMLError: file could not be read.
+    """
+    validated_path = _validate_config_path(path, config_dir)
+    if validated_path is None:
+        raise _ImportFileError(f"path '{path}' is outside allowed directories")
+    if not validated_path.exists():
+        raise _ImportFileError(f"file not found: {validated_path}")
+    file_size = validated_path.stat().st_size
+    if file_size > MAX_IMPORT_FILE_SIZE:
+        raise _ImportFileError(
+            f"file too large ({file_size} bytes, max {MAX_IMPORT_FILE_SIZE})"
+        )
+    with open(validated_path, encoding="utf-8") as f:
+        return yaml.safe_load(f)
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:
@@ -180,30 +224,24 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             EXPORT_SUBDIR, "cover_automatic_backup.yaml"
         )
 
-        # Confine exports to <config>/cover_automatic/ with YAML extension
-        validated_path = _validate_export_path(path_str, hass.config.config_dir)
-        if validated_path is None:
-            _LOGGER.error(
-                "Export rejected: path '%s' must be a YAML file inside '%s'",
-                path_str,
-                Path(hass.config.config_dir) / EXPORT_SUBDIR,
-            )
-            return
-
         for entry_data in _get_entries().values():
             data = entry_data.storage.get_raw_data()
-
-            def write_yaml(export_data=data):
-                validated_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(validated_path, "w", encoding="utf-8") as f:
-                    yaml.dump(export_data, f, default_flow_style=False, allow_unicode=True)
-
+            # Confine exports to <config>/cover_automatic/ with YAML extension
             try:
-                await hass.async_add_executor_job(write_yaml)
+                written_path = await hass.async_add_executor_job(
+                    _write_export_file, path_str, hass.config.config_dir, data
+                )
             except (OSError, yaml.YAMLError) as err:
                 _LOGGER.error("Export failed: %s", err)
                 return
-            _LOGGER.info("Configuration exported to %s", validated_path)
+            if written_path is None:
+                _LOGGER.error(
+                    "Export rejected: path '%s' must be a YAML file inside '%s'",
+                    path_str,
+                    Path(hass.config.config_dir) / EXPORT_SUBDIR,
+                )
+                return
+            _LOGGER.info("Configuration exported to %s", written_path)
             break
 
     async def handle_import_config(call: ServiceCall) -> None:
@@ -214,38 +252,14 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             _LOGGER.error("Import rejected: no path provided")
             return
 
-        # Validate path to prevent path traversal attacks
-        validated_path = _validate_config_path(path_str, hass.config.config_dir)
-        if validated_path is None:
-            _LOGGER.error(
-                "Import rejected: path '%s' is outside allowed directories", path_str
+        # Path traversal check, size limit and read all run in the executor
+        try:
+            data = await hass.async_add_executor_job(
+                _read_import_file, path_str, hass.config.config_dir
             )
+        except _ImportFileError as err:
+            _LOGGER.error("Import rejected: %s", err)
             return
-
-        if not validated_path.exists():
-            _LOGGER.error("Import file not found: %s", validated_path)
-            return
-
-        # Check file size before reading
-        try:
-            file_size = validated_path.stat().st_size
-            if file_size > MAX_IMPORT_FILE_SIZE:
-                _LOGGER.error(
-                    "Import rejected: file too large (%d bytes, max %d)",
-                    file_size,
-                    MAX_IMPORT_FILE_SIZE,
-                )
-                return
-        except OSError as err:
-            _LOGGER.error("Import failed: cannot stat file: %s", err)
-            return
-
-        def read_yaml():
-            with open(validated_path, encoding="utf-8") as f:
-                return yaml.safe_load(f)
-
-        try:
-            data = await hass.async_add_executor_job(read_yaml)
         except (OSError, yaml.YAMLError) as err:
             _LOGGER.error("Import failed: could not read file: %s", err)
             return
@@ -261,7 +275,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             entry_data.coordinator.refresh_state_tracking()
             entry_data.coordinator.async_sync_entities(old_covers, old_facades)
             await entry_data.coordinator.async_request_refresh()
-            _LOGGER.info("Configuration imported from %s", validated_path)
+            _LOGGER.info("Configuration imported from %s", path_str)
             break
 
     schema_entity = vol.Schema({vol.Required("entity_id"): cv.entity_id})

@@ -6,8 +6,11 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import yaml
 
 from custom_components.cover_automatic.services import (
+    _ImportFileError,
+    _read_import_file,
     _validate_config_path,
     _validate_export_path,
     async_setup_services,
@@ -296,7 +299,7 @@ class TestExportImportServices:
         hass.services = MagicMock()
         hass.services.has_service = MagicMock(return_value=False)
         hass.services.async_register = MagicMock()
-        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *args: fn(*args) if not args else fn())
+        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *args: fn(*args))
 
         mock_storage = MagicMock()
         mock_storage.get_raw_data = MagicMock(
@@ -333,14 +336,19 @@ class TestExportImportServices:
         call.data = {"path": "/etc/passwd"}
         call.context.user_id = None
 
-        with patch(
-            "custom_components.cover_automatic.services._validate_export_path",
-            return_value=None,
+        with (
+            patch(
+                "custom_components.cover_automatic.services._validate_export_path",
+                return_value=None,
+            ),
+            patch(
+                "custom_components.cover_automatic.services.open", create=True
+            ) as mock_open,
         ):
             await handlers["export_config"](call)
 
         # Should not attempt to write
-        hass.async_add_executor_job.assert_not_called()
+        mock_open.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_import_validates_path(self, mock_hass_with_export_data) -> None:
@@ -526,7 +534,7 @@ class TestExportHappyPath:
         hass.services = MagicMock()
         hass.services.has_service = MagicMock(return_value=False)
         hass.services.async_register = MagicMock()
-        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *args: fn(*args) if not args else fn())
+        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *args: fn(*args))
         hass.config.path = MagicMock(return_value="/config/cover_automatic_backup.yaml")
         hass.config.config_dir = "/config"
 
@@ -546,9 +554,12 @@ class TestExportHappyPath:
         return hass, mock_storage, mock_coordinator
 
     @pytest.mark.asyncio
-    async def test_export_writes_yaml_file(self, mock_hass_with_export_data) -> None:
-        """Test export_config attempts to write the YAML file via executor job."""
+    async def test_export_writes_yaml_file(
+        self, mock_hass_with_export_data, tmp_path
+    ) -> None:
+        """Test export_config writes the storage data as YAML via executor job."""
         hass, storage, coordinator = mock_hass_with_export_data
+        hass.config.config_dir = str(tmp_path)
 
         handlers = {}
 
@@ -559,20 +570,18 @@ class TestExportHappyPath:
 
         await async_setup_services(hass)
 
+        backup = tmp_path / "cover_automatic" / "backup.yaml"
         call = MagicMock()
-        call.data = {"path": "/config/cover_automatic/backup.yaml"}
+        call.data = {"path": str(backup)}
         call.context.user_id = None
 
-        mock_path = MagicMock()
-        mock_path.exists.return_value = True
-
-        with patch(
-            "custom_components.cover_automatic.services._validate_export_path",
-            return_value=mock_path,
-        ):
-            await handlers["export_config"](call)
+        await handlers["export_config"](call)
 
         hass.async_add_executor_job.assert_called_once()
+        assert yaml.safe_load(backup.read_text(encoding="utf-8")) == {
+            "facades": {},
+            "covers": {},
+        }
 
 
 class TestExportPathRestrictions:
@@ -616,16 +625,16 @@ class TestExportPathRestrictions:
         assert result == Path("/config/cover_automatic/backup.yaml")
 
     @pytest.fixture
-    def mock_hass_for_export(self):
-        """Create mock Home Assistant for export path restriction tests."""
+    def mock_hass_for_export(self, tmp_path):
+        """Create mock Home Assistant with a real config dir for export tests."""
         hass = MagicMock()
         hass.services = MagicMock()
         hass.services.has_service = MagicMock(return_value=False)
         hass.services.async_register = MagicMock()
-        hass.async_add_executor_job = AsyncMock()
-        hass.config.config_dir = "/config"
+        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *args: fn(*args))
+        hass.config.config_dir = str(tmp_path)
         hass.config.path = MagicMock(
-            return_value="/config/cover_automatic/cover_automatic_backup.yaml"
+            side_effect=lambda *parts: str(tmp_path.joinpath(*parts))
         )
 
         mock_storage = MagicMock()
@@ -653,22 +662,27 @@ class TestExportPathRestrictions:
 
     @pytest.mark.asyncio
     async def test_export_rejects_path_outside_subdir(
-        self, mock_hass_for_export
+        self, mock_hass_for_export, tmp_path
     ) -> None:
-        """Export to a HA core file inside /config is rejected without writing."""
+        """Export to a HA core file inside the config dir is rejected without writing."""
         hass = mock_hass_for_export
         handler = await self._get_export_handler(hass)
 
+        core_file = tmp_path / "configuration.yaml"
+        core_file.write_text("homeassistant:\n", encoding="utf-8")
         call = MagicMock()
-        call.data = {"path": "/config/configuration.yaml"}
+        call.data = {"path": str(core_file)}
         call.context.user_id = None
 
         await handler(call)
 
-        hass.async_add_executor_job.assert_not_called()
+        assert core_file.read_text(encoding="utf-8") == "homeassistant:\n"
+        assert not (tmp_path / "cover_automatic").exists()
 
     @pytest.mark.asyncio
-    async def test_export_default_path_in_subdir(self, mock_hass_for_export) -> None:
+    async def test_export_default_path_in_subdir(
+        self, mock_hass_for_export, tmp_path
+    ) -> None:
         """Default export path lands inside the export subdirectory."""
         hass = mock_hass_for_export
         handler = await self._get_export_handler(hass)
@@ -683,6 +697,34 @@ class TestExportPathRestrictions:
             "cover_automatic", "cover_automatic_backup.yaml"
         )
         hass.async_add_executor_job.assert_called_once()
+        assert (tmp_path / "cover_automatic" / "cover_automatic_backup.yaml").is_file()
+
+
+class TestReadImportFile:
+    """Tests for the executor-side import file reader."""
+
+    def test_reads_yaml_inside_config_dir(self, tmp_path) -> None:
+        """A YAML file inside the config dir is read and parsed."""
+        backup = tmp_path / "backup.yaml"
+        backup.write_text("covers: {}\nfacades: {}\n", encoding="utf-8")
+        assert _read_import_file(str(backup), str(tmp_path)) == {
+            "covers": {},
+            "facades": {},
+        }
+
+    def test_missing_file_rejected(self, tmp_path) -> None:
+        """A missing file raises before any read attempt."""
+        with pytest.raises(_ImportFileError, match="file not found"):
+            _read_import_file(str(tmp_path / "missing.yaml"), str(tmp_path))
+
+    def test_path_outside_config_dir_rejected(self, tmp_path) -> None:
+        """A file outside the config dir is rejected even if it exists."""
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        outside = tmp_path / "outside.yaml"
+        outside.write_text("covers: {}\n", encoding="utf-8")
+        with pytest.raises(_ImportFileError, match="outside allowed directories"):
+            _read_import_file(str(outside), str(config_dir))
 
 
 class TestImportHappyPath:
@@ -737,19 +779,11 @@ class TestImportHappyPath:
         call.data = {"path": "/config/backup.yaml"}
         call.context.user_id = None
 
-        mock_stat = MagicMock()
-        mock_stat.st_size = 100
+        await handlers["import_config"](call)
 
-        mock_path = MagicMock()
-        mock_path.exists.return_value = True
-        mock_path.stat.return_value = mock_stat
-
-        with patch(
-            "custom_components.cover_automatic.services._validate_config_path",
-            return_value=mock_path,
-        ):
-            await handlers["import_config"](call)
-
+        hass.async_add_executor_job.assert_called_once_with(
+            _read_import_file, "/config/backup.yaml", "/config"
+        )
         storage.async_import_data.assert_called_once_with(import_data)
         coordinator.refresh_state_tracking.assert_called_once()
         # Devices and entities follow the import, diffed against the pre-import state
@@ -807,19 +841,8 @@ class TestImportValidationErrors:
         call.data = {"path": "/config/backup.yaml"}
         call.context.user_id = None
 
-        mock_stat = MagicMock()
-        mock_stat.st_size = 100
-
-        mock_path = MagicMock()
-        mock_path.exists.return_value = True
-        mock_path.stat.return_value = mock_stat
-
-        with patch(
-            "custom_components.cover_automatic.services._validate_config_path",
-            return_value=mock_path,
-        ):
-            # Must not raise
-            await handlers["import_config"](call)
+        # Must not raise
+        await handlers["import_config"](call)
 
         coordinator.refresh_state_tracking.assert_not_called()
 
@@ -844,19 +867,8 @@ class TestImportValidationErrors:
         call.data = {"path": "/config/backup.yaml"}
         call.context.user_id = None
 
-        mock_stat = MagicMock()
-        mock_stat.st_size = 100
-
-        mock_path = MagicMock()
-        mock_path.exists.return_value = True
-        mock_path.stat.return_value = mock_stat
-
-        with patch(
-            "custom_components.cover_automatic.services._validate_config_path",
-            return_value=mock_path,
-        ):
-            # Must not raise
-            await handlers["import_config"](call)
+        # Must not raise
+        await handlers["import_config"](call)
 
         coordinator.refresh_state_tracking.assert_not_called()
 
@@ -952,7 +964,7 @@ class TestAdminRequirement:
         mock_user.is_admin = True
         hass.auth = MagicMock()
         hass.auth.async_get_user = AsyncMock(return_value=mock_user)
-        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *args: fn(*args) if not args else fn())
+        hass.async_add_executor_job = AsyncMock()
 
         handlers = {}
 
@@ -966,21 +978,16 @@ class TestAdminRequirement:
         call.data = {"path": "/config/backup.yaml"}
         call.context.user_id = "admin_user_123"
 
-        mock_path = MagicMock()
-        mock_path.exists.return_value = True
+        # Should not raise
+        await handlers["export_config"](call)
 
-        with patch(
-            "custom_components.cover_automatic.services._validate_export_path",
-            return_value=mock_path,
-        ):
-            # Should not raise
-            await handlers["export_config"](call)
+        hass.async_add_executor_job.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_export_allows_internal_call(self, mock_hass_with_auth) -> None:
         """Test export_config allows internal calls without user context."""
         hass, storage, coordinator = mock_hass_with_auth
-        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *args: fn(*args) if not args else fn())
+        hass.async_add_executor_job = AsyncMock()
 
         handlers = {}
 
@@ -994,12 +1001,7 @@ class TestAdminRequirement:
         call.data = {"path": "/config/backup.yaml"}
         call.context.user_id = None
 
-        mock_path = MagicMock()
-        mock_path.exists.return_value = True
+        # Should not raise -- internal/automation calls pass through
+        await handlers["export_config"](call)
 
-        with patch(
-            "custom_components.cover_automatic.services._validate_export_path",
-            return_value=mock_path,
-        ):
-            # Should not raise -- internal/automation calls pass through
-            await handlers["export_config"](call)
+        hass.async_add_executor_job.assert_called_once()
