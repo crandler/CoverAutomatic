@@ -2899,6 +2899,44 @@ class TestManualOverrideDuringVenting:
         # _last_positions synced to actual (80), not stale (50)
         assert coordinator._last_positions["cover.test"] == 80
 
+    def test_vent_open_while_paused_ends_pause_and_moves_up(
+        self, coordinator, mock_hass, mock_storage
+    ) -> None:
+        """Vent sensor opening ends a running pause and moves up to vent_position.
+
+        VENTING outranks PAUSED and the tilt is the newer user action, so the
+        manual position is not kept. Only a pause that started during VENTING
+        outlasts the open vent sensor (see test_sync_respects_paused_during_venting).
+        """
+        coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
+        cover_raw = {
+            "lock_sensor": None,
+            "vent_sensor": "binary_sensor.vent",
+            "vent_position": 30,
+            "inverted": False,
+            "pause_until": 99999999999.0,  # far future
+        }
+        mock_storage.get_cover_raw.return_value = cover_raw
+        # Closed by hand, below vent_position
+        mock_hass.states.get.return_value = MockState("on", {"current_position": 0})
+        mock_hass.async_create_task = MagicMock()
+
+        with patch("custom_components.cover_automatic.coordinator.time_mod"):
+            coordinator._handle_contact_sensor_change(
+                "binary_sensor.vent",
+                [],
+                ["cover.test"],
+                MockState("off"),
+                MockState("on"),
+            )
+
+        assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
+        mock_storage.update_cover_status.assert_called_with(
+            "cover.test", CoverStatus.VENTING.value, None
+        )
+        assert coordinator._last_positions["cover.test"] == 30
+        assert mock_hass.async_create_task.call_count == 1
+
     def test_sync_venting_no_move_syncs_positions(
         self, coordinator, mock_hass, mock_storage
     ) -> None:
