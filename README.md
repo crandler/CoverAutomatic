@@ -7,7 +7,7 @@
 <p align="center"><strong>Custom HACS integration for Home Assistant - intelligent, automated control of covers (shutters, blinds, roller blinds).</strong></p>
 
 <p align="center">
-  <a href="https://github.com/hacs/integration"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5?logo=homeassistant&logoColor=white" alt="HACS Custom"></a>
+  <a href="https://github.com/hacs/integration"><img src="https://img.shields.io/badge/HACS-Default-41BDF5?logo=homeassistant&logoColor=white" alt="HACS Default"></a>
   <a href="https://github.com/crandler/CoverAutomatic/releases/latest"><img src="https://img.shields.io/github/v/release/crandler/CoverAutomatic?label=Release" alt="Latest release"></a>
   <a href="https://github.com/crandler/CoverAutomatic/actions/workflows/ci.yml"><img src="https://github.com/crandler/CoverAutomatic/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/crandler/CoverAutomatic" alt="License"></a>
@@ -118,31 +118,21 @@ The integration ships with a custom sidebar panel that replaces the traditional 
 
 [![Open your Home Assistant instance and open this repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=crandler&repository=CoverAutomatic&category=integration)
 
-#### Step 1: Add Custom Repository
+CoverAutomatic is listed in the HACS default store, no custom repository needed.
 
-1. Open Home Assistant
-2. Navigate to **HACS** in the sidebar
-3. Click on **Integrations**
-4. Click the **three dots menu** (top right corner)
-5. Select **Custom repositories**
-6. In the dialog:
-   - **Repository:** `https://github.com/crandler/CoverAutomatic`
-   - **Category:** `Integration`
-7. Click **Add**
+#### Step 1: Install the Integration
 
-#### Step 2: Install the Integration
-
-1. In HACS Integrations, click **+ Explore & Download Repositories**
+1. Navigate to **HACS** in the sidebar
 2. Search for **CoverAutomatic**
 3. Click on it and then click **Download**
 4. Select the latest version and confirm
 
-#### Step 3: Restart Home Assistant
+#### Step 2: Restart Home Assistant
 
 1. Go to **Settings** > **System** > **Restart**
 2. Click **Restart** and wait for Home Assistant to come back online
 
-#### Step 4: Add the Integration
+#### Step 3: Add the Integration
 
 1. Go to **Settings** > **Devices & Services**
 2. Click **+ Add Integration** (bottom right)
