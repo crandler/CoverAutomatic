@@ -145,13 +145,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 
-- Privacy: opt-out for the panel's update check. New setting "Check for updates" (Settings -> Automation, default on). When disabled, the panel never contacts the GitHub API — no outbound request leaves Home Assistant.
+- Privacy: opt-out for the panel's update check. New setting "Check for updates" (Settings -> Automation, default on). When disabled, the panel never contacts the GitHub API – no outbound request leaves Home Assistant.
 
 ## [1.57.2] - 2026-08-12
 
 ### Fixed
 
-- Manifest: removed invalid keys `description` and `homeassistant` (the minimum Home Assistant version remains declared in `hacs.json`) and declared `logbook` as an after-dependency — all flagged by hassfest validation.
+- Manifest: removed invalid keys `description` and `homeassistant` (the minimum Home Assistant version remains declared in `hacs.json`) and declared `logbook` as an after-dependency – all flagged by hassfest validation.
 - Integration: added `CONFIG_SCHEMA = config_entry_only_config_schema` to make explicit that CoverAutomatic is set up exclusively via config entries (hassfest warning).
 
 ### CI
@@ -186,7 +186,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 
-- Rule editor: live condition preview. Each context-independent condition (sun elevation, time, sun-relative time, `state_is`, weather, day of week, workday) now shows a status dot ("applies" / "doesn't apply") plus its current actual value, polled every 10 s while a rule is expanded. Context-dependent conditions (`sun_on_facade`, `temperature_comfort`) are labelled "context-dependent" since they require a specific cover. New WS command `rule/preview_conditions` evaluates the editor's (unsaved) conditions via the engine — the single source of truth, no frontend logic duplication.
+- Rule editor: live condition preview. Each context-independent condition (sun elevation, time, sun-relative time, `state_is`, weather, day of week, workday) now shows a status dot ("applies" / "doesn't apply") plus its current actual value, polled every 10 s while a rule is expanded. Context-dependent conditions (`sun_on_facade`, `temperature_comfort`) are labelled "context-dependent" since they require a specific cover. New WS command `rule/preview_conditions` evaluates the editor's (unsaved) conditions via the engine – the single source of truth, no frontend logic duplication.
 
 ### Fixed
 
@@ -279,13 +279,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
-- Covers are no longer falsely paused while physically travelling. For a long move whose travel time exceeds `SETTLE_TIME` (30 s), the apply-cycle override check (`async_apply_positions`) read the still-stale pre-move position reported by HmIP-style actuators (which only update `current_position` once travel finishes), compared it against the target and treated the difference as a manual override — pausing the cover for the full `pause_duration` (e.g. 120 min) and blocking later rules (a night rule due at 19:00 would not run until the pause expired). The state-change handler already guarded against `opening`/`closing`; the apply cycle now does too, leaving `_pending_settle` intact so the post-settle sync runs after travel. +1 regression test.
+- Covers are no longer falsely paused while physically travelling. For a long move whose travel time exceeds `SETTLE_TIME` (30 s), the apply-cycle override check (`async_apply_positions`) read the still-stale pre-move position reported by HmIP-style actuators (which only update `current_position` once travel finishes), compared it against the target and treated the difference as a manual override – pausing the cover for the full `pause_duration` (e.g. 120 min) and blocking later rules (a night rule due at 19:00 would not run until the pause expired). The state-change handler already guarded against `opening`/`closing`; the apply cycle now does too, leaving `_pending_settle` intact so the post-settle sync runs after travel. +1 regression test.
 
 ## [1.53.1] - 2026-06-07
 
 ### Fixed
 
-- Brief indoor temperature sensor outages (e.g. a Zigbee bridge restart making all MQTT sensors unavailable for ~2 minutes) no longer drop the `sun_on_facade` rule. Previously `_get_comfort_mode()` returned None on unavailable, `sun_on_facade` evaluated False, a lower-priority day rule won and the covers moved up — only to shade again 2 minutes later once the sensor recovered (the rule-change bypass skips `min_time_between_changes`, so both movements executed immediately). The engine now holds the last known comfort mode for a 900 s grace period (`COMFORT_SENSOR_GRACE_PERIOD`); beyond that, or without any prior reading, behavior is unchanged. Also applies to the `temperature_comfort` condition. +4 regression tests.
+- Brief indoor temperature sensor outages (e.g. a Zigbee bridge restart making all MQTT sensors unavailable for ~2 minutes) no longer drop the `sun_on_facade` rule. Previously `_get_comfort_mode()` returned None on unavailable, `sun_on_facade` evaluated False, a lower-priority day rule won and the covers moved up – only to shade again 2 minutes later once the sensor recovered (the rule-change bypass skips `min_time_between_changes`, so both movements executed immediately). The engine now holds the last known comfort mode for a 900 s grace period (`COMFORT_SENSOR_GRACE_PERIOD`); beyond that, or without any prior reading, behavior is unchanged. Also applies to the `temperature_comfort` condition. +4 regression tests.
 
 ## [1.53.0] - 2026-05-18
 
@@ -303,7 +303,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Removed
 
-- **Breaking:** per-cover `number.*_pause_duration` entity has been removed. Pause duration is now configured exclusively via the sidebar panel (per-cover field with global fallback). Any HA automation or script referencing the entity must switch to the panel or the global `storage.pause_duration` setting. The underlying `CoverConfig.pause_duration` field, panel UI, and engine logic are unchanged — only the HA entity surface is gone.
+- **Breaking:** per-cover `number.*_pause_duration` entity has been removed. Pause duration is now configured exclusively via the sidebar panel (per-cover field with global fallback). Any HA automation or script referencing the entity must switch to the panel or the global `storage.pause_duration` setting. The underlying `CoverConfig.pause_duration` field, panel UI, and engine logic are unchanged – only the HA entity surface is gone.
 
 ## [1.51.3] - 2026-04-27
 
@@ -333,7 +333,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 - UX: settings/house compass is now drag-rotatable. Click and drag the central house square to set the rotation directly; hold Shift to snap to 45° increments. The numeric input and the existing live-preview path stay in sync.
 - UX: quick-rotate buttons next to the rotation input (`−45° / −5° / Reset / +5° / +45°`) for keyboard-free fine and coarse adjustments.
-- UX: facade arc palette switched from saturated rainbow to a harmonized muted hue family that no longer competes with the orange action accent. House square gets a proper SVG drop-shadow and a subtle inner stroke for depth, instead of the flat outline. View-mode stays calm — no animations, no glow — keeping the settings tab a configuration tool, not an ambient cockpit.
+- UX: facade arc palette switched from saturated rainbow to a harmonized muted hue family that no longer competes with the orange action accent. House square gets a proper SVG drop-shadow and a subtle inner stroke for depth, instead of the flat outline. View-mode stays calm – no animations, no glow – keeping the settings tab a configuration tool, not an ambient cockpit.
 
 ## [1.49.0] - 2026-04-26
 
