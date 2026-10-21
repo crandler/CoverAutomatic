@@ -259,12 +259,16 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self.storage.solar_sensor:
             entities_to_track.add(self.storage.solar_sensor)
 
+        if self.storage.workday_sensor:
+            entities_to_track.add(self.storage.workday_sensor)
+
+        # Same param keys the engine reads; the panel stores `entity_id`
         for rule_data in self.storage._data.get("rules", {}).values():
             for condition in rule_data.get("conditions", []):
-                if sensor := condition.get("params", {}).get("sensor"):
-                    entities_to_track.add(sensor)
-                if entity := condition.get("params", {}).get("entity"):
-                    entities_to_track.add(entity)
+                params = condition.get("params", {})
+                for key in ("sensor", "entity", "entity_id"):
+                    if entity := params.get(key):
+                        entities_to_track.add(entity)
 
         new_entities = entities_to_track - self._tracked_entities
 

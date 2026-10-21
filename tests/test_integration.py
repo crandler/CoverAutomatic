@@ -2422,3 +2422,146 @@ class TestFileServicesOffTheEventLoop:
             assert calls == []
             assert backup.is_file()
             assert set(storage.covers) == {"cover.a"}
+
+
+class TestRuleEntitiesTriggerEvaluation:
+    """A change of an entity a rule condition reads evaluates the rules at once.
+
+    The coordinator only listened to the condition params `sensor` and `entity`,
+    but the panel stores `entity_id` (state_is, numeric_state, workday), the
+    global workday sensor was not tracked, and rules added or edited at runtime
+    did not refresh the tracking. Such rules reacted on the next 60 s cycle only.
+    """
+
+    TV = "media_player.tv"
+    CLOSE = {"entity_id": "cover.a", "position": 0}
+
+    @pytest.fixture(autouse=True)
+    def _instant_save(self, monkeypatch) -> None:
+        """Skip the 2 s save debounce that async_block_till_done would wait for."""
+        monkeypatch.setattr("custom_components.cover_automatic.storage.SAVE_DEBOUNCE_DELAY", 0)
+
+    @staticmethod
+    def _record_moves(hass) -> list[dict]:
+        """Cover at 100 %; returns the list that records every set_cover_position call."""
+        calls: list[dict] = []
+
+        async def _record(call) -> None:
+            calls.append(dict(call.data))
+
+        hass.services.async_register("cover", "set_cover_position", _record)
+        hass.states.async_set("cover.a", "open", {"current_position": 100})
+        return calls
+
+    @staticmethod
+    async def _start(hass, coordinator) -> None:
+        """Past the startup grace period, listening, first cycle done."""
+        coordinator._startup_time = -999.0
+        coordinator._setup_state_tracking()
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+
+    @staticmethod
+    def _close_rule(condition_type: ConditionType, params: dict) -> Rule:
+        return Rule(
+            id="close", name="Close", enabled=True, priority=10, cover_ids=["cover.a"],
+            conditions=[Condition(type=condition_type, params=params)],
+            target_position=0,
+        )
+
+    @staticmethod
+    async def _set(hass, entity_id: str, state: str) -> None:
+        hass.states.async_set(entity_id, state)
+        await hass.async_block_till_done()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("condition_type", "params", "before", "after"),
+        [
+            (ConditionType.STATE_IS, {"entity_id": TV, "state": "on"}, "off", "on"),
+            (
+                ConditionType.NUMERIC_STATE,
+                {"entity_id": "sensor.lux", "operator": "above", "value": 1000},
+                "500",
+                "2000",
+            ),
+        ],
+    )
+    async def test_condition_entity_change_moves_cover(
+        self, tmp_path, condition_type, params, before, after
+    ) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = self._record_moves(hass)
+            entity_id = params["entity_id"]
+            hass.states.async_set(entity_id, before)
+            await storage.async_add_rule(self._close_rule(condition_type, params))
+            await self._start(hass, coordinator)
+            assert calls == []
+
+            await self._set(hass, entity_id, after)
+
+            assert calls == [self.CLOSE]
+
+    @pytest.mark.asyncio
+    async def test_global_workday_sensor_change_moves_cover(self, tmp_path) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = self._record_moves(hass)
+            hass.states.async_set("binary_sensor.workday", "off")
+            storage.workday_sensor = "binary_sensor.workday"
+            await storage.async_add_rule(self._close_rule(ConditionType.WORKDAY, {"state": "on"}))
+            await self._start(hass, coordinator)
+            assert calls == []
+
+            await self._set(hass, "binary_sensor.workday", "on")
+
+            assert calls == [self.CLOSE]
+
+    @pytest.mark.asyncio
+    async def test_rule_added_in_panel_reacts_to_its_entity(self, tmp_path) -> None:
+        from custom_components.cover_automatic.api import ws_rule_add
+
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = self._record_moves(hass)
+            hass.states.async_set(self.TV, "off")
+            await self._start(hass, coordinator)
+
+            msg = {
+                "id": 1, "name": "TV", "cover_ids": ["cover.a"], "target_position": 0,
+                "conditions": [{"type": "state_is", "params": {"entity_id": self.TV, "state": "on"}}],
+            }
+            await ws_rule_add(hass, MagicMock(), msg, storage, coordinator)
+            await hass.async_block_till_done()
+            # The 10 s refresh cooldown started by the save has passed
+            coordinator._debounced_refresh.async_cancel()
+            assert calls == []
+
+            await self._set(hass, self.TV, "on")
+
+            assert calls == [self.CLOSE]
+
+    @pytest.mark.asyncio
+    async def test_rule_edited_in_panel_reacts_to_its_new_entity(self, tmp_path) -> None:
+        from custom_components.cover_automatic.api import ws_rule_update
+
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = self._record_moves(hass)
+            hass.states.async_set("input_boolean.guest", "off")
+            hass.states.async_set(self.TV, "off")
+            await storage.async_add_rule(self._close_rule(
+                ConditionType.STATE_IS, {"entity_id": "input_boolean.guest", "state": "on"},
+            ))
+            await self._start(hass, coordinator)
+
+            msg = {
+                "id": 1, "rule_id": "close",
+                "conditions": [{"type": "state_is", "params": {"entity_id": self.TV, "state": "on"}}],
+            }
+            await ws_rule_update(hass, MagicMock(), msg, storage, coordinator)
+            await hass.async_block_till_done()
+            # The 10 s refresh cooldown started by the save has passed
+            coordinator._debounced_refresh.async_cancel()
+            assert calls == []
+
+            await self._set(hass, self.TV, "on")
+
+            assert calls == [self.CLOSE]
