@@ -2768,7 +2768,7 @@ class CoverAutomaticPanel extends HTMLElement {
     if (result) {
       this._config = result;
       this._showToast();
-      this._render();
+      this._render({ keepFocusedField: true });
     }
   }
 
@@ -2825,7 +2825,7 @@ class CoverAutomaticPanel extends HTMLElement {
   }
 
   /* ---------- Main render ---------- */
-  _render() {
+  _render({ keepFocusedField = false } = {}) {
     const root = this.shadowRoot;
 
     // Full render when no shell exists, loading/error, or shell has no regions yet
@@ -2839,7 +2839,7 @@ class CoverAutomaticPanel extends HTMLElement {
     this._updateRegion(shell, "header", this._renderHeaderContent());
     this._updateRegion(shell, "tabs", this._renderTabsContent());
     this._updateRegion(shell, "content", this._renderContent());
-    this._updateSlideOut(shell);
+    this._updateSlideOut(shell, keepFocusedField);
     this._updateRegion(shell, "confirm", this._renderConfirmDialog());
   }
 
@@ -2848,24 +2848,42 @@ class CoverAutomaticPanel extends HTMLElement {
     if (el) el.innerHTML = html;
   }
 
-  // While a field of the open cover has focus, the DOM already shows the
-  // user's input: replacing it drops focus and closes the mobile keyboard.
-  // Otherwise keep the scroll position, a new .slide-body starts at the top.
-  _updateSlideOut(shell) {
+  // A save result arriving while a field of the open cover has focus leaves
+  // the slide-out alone: the DOM already shows the user's input, replacing it
+  // drops focus and closes the mobile keyboard. Renders the user triggered
+  // (section toggle, close) must not be swallowed, iOS keeps a field focused
+  // when a non-focusable element is tapped. Keep the scroll position, a new
+  // .slide-body starts at the top.
+  _updateSlideOut(shell, keepFocusedField = false) {
     const region = shell.querySelector('[data-region="slideout"]');
     if (!region) return;
     const shown = region.querySelector(".slide-panel")?.dataset.cover;
     const sameCover = this._slideOpen && !!this._selectedCover && shown === this._selectedCover;
     const active = this.shadowRoot.activeElement;
     const editing = active && region.contains(active) && active.matches("input, select, textarea");
-    if (editing && sameCover) return;
-    // Closing or switching covers: commit the edit first, removing a focused
+    if (editing && sameCover && keepFocusedField) return;
+    // The field gets replaced: commit the edit first, removing a focused
     // field fires no change event per spec (Chrome does, others may not)
     if (editing) active.blur();
     const scrollTop = sameCover ? (region.querySelector(".slide-body")?.scrollTop ?? 0) : 0;
     region.innerHTML = this._renderSlideOut();
     const body = region.querySelector(".slide-body");
     if (body && scrollTop) body.scrollTop = scrollTop;
+  }
+
+  // Touch tap outside the focused slide-out field leaves it like a desktop
+  // click does: commits the value and hides the keyboard. iOS keeps the focus
+  // on taps on non-focusable elements. Scrolling ends in pointercancel.
+  _leaveFieldOnTap(e) {
+    if (e.pointerType === "mouse") return;
+    const active = this.shadowRoot.activeElement;
+    if (!active || !active.matches("input, select, textarea") || !active.closest(".slide-panel")) return;
+    const path = e.composedPath();
+    if (path.includes(active)) return;
+    // Another field takes the focus itself, blurring first would flicker the keyboard
+    const target = path[0];
+    if (target instanceof Element && target.closest("input:not([type=checkbox]), select, textarea")) return;
+    active.blur();
   }
 
   _fullRender() {
@@ -4784,6 +4802,7 @@ class CoverAutomaticPanel extends HTMLElement {
     root.addEventListener("dragleave", (e) => this._handleDragLeave(e));
     root.addEventListener("drop", (e) => this._handleDrop(e));
     root.addEventListener("pointerdown", (e) => this._handleHouseDragStart(e));
+    root.addEventListener("pointerup", (e) => this._leaveFieldOnTap(e));
     // Enter/Space activate non-native interactive elements (rows, sort headers)
     root.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
