@@ -2772,20 +2772,23 @@ class CoverAutomaticPanel extends HTMLElement {
     }
   }
 
-  /* ---------- Debounced save for covers ---------- */
+  /* ---------- Cover field saves ---------- */
+  async _saveCoverField(entityId, field, value) {
+    try {
+      const data = { entity_id: entityId };
+      data[field] = value;
+      const result = await this._ws("cover_automatic/cover/update", data);
+      this._updateConfigFromResult(result);
+    } catch (e) {
+      console.error("Save error:", e);
+    }
+  }
+
+  // Toggles and selects: rapid flips send a single save
   _debouncedCoverSave(entityId, field, value) {
     const key = `${entityId}.${field}`;
     if (this._saveTimers[key]) clearTimeout(this._saveTimers[key]);
-    this._saveTimers[key] = setTimeout(async () => {
-      try {
-        const data = { entity_id: entityId };
-        data[field] = value;
-        const result = await this._ws("cover_automatic/cover/update", data);
-        this._updateConfigFromResult(result);
-      } catch (e) {
-        console.error("Save error:", e);
-      }
-    }, 500);
+    this._saveTimers[key] = setTimeout(() => this._saveCoverField(entityId, field, value), 500);
   }
 
   /* ---------- Toast ---------- */
@@ -2836,13 +2839,33 @@ class CoverAutomaticPanel extends HTMLElement {
     this._updateRegion(shell, "header", this._renderHeaderContent());
     this._updateRegion(shell, "tabs", this._renderTabsContent());
     this._updateRegion(shell, "content", this._renderContent());
-    this._updateRegion(shell, "slideout", this._renderSlideOut());
+    this._updateSlideOut(shell);
     this._updateRegion(shell, "confirm", this._renderConfirmDialog());
   }
 
   _updateRegion(shell, name, html) {
     const el = shell.querySelector(`[data-region="${name}"]`);
     if (el) el.innerHTML = html;
+  }
+
+  // While a field of the open cover has focus, the DOM already shows the
+  // user's input: replacing it drops focus and closes the mobile keyboard.
+  // Otherwise keep the scroll position, a new .slide-body starts at the top.
+  _updateSlideOut(shell) {
+    const region = shell.querySelector('[data-region="slideout"]');
+    if (!region) return;
+    const shown = region.querySelector(".slide-panel")?.dataset.cover;
+    const sameCover = this._slideOpen && !!this._selectedCover && shown === this._selectedCover;
+    const active = this.shadowRoot.activeElement;
+    const editing = active && region.contains(active) && active.matches("input, select, textarea");
+    if (editing && sameCover) return;
+    // Closing or switching covers: commit the edit first, removing a focused
+    // field fires no change event per spec (Chrome does, others may not)
+    if (editing) active.blur();
+    const scrollTop = sameCover ? (region.querySelector(".slide-body")?.scrollTop ?? 0) : 0;
+    region.innerHTML = this._renderSlideOut();
+    const body = region.querySelector(".slide-body");
+    if (body && scrollTop) body.scrollTop = scrollTop;
   }
 
   _fullRender() {
@@ -3211,7 +3234,7 @@ class CoverAutomaticPanel extends HTMLElement {
     const cover = open ? (this._config.covers || {})[this._selectedCover] : null;
 
     let html = `<div class="slide-overlay${open ? " open" : ""}" data-action="close-slide" aria-hidden="true"></div>`;
-    html += `<div class="slide-panel${open ? " open" : ""}"${cover ? ` role="dialog" aria-modal="true" aria-label="${this._esc(cover.name)}"` : ' aria-hidden="true"'}>`;
+    html += `<div class="slide-panel${open ? " open" : ""}"${cover ? ` role="dialog" aria-modal="true" aria-label="${this._esc(cover.name)}" data-cover="${this._esc(cover.entity_id)}"` : ' aria-hidden="true"'}>`;
 
     if (cover) {
       html += `<div class="slide-header">
@@ -4992,6 +5015,19 @@ class CoverAutomaticPanel extends HTMLElement {
       return;
     }
 
+    // Cover number/text inputs save on commit (blur or Enter): a save per
+    // keystroke stored intermediate values ("2" while typing "24")
+    if (el.matches('[data-action="cover-input"]')) {
+      let value = el.value;
+      if (el.type === "number") {
+        const n = value === "" ? NaN : Number(value);
+        value = Number.isFinite(n) ? n : null;
+      }
+      if (el.type === "text" && value === "") value = null;
+      this._saveCoverField(el.dataset.id, el.dataset.field, value);
+      return;
+    }
+
     // Rule enabled toggle
     if (el.matches('[data-action="rule-toggle-enabled"]')) {
       this._onRuleToggleEnabled(el.dataset.id, el.checked);
@@ -5042,18 +5078,6 @@ class CoverAutomaticPanel extends HTMLElement {
   /* ---------- Input delegation ---------- */
   _handleInput(e) {
     const el = e.target;
-
-    // Cover input fields (debounced save)
-    if (el.matches('[data-action="cover-input"]')) {
-      let value = el.value;
-      if (el.type === "number") {
-        const n = value === "" ? NaN : Number(value);
-        value = Number.isFinite(n) ? n : null;
-      }
-      if (el.type === "text" && value === "") value = null;
-      this._debouncedCoverSave(el.dataset.id, el.dataset.field, value);
-      return;
-    }
 
     // Condition param input (live update local state)
     if (el.matches('[data-action="cond-param"]')) {
