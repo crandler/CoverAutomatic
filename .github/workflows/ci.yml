@@ -28,6 +28,11 @@ jobs:
           source .venv/bin/activate
           ruff check custom_components/cover_automatic/ tests/ --output-format=github
 
+      - name: Ruff format
+        run: |
+          source .venv/bin/activate
+          ruff format --check custom_components/cover_automatic/ tests/
+
   test:
     needs: lint
     runs-on: ubuntu-latest
