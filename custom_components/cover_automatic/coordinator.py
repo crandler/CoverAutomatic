@@ -93,6 +93,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # protection: if the lock sensor is still unreadable then, the lock is
         # restored. Any readable lock sensor state drops the entry.
         self._lock_to_restore: set[str] = set()
+        # Last readable state (open?) per lock/vent sensor. A report is only a
+        # change against this, unavailable -> off after a reconnect is none.
+        self._contact_open: dict[str, bool] = {}
         self._startup_time: float = time_mod.monotonic()
         self._startup_skip: bool = True
         self._grace_synced: bool = False
@@ -268,6 +271,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 for key in ("sensor", "entity", "entity_id"):
                     if entity := params.get(key):
                         entities_to_track.add(entity)
+
+        # A sensor no longer tracked may change unseen; forget its last state
+        for sensor_id in set(self._contact_open) - entities_to_track:
+            del self._contact_open[sensor_id]
 
         new_entities = entities_to_track - self._tracked_entities
 
@@ -524,15 +531,26 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if new_state is None:
             return
 
+        if old_state is not None and old_state.state not in ("unavailable", "unknown"):
+            self._contact_open[sensor_id] = old_state.state in BINARY_SENSOR_ON_STATES
+
         if new_state.state in ("unavailable", "unknown"):
             _LOGGER.warning("[%s] Sensor unavailable, ignoring state change", sensor_id)
             return
 
+        is_open = new_state.state in BINARY_SENSOR_ON_STATES
+        was_open = self._contact_open.get(sensor_id)
+        self._contact_open[sensor_id] = is_open
+        # Attribute-only update or reconnect: nothing happened at the window
+        if was_open == is_open:
+            return
+        # Without a readable state before, the report cannot tell a change:
+        # it must not end a pause, the status sync decides instead
+        keep_pause = was_open is None
+
         # Wind protection outranks lock and vent; ending it re-derives both
         if self._wind_protected:
             return
-
-        is_open = new_state.state in BINARY_SENSOR_ON_STATES
 
         # Cache sensor states to avoid repeated hass.states.get() calls
         sensor_state_cache: dict[str, bool] = {}
@@ -613,6 +631,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
 
             current_status = self._cover_states.get(cover_id, CoverStatus.AUTO)
+            if keep_pause and current_status == CoverStatus.PAUSED:
+                continue
 
             if is_open and current_status not in (CoverStatus.LOCKED, CoverStatus.VENTING):
                 vent_pos = self._cover_val(cover_raw, "vent_position")

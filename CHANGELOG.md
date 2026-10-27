@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.63.11] - 2026-10-27
+
+### Fixed
+
+- A window or tilt sensor that reports again without actually changing, for example after a Zigbee reconnect or right after a restart, no longer ends a running pause and moves the cover.
+
 ## [1.63.10] - 2026-10-27
 
 ### Fixed

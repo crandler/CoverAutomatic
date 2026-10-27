@@ -108,6 +108,7 @@ def coordinator(mock_hass, mock_storage):
         coord._last_move_rule = {}
         coord._post_protective_exit = set()
         coord._lock_to_restore = set()
+        coord._contact_open = {}
         coord._startup_time = -999.0
         coord._startup_skip = False
         coord._grace_synced = True
@@ -2095,6 +2096,90 @@ class TestWindowOpenedDuringStagger(_LockSensorScenario):
             await self._cycle(hass, coordinator)
 
             assert calls == [{"entity_id": "cover.b", "position": 0}, *follow_up]
+
+
+class TestContactSensorWithoutChange(_LockSensorScenario):
+    """A tilt sensor report without a real change must not end a pause.
+
+    The handler read only the new state: "off" after a Zigbee reconnect
+    (unavailable -> off) or an attribute-only update ended a running pause and
+    the cover moved to the rule target at once, although the window never
+    moved. A real change, also across an unreadable gap, still ends the pause.
+    """
+
+    async def _paused(self, hass, storage, coordinator, tilt: str):
+        """Cover paused by hand, window closed, tilt sensor reporting tilt."""
+        calls = await self._setup(hass, storage, "off")
+        hass.states.async_set(self.TILT, tilt)
+        storage.get_cover_raw("cover.a")["vent_sensor"] = self.TILT
+        storage._invalidate_cache()
+        self._start(coordinator)
+        coordinator.pause_cover(storage.covers["cover.a"])
+        await self._cycle(hass, coordinator)
+        assert coordinator.get_cover_status("cover.a") == CoverStatus.PAUSED
+        assert calls == []
+        return calls
+
+    async def _report(self, hass, how: str, state: str) -> None:
+        if how == "reconnect":
+            await self._set(hass, self.TILT, "unavailable")
+            await self._set(hass, self.TILT, state)
+        else:
+            hass.states.async_set(self.TILT, state, {"linkquality": 87})
+            await hass.async_block_till_done()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("how", ["reconnect", "attribute-update"])
+    @pytest.mark.parametrize("tilt", ["off", "on"], ids=["window-closed", "window-tilted"])
+    async def test_report_without_change_keeps_pause(self, tmp_path, tilt, how) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = await self._paused(hass, storage, coordinator, tilt)
+
+            await self._report(hass, how, tilt)
+            await self._cycle(hass, coordinator)
+
+            assert coordinator.get_cover_status("cover.a") == CoverStatus.PAUSED
+            assert calls == []
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("before", "after", "status", "moves"),
+        [
+            ("off", "on", CoverStatus.VENTING, [{"entity_id": "cover.a", "position": 30}]),
+            ("on", "off", CoverStatus.AUTO, [{"entity_id": "cover.a", "position": 0}]),
+        ],
+        ids=["tilted-during-gap", "closed-during-gap"],
+    )
+    async def test_change_across_unreadable_gap_ends_pause(self, tmp_path, before, after, status, moves) -> None:
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
+            calls = await self._paused(hass, storage, coordinator, before)
+
+            await self._report(hass, "reconnect", after)
+            await self._cycle(hass, coordinator)
+
+            assert coordinator.get_cover_status("cover.a") == status
+            assert calls == moves
+
+    @pytest.mark.asyncio
+    async def test_first_report_after_restart_keeps_pause(self, tmp_path) -> None:
+        """No readable state before the report: the event cannot tell a change."""
+        from homeassistant.util import dt as dt_util
+
+        async with _real_instance(tmp_path, ["cover.a"], []) as (hass, entry, storage, _):
+            calls = await self._setup(hass, storage, "off")
+            hass.states.async_set(self.TILT, "unavailable")
+            storage.get_cover_raw("cover.a")["vent_sensor"] = self.TILT
+            storage.update_cover_status("cover.a", CoverStatus.PAUSED.value, dt_util.now().timestamp() + 600)
+
+            restarted = self._restart(hass, entry, storage)
+            await self._cycle(hass, restarted)
+            assert restarted.get_cover_status("cover.a") == CoverStatus.PAUSED
+
+            await self._set(hass, self.TILT, "off")
+            await self._cycle(hass, restarted)
+
+            assert restarted.get_cover_status("cover.a") == CoverStatus.PAUSED
+            assert calls == []
 
 
 class TestDeleteKeepsRuleScope:

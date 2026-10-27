@@ -98,6 +98,7 @@ def coordinator(mock_hass, mock_storage):
         coord._last_move_rule = {}
         coord._post_protective_exit = set()
         coord._lock_to_restore = set()
+        coord._contact_open = {}
         coord._startup_time = -999.0
         coord._startup_skip = False
         coord._grace_synced = True
@@ -653,6 +654,20 @@ class TestStateTracking:
         assert keep in coordinator._pending_settle
         assert orphan not in coordinator._post_protective_exit
         assert keep in coordinator._post_protective_exit
+
+    def test_full_refresh_forgets_untracked_contact_sensors(self, coordinator, mock_storage) -> None:
+        """A sensor dropped from the config may change unseen.
+
+        Its last readable state must not count as known when it comes back,
+        otherwise unavailable -> off would read as a real change.
+        """
+        mock_storage._data = {"covers": {"cover.test": {"vent_sensor": "binary_sensor.vent"}}, "rules": {}}
+        coordinator._contact_open = {"binary_sensor.vent": True, "binary_sensor.old_window": True}
+
+        with patch("custom_components.cover_automatic.coordinator.async_track_state_change_event"):
+            coordinator.refresh_state_tracking()
+
+        assert coordinator._contact_open == {"binary_sensor.vent": True}
 
     def test_setup_state_tracking_tracks_sensors(self, coordinator, mock_storage) -> None:
         """Test state tracking includes configured sensors."""
