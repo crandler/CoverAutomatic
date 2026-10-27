@@ -1,4 +1,5 @@
 """CoverAutomatic integration for Home Assistant."""
+
 from __future__ import annotations
 
 import logging
@@ -50,9 +51,7 @@ def _cleanup_removed_entities(hass: HomeAssistant) -> None:
     stale = [
         entry.entity_id
         for entry in registry.entities.values()
-        if entry.platform == DOMAIN
-        and entry.domain == Platform.NUMBER
-        and entry.unique_id.endswith("_pause_duration")
+        if entry.platform == DOMAIN and entry.domain == Platform.NUMBER and entry.unique_id.endswith("_pause_duration")
     ]
     for entity_id in stale:
         _LOGGER.info("Removing orphan entity %s (pause_duration moved to panel)", entity_id)
@@ -66,9 +65,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     registering in async_setup_entry would fail on every entry reload.
     """
     panel_path = pathlib.Path(__file__).parent / "panel" / "cover-automatic-panel.js"
-    await hass.http.async_register_static_paths(
-        [StaticPathConfig("/cover_automatic/panel.js", str(panel_path), False)]
-    )
+    await hass.http.async_register_static_paths([StaticPathConfig("/cover_automatic/panel.js", str(panel_path), False)])
     return True
 
 
@@ -77,9 +74,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEntr
     storage = CoverAutomaticStorage(hass)
     log_storage = ActivityLogStorage(hass)
     scan_interval = entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
-    coordinator = CoverAutomaticCoordinator(
-        hass, storage, scan_interval, config_entry=entry
-    )
+    coordinator = CoverAutomaticCoordinator(hass, storage, scan_interval, config_entry=entry)
     coordinator.log_storage = log_storage
 
     await coordinator.async_setup()
@@ -173,10 +168,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: CoverAutomaticConfigEnt
 
     # Unload services only if unload succeeded and no entries remain
     if unload_ok:
-        remaining = [
-            e for e in hass.config_entries.async_entries(DOMAIN)
-            if e.entry_id != entry.entry_id
-        ]
+        remaining = [e for e in hass.config_entries.async_entries(DOMAIN) if e.entry_id != entry.entry_id]
         if not remaining:
             await async_unload_services(hass)
             async_remove_panel(hass, "cover-automatic")
@@ -197,7 +189,4 @@ async def async_remove_config_entry_device(
         *storage.covers,
         *(f"facade_{facade_id}" for facade_id in storage.facades),
     }
-    return not any(
-        domain == DOMAIN and identifier in active
-        for domain, identifier in device.identifiers
-    )
+    return not any(domain == DOMAIN and identifier in active for domain, identifier in device.identifiers)

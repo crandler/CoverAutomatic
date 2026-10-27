@@ -1,4 +1,5 @@
 """Data models for CoverAutomatic."""
+
 from __future__ import annotations
 
 import logging
@@ -273,7 +274,8 @@ class CoverConfig:
         except ValueError:
             _LOGGER.warning(
                 "Unknown cover status '%s' for '%s', defaulting to AUTO",
-                status_val, data.get("entity_id", "?"),
+                status_val,
+                data.get("entity_id", "?"),
             )
             status = CoverStatus.AUTO
         return cls(

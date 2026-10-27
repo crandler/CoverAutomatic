@@ -1,4 +1,5 @@
 """Storage manager for CoverAutomatic."""
+
 from __future__ import annotations
 
 import asyncio
@@ -187,36 +188,28 @@ class CoverAutomaticStorage:
     def facades(self) -> dict[str, Facade]:
         """Get all facades (cached)."""
         if self._cache_facades is None:
-            self._cache_facades = {
-                k: Facade.from_dict(v) for k, v in self._data.get("facades", {}).items()
-            }
+            self._cache_facades = {k: Facade.from_dict(v) for k, v in self._data.get("facades", {}).items()}
         return self._cache_facades
 
     @property
     def covers(self) -> dict[str, CoverConfig]:
         """Get all cover configurations (cached)."""
         if self._cache_covers is None:
-            self._cache_covers = {
-                k: CoverConfig.from_dict(v) for k, v in self._data.get("covers", {}).items()
-            }
+            self._cache_covers = {k: CoverConfig.from_dict(v) for k, v in self._data.get("covers", {}).items()}
         return self._cache_covers
 
     @property
     def rules(self) -> dict[str, Rule]:
         """Get all rules (cached)."""
         if self._cache_rules is None:
-            self._cache_rules = {
-                k: Rule.from_dict(v) for k, v in self._data.get("rules", {}).items()
-            }
+            self._cache_rules = {k: Rule.from_dict(v) for k, v in self._data.get("rules", {}).items()}
         return self._cache_rules
 
     @property
     def scenarios(self) -> dict[str, Scenario]:
         """Get all scenarios (cached)."""
         if self._cache_scenarios is None:
-            self._cache_scenarios = {
-                k: Scenario.from_dict(v) for k, v in self._data.get("scenarios", {}).items()
-            }
+            self._cache_scenarios = {k: Scenario.from_dict(v) for k, v in self._data.get("scenarios", {}).items()}
         return self._cache_scenarios
 
     @property
@@ -643,7 +636,9 @@ class CoverAutomaticStorage:
                 except Exception as err:  # noqa: BLE001
                     _LOGGER.warning(
                         "Skipping invalid %s entry '%s' during import: %s",
-                        section, k, err,
+                        section,
+                        k,
+                        err,
                     )
             data[section] = valid
 
@@ -673,9 +668,7 @@ class CoverAutomaticStorage:
         self._invalidate_cache()
         await self.async_save()
 
-    def update_cover_status(
-        self, entity_id: str, status: str, pause_until: float | None = None
-    ) -> None:
+    def update_cover_status(self, entity_id: str, status: str, pause_until: float | None = None) -> None:
         """Update cover status directly in storage data.
 
         Triggers a debounced save to persist changes.

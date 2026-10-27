@@ -1,4 +1,5 @@
 """Constants for CoverAutomatic integration."""
+
 from typing import Final
 
 from homeassistant.components.cover import CoverEntityFeature

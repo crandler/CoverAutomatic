@@ -1,4 +1,5 @@
 """Tests for CoverAutomatic coordinator."""
+
 from __future__ import annotations
 
 import asyncio
@@ -71,11 +72,12 @@ def coordinator(mock_hass, mock_storage):
     """Create coordinator instance with mocked parent class."""
     from custom_components.cover_automatic.coordinator import CoverAutomaticCoordinator
 
-    with patch(
-        "custom_components.cover_automatic.coordinator.async_track_state_change_event"
-    ), patch(
-        "homeassistant.helpers.update_coordinator.DataUpdateCoordinator.__init__",
-        return_value=None,
+    with (
+        patch("custom_components.cover_automatic.coordinator.async_track_state_change_event"),
+        patch(
+            "homeassistant.helpers.update_coordinator.DataUpdateCoordinator.__init__",
+            return_value=None,
+        ),
     ):
         coord = CoverAutomaticCoordinator.__new__(CoverAutomaticCoordinator)
         # Manually set attributes that __init__ would set
@@ -133,9 +135,7 @@ class TestCoordinatorInitialization:
         mock_storage.async_load.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_async_setup_creates_default_scenarios(
-        self, coordinator, mock_storage
-    ) -> None:
+    async def test_async_setup_creates_default_scenarios(self, coordinator, mock_storage) -> None:
         """Test async_setup creates default scenarios when none exist."""
         mock_storage.scenarios = {}
         await coordinator.async_setup()
@@ -171,25 +171,19 @@ class TestActiveRules:
 class TestCoverStatus:
     """Tests for cover status management."""
 
-    def test_get_cover_status_returns_manual_when_not_found(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_get_cover_status_returns_manual_when_not_found(self, coordinator, mock_storage) -> None:
         """Test status is MANUAL when cover not in storage."""
         mock_storage.get_cover_raw.return_value = None
         status = coordinator.get_cover_status("cover.unknown")
         assert status == CoverStatus.MANUAL
 
-    def test_get_cover_status_returns_manual_when_disabled(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_get_cover_status_returns_manual_when_disabled(self, coordinator, mock_storage) -> None:
         """Test status is MANUAL when auto_enabled is False."""
         mock_storage.get_cover_raw.return_value = {"auto_enabled": False}
         status = coordinator.get_cover_status("cover.test")
         assert status == CoverStatus.MANUAL
 
-    def test_sync_sets_locked_when_lock_sensor_open(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_sync_sets_locked_when_lock_sensor_open(self, coordinator, mock_hass, mock_storage) -> None:
         """Test _sync_cover_statuses sets LOCKED when lock sensor is open."""
         mock_storage._data = {
             "covers": {
@@ -214,9 +208,7 @@ class TestCoverStatus:
         status = coordinator.get_cover_status("cover.test")
         assert status == CoverStatus.LOCKED
 
-    def test_sync_sets_locked_when_vent_sensor_open(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_sync_sets_locked_when_vent_sensor_open(self, coordinator, mock_hass, mock_storage) -> None:
         """Test _sync_cover_statuses sets VENTING when vent sensor is open."""
         mock_storage._data = {
             "covers": {
@@ -241,9 +233,7 @@ class TestCoverStatus:
         status = coordinator.get_cover_status("cover.test")
         assert status == CoverStatus.VENTING
 
-    def test_get_cover_status_returns_auto_when_sensors_closed(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_get_cover_status_returns_auto_when_sensors_closed(self, coordinator, mock_hass, mock_storage) -> None:
         """Test status is AUTO when lock/vent sensors are closed."""
         mock_storage.get_cover_raw.return_value = {
             "auto_enabled": True,
@@ -255,9 +245,7 @@ class TestCoverStatus:
         status = coordinator.get_cover_status("cover.test")
         assert status == CoverStatus.AUTO
 
-    def test_sync_respects_pause_timeout(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_sync_respects_pause_timeout(self, coordinator, mock_hass, mock_storage) -> None:
         """Test _sync_cover_statuses expires PAUSED based on pause_until."""
         coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
         mock_storage._data = {
@@ -289,9 +277,7 @@ class TestCoverStatus:
         coordinator.resume_cover("cover.test")
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
-        mock_storage.update_cover_status.assert_called_with(
-            "cover.test", CoverStatus.AUTO.value, None
-        )
+        mock_storage.update_cover_status.assert_called_with("cover.test", CoverStatus.AUTO.value, None)
         coordinator.async_set_updated_data.assert_called_once()
 
     def test_resume_cover_nonexistent_no_op(self, coordinator, mock_storage) -> None:
@@ -308,9 +294,7 @@ class TestCoverStatus:
 class TestContactSensorHandling:
     """Tests for lock/vent sensor handling."""
 
-    def test_get_covers_by_sensor_finds_lock_sensor(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_get_covers_by_sensor_finds_lock_sensor(self, coordinator, mock_storage) -> None:
         """Test finding covers by lock sensor."""
         mock_storage._data = {
             "covers": {
@@ -319,15 +303,11 @@ class TestContactSensorHandling:
             }
         }
 
-        lock_covers, vent_covers = coordinator._get_covers_by_sensor(
-            "binary_sensor.window1"
-        )
+        lock_covers, vent_covers = coordinator._get_covers_by_sensor("binary_sensor.window1")
         assert lock_covers == ["cover.living"]
         assert vent_covers == []
 
-    def test_get_covers_by_sensor_finds_vent_sensor(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_get_covers_by_sensor_finds_vent_sensor(self, coordinator, mock_storage) -> None:
         """Test finding covers by vent sensor."""
         mock_storage._data = {
             "covers": {
@@ -335,9 +315,7 @@ class TestContactSensorHandling:
             }
         }
 
-        lock_covers, vent_covers = coordinator._get_covers_by_sensor(
-            "binary_sensor.vent1"
-        )
+        lock_covers, vent_covers = coordinator._get_covers_by_sensor("binary_sensor.vent1")
         assert lock_covers == []
         assert vent_covers == ["cover.living"]
 
@@ -361,9 +339,7 @@ class TestContactSensorHandling:
         coordinator._unlock_cover("cover.test")
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
-        mock_storage.update_cover_status.assert_called_with(
-            "cover.test", CoverStatus.AUTO.value, None
-        )
+        mock_storage.update_cover_status.assert_called_with("cover.test", CoverStatus.AUTO.value, None)
 
     def test_unlock_cover_noop_without_pre_lock_state(self, coordinator, mock_hass, mock_storage) -> None:
         """Test unlocking cover is a no-op if no pre-lock state exists."""
@@ -380,9 +356,7 @@ class TestHysteresis:
     """Tests for hysteresis logic in position application."""
 
     @pytest.mark.asyncio
-    async def test_position_change_below_minimum_is_skipped(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_position_change_below_minimum_is_skipped(self, coordinator, mock_hass, mock_storage) -> None:
         """Test small position changes are skipped."""
         coordinator.data = {
             "covers": {
@@ -397,9 +371,7 @@ class TestHysteresis:
             "min_time_between_changes": 0,
             "inverted": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 50}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 50})
 
         await coordinator.async_apply_positions()
 
@@ -407,9 +379,7 @@ class TestHysteresis:
         mock_hass.services.async_call.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_position_change_above_minimum_is_applied(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_position_change_above_minimum_is_applied(self, coordinator, mock_hass, mock_storage) -> None:
         """Test larger position changes are applied."""
         coordinator.data = {
             "covers": {
@@ -425,9 +395,7 @@ class TestHysteresis:
             "last_position_change": None,
             "inverted": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 50}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 50})
 
         with patch("homeassistant.util.dt.now") as mock_now:
             mock_now.return_value.timestamp.return_value = 1000
@@ -442,9 +410,7 @@ class TestHysteresis:
             )
 
     @pytest.mark.asyncio
-    async def test_time_hysteresis_blocks_rapid_changes(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_time_hysteresis_blocks_rapid_changes(self, coordinator, mock_hass, mock_storage) -> None:
         """Test time-based hysteresis blocks rapid position changes."""
         coordinator.data = {
             "covers": {
@@ -460,9 +426,7 @@ class TestHysteresis:
             "last_position_change": 900,  # 100 seconds ago
             "inverted": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 50}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 50})
 
         with patch("homeassistant.util.dt.now") as mock_now:
             mock_now.return_value.timestamp.return_value = 1000
@@ -473,9 +437,7 @@ class TestHysteresis:
             mock_hass.services.async_call.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_time_hysteresis_bypassed_on_rule_change(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_time_hysteresis_bypassed_on_rule_change(self, coordinator, mock_hass, mock_storage) -> None:
         """Time hysteresis is bypassed when the matching rule changed since last move."""
         coordinator.data = {
             "covers": {
@@ -493,9 +455,7 @@ class TestHysteresis:
             "last_position_change": 900,  # 100s ago, still within hysteresis window
             "inverted": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 80}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 80})
 
         with patch("homeassistant.util.dt.now") as mock_now:
             mock_now.return_value.timestamp.return_value = 1000
@@ -511,9 +471,7 @@ class TestHysteresis:
             assert coordinator._last_move_rule["cover.test"] == "night"
 
     @pytest.mark.asyncio
-    async def test_time_hysteresis_still_blocks_same_rule(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_time_hysteresis_still_blocks_same_rule(self, coordinator, mock_hass, mock_storage) -> None:
         """Time hysteresis still blocks when the matching rule is unchanged."""
         coordinator.data = {
             "covers": {
@@ -531,9 +489,7 @@ class TestHysteresis:
             "last_position_change": 900,
             "inverted": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 50}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 50})
 
         with patch("homeassistant.util.dt.now") as mock_now:
             mock_now.return_value.timestamp.return_value = 1000
@@ -544,9 +500,7 @@ class TestHysteresis:
             assert coordinator._hysteresis_info.get("cover.test") == "time"
 
     @pytest.mark.asyncio
-    async def test_inverted_cover_position_is_flipped(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_inverted_cover_position_is_flipped(self, coordinator, mock_hass, mock_storage) -> None:
         """Test inverted covers have position flipped."""
         coordinator.data = {
             "covers": {
@@ -562,9 +516,7 @@ class TestHysteresis:
             "last_position_change": None,
             "inverted": True,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 50}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 50})
 
         with patch("homeassistant.util.dt.now") as mock_now:
             mock_now.return_value.timestamp.return_value = 1000
@@ -579,11 +531,8 @@ class TestHysteresis:
                 blocking=False,
             )
 
-
     @pytest.mark.asyncio
-    async def test_time_hysteresis_skipped_when_position_matches(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_time_hysteresis_skipped_when_position_matches(self, coordinator, mock_hass, mock_storage) -> None:
         """Test time hysteresis does not trigger when current == target."""
         coordinator.data = {
             "covers": {
@@ -599,9 +548,7 @@ class TestHysteresis:
             "last_position_change": 990,  # 10 seconds ago
             "inverted": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "closed", {"current_position": 0}
-        )
+        mock_hass.states.get.return_value = MockState("closed", {"current_position": 0})
 
         with patch("homeassistant.util.dt.now") as mock_now:
             mock_now.return_value.timestamp.return_value = 1000
@@ -613,9 +560,7 @@ class TestHysteresis:
             assert coordinator._hysteresis_info.get("cover.test") is None
 
     @pytest.mark.asyncio
-    async def test_hysteresis_info_cleared_when_cover_paused(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_hysteresis_info_cleared_when_cover_paused(self, coordinator, mock_hass, mock_storage) -> None:
         """Test hysteresis badge is cleared when cover transitions to non-auto status."""
         # Pre-set hysteresis info as if it was set before the cover was paused
         coordinator._hysteresis_info["cover.test"] = "time"
@@ -637,9 +582,7 @@ class TestHysteresis:
         mock_hass.services.async_call.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_hysteresis_info_cleared_when_cover_locked(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_hysteresis_info_cleared_when_cover_locked(self, coordinator, mock_hass, mock_storage) -> None:
         """Test hysteresis badge is cleared when cover is locked."""
         coordinator._hysteresis_info["cover.test"] = "position"
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
@@ -666,9 +609,7 @@ class TestStateTracking:
         """Test state tracking includes sun entity."""
         mock_storage._data = {"covers": {}, "rules": {}}
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.async_track_state_change_event"
-        ) as mock_track:
+        with patch("custom_components.cover_automatic.coordinator.async_track_state_change_event") as mock_track:
             coordinator._setup_state_tracking()
 
             # Should track sun.sun
@@ -676,9 +617,7 @@ class TestStateTracking:
             tracked_entities = call_args[0][1]
             assert "sun.sun" in tracked_entities
 
-    def test_full_refresh_cleans_all_orphaned_runtime_state(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_full_refresh_cleans_all_orphaned_runtime_state(self, coordinator, mock_storage) -> None:
         """A removed cover must be dropped from EVERY per-entity container.
 
         Regression: _hysteresis_info, _last_matching_rules, _last_move_rule,
@@ -704,9 +643,7 @@ class TestStateTracking:
         coordinator._pending_settle.update({orphan, keep})
         coordinator._post_protective_exit.update({orphan, keep})
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.async_track_state_change_event"
-        ):
+        with patch("custom_components.cover_automatic.coordinator.async_track_state_change_event"):
             coordinator.refresh_state_tracking()
 
         for d in per_entity_dicts:
@@ -717,9 +654,7 @@ class TestStateTracking:
         assert orphan not in coordinator._post_protective_exit
         assert keep in coordinator._post_protective_exit
 
-    def test_setup_state_tracking_tracks_sensors(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_setup_state_tracking_tracks_sensors(self, coordinator, mock_storage) -> None:
         """Test state tracking includes configured sensors."""
         mock_storage._data = {
             "covers": {
@@ -734,9 +669,7 @@ class TestStateTracking:
         mock_storage.indoor_temp_sensor = "sensor.indoor_temp"
         mock_storage.weather_entity = "weather.home"
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.async_track_state_change_event"
-        ) as mock_track:
+        with patch("custom_components.cover_automatic.coordinator.async_track_state_change_event") as mock_track:
             coordinator._setup_state_tracking()
 
             call_args = mock_track.call_args
@@ -748,9 +681,7 @@ class TestStateTracking:
             assert "sensor.indoor_temp" in tracked_entities
             assert "weather.home" in tracked_entities
 
-    def test_setup_state_tracking_tracks_per_cover_indoor_sensor(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_setup_state_tracking_tracks_per_cover_indoor_sensor(self, coordinator, mock_storage) -> None:
         """Test state tracking includes per-cover indoor temperature sensors."""
         mock_storage._data = {
             "covers": {
@@ -762,9 +693,7 @@ class TestStateTracking:
         }
         mock_storage.indoor_temp_sensor = None
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.async_track_state_change_event"
-        ) as mock_track:
+        with patch("custom_components.cover_automatic.coordinator.async_track_state_change_event") as mock_track:
             coordinator._setup_state_tracking()
 
             call_args = mock_track.call_args
@@ -787,9 +716,7 @@ class TestStateTracking:
         coordinator._unsub_state_change = [mock_unsub1, mock_unsub2]
         coordinator._tracked_entities = {"sun.sun", "cover.old"}
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.async_track_state_change_event"
-        ) as mock_track:
+        with patch("custom_components.cover_automatic.coordinator.async_track_state_change_event") as mock_track:
             mock_track.return_value = MagicMock()
             coordinator._setup_state_tracking(full_refresh=True)
 
@@ -801,9 +728,7 @@ class TestStateTracking:
             assert "cover.old" not in coordinator._tracked_entities
             assert "sun.sun" in coordinator._tracked_entities
 
-    def test_incremental_tracking_keeps_old_listeners(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_incremental_tracking_keeps_old_listeners(self, coordinator, mock_storage) -> None:
         """Test incremental tracking (full_refresh=False) keeps existing listeners."""
         mock_storage._data = {"covers": {"cover.new": {}}, "rules": {}}
 
@@ -812,9 +737,7 @@ class TestStateTracking:
         coordinator._unsub_state_change = [mock_unsub]
         coordinator._tracked_entities = {"sun.sun"}
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.async_track_state_change_event"
-        ) as mock_track:
+        with patch("custom_components.cover_automatic.coordinator.async_track_state_change_event") as mock_track:
             mock_track.return_value = MagicMock()
             coordinator._setup_state_tracking(full_refresh=False)
 
@@ -851,9 +774,7 @@ class TestShutdown:
 class TestStateChangeRouting:
     """Tests for _async_on_state_change routing logic."""
 
-    def test_state_change_routes_to_cover_handler(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_state_change_routes_to_cover_handler(self, coordinator, mock_storage) -> None:
         """When entity_id is in covers, _handle_cover_state_change is called."""
         mock_storage._data = {"covers": {"cover.living": {}}}
 
@@ -872,9 +793,7 @@ class TestStateChangeRouting:
                 event.data["new_state"],
             )
 
-    def test_state_change_routes_to_contact_sensor_handler(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_state_change_routes_to_contact_sensor_handler(self, coordinator, mock_storage) -> None:
         """When entity_id is a lock/vent sensor, _handle_contact_sensor_change is called."""
         mock_storage._data = {
             "covers": {
@@ -889,9 +808,7 @@ class TestStateChangeRouting:
             "new_state": MockState("on"),
         }
 
-        with patch.object(
-            coordinator, "_handle_contact_sensor_change"
-        ) as mock_handler:
+        with patch.object(coordinator, "_handle_contact_sensor_change") as mock_handler:
             coordinator._async_on_state_change(event)
             mock_handler.assert_called_once_with(
                 "binary_sensor.window",
@@ -901,9 +818,7 @@ class TestStateChangeRouting:
                 event.data["new_state"],
             )
 
-    def test_state_change_triggers_refresh_for_other_entities(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_state_change_triggers_refresh_for_other_entities(self, coordinator, mock_storage) -> None:
         """Entities not in covers and not sensors trigger async_request_refresh."""
         mock_storage._data = {"covers": {}}
 
@@ -922,73 +837,53 @@ class TestStateChangeRouting:
 class TestUnlockCoverRestore:
     """Tests for _unlock_cover previous-state restoration."""
 
-    def test_unlock_restores_paused_when_not_expired(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_unlock_restores_paused_when_not_expired(self, coordinator, mock_storage) -> None:
         """When previous was PAUSED and pause not yet expired, restores PAUSED."""
         coordinator._pre_lock_states["cover.test"] = CoverStatus.PAUSED
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
         mock_storage.get_cover_raw.return_value = {"pause_until": 9999999999.0}
-        coordinator.hass.states.get.return_value = MockState(
-            "open", {"current_position": 45}
-        )
+        coordinator.hass.states.get.return_value = MockState("open", {"current_position": 45})
 
         with patch("custom_components.cover_automatic.coordinator.dt_util") as mock_dt:
             mock_dt.now.return_value.timestamp.return_value = 1000.0
             coordinator._unlock_cover("cover.test")
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.PAUSED
-        mock_storage.update_cover_status.assert_called_with(
-            "cover.test", CoverStatus.PAUSED.value, 9999999999.0
-        )
+        mock_storage.update_cover_status.assert_called_with("cover.test", CoverStatus.PAUSED.value, 9999999999.0)
         # async_request_refresh must NOT have been scheduled
         coordinator.async_request_refresh.assert_not_awaited()
 
-    def test_unlock_restores_auto_when_pause_expired(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_unlock_restores_auto_when_pause_expired(self, coordinator, mock_storage) -> None:
         """When previous was PAUSED but pause already expired, restores AUTO."""
         coordinator._pre_lock_states["cover.test"] = CoverStatus.PAUSED
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
         # pause_until is in the past relative to mocked now (1000.0)
         mock_storage.get_cover_raw.return_value = {"pause_until": 500.0}
-        coordinator.hass.states.get.return_value = MockState(
-            "open", {"current_position": 45}
-        )
+        coordinator.hass.states.get.return_value = MockState("open", {"current_position": 45})
 
         with patch("custom_components.cover_automatic.coordinator.dt_util") as mock_dt:
             mock_dt.now.return_value.timestamp.return_value = 1000.0
             coordinator._unlock_cover("cover.test")
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
-        mock_storage.update_cover_status.assert_called_with(
-            "cover.test", CoverStatus.AUTO.value, None
-        )
+        mock_storage.update_cover_status.assert_called_with("cover.test", CoverStatus.AUTO.value, None)
 
-    def test_unlock_restores_manual_when_was_manual(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_unlock_restores_manual_when_was_manual(self, coordinator, mock_storage) -> None:
         """When previous was MANUAL, restores MANUAL without scheduling refresh."""
         coordinator._pre_lock_states["cover.test"] = CoverStatus.MANUAL
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
-        coordinator.hass.states.get.return_value = MockState(
-            "open", {"current_position": 60}
-        )
+        coordinator.hass.states.get.return_value = MockState("open", {"current_position": 60})
 
         coordinator._unlock_cover("cover.test")
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.MANUAL
         assert coordinator._last_positions["cover.test"] == 60
         # Must persist MANUAL status to storage
-        mock_storage.update_cover_status.assert_called_once_with(
-            "cover.test", CoverStatus.MANUAL.value, None
-        )
+        mock_storage.update_cover_status.assert_called_once_with("cover.test", CoverStatus.MANUAL.value, None)
         # Must NOT schedule refresh (stays MANUAL)
         coordinator.async_request_refresh.assert_not_awaited()
 
-    def test_unlock_restores_venting_when_sensor_still_open(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_unlock_restores_venting_when_sensor_still_open(self, coordinator, mock_storage) -> None:
         """When previous was VENTING and vent sensor still open, restores VENTING."""
         coordinator._pre_lock_states["cover.test"] = CoverStatus.VENTING
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
@@ -1001,14 +896,10 @@ class TestUnlockCoverRestore:
         coordinator._unlock_cover("cover.test")
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
-        mock_storage.update_cover_status.assert_called_with(
-            "cover.test", CoverStatus.VENTING.value, None
-        )
+        mock_storage.update_cover_status.assert_called_with("cover.test", CoverStatus.VENTING.value, None)
         coordinator.async_request_refresh.assert_not_awaited()
 
-    def test_unlock_restores_auto_when_venting_sensor_closed(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_unlock_restores_auto_when_venting_sensor_closed(self, coordinator, mock_storage) -> None:
         """When previous was VENTING but vent sensor now closed, restores AUTO."""
         coordinator._pre_lock_states["cover.test"] = CoverStatus.VENTING
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
@@ -1021,9 +912,7 @@ class TestUnlockCoverRestore:
         coordinator._unlock_cover("cover.test")
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
-        mock_storage.update_cover_status.assert_called_with(
-            "cover.test", CoverStatus.AUTO.value, None
-        )
+        mock_storage.update_cover_status.assert_called_with("cover.test", CoverStatus.AUTO.value, None)
 
 
 class TestManualOverrideDetection:
@@ -1050,13 +939,9 @@ class TestManualOverrideDetection:
         for bad_state in ("unavailable", "unknown"):
             new_state = MockState(bad_state, {"current_position": 0})
             with patch.object(coordinator, "pause_cover") as mock_pause:
-                with patch(
-                    "custom_components.cover_automatic.coordinator.time_mod"
-                ) as mock_time:
+                with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
                     mock_time.monotonic.return_value = 9999.0
-                    coordinator._handle_cover_state_change(
-                        "cover.test", None, new_state
-                    )
+                    coordinator._handle_cover_state_change("cover.test", None, new_state)
                 mock_pause.assert_not_called()
 
     def test_moving_state_ignored(self, coordinator, mock_storage) -> None:
@@ -1071,13 +956,9 @@ class TestManualOverrideDetection:
         for moving_state in ("opening", "closing"):
             new_state = MockState(moving_state, {"current_position": 40})
             with patch.object(coordinator, "pause_cover") as mock_pause:
-                with patch(
-                    "custom_components.cover_automatic.coordinator.time_mod"
-                ) as mock_time:
+                with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
                     mock_time.monotonic.return_value = 9999.0
-                    coordinator._handle_cover_state_change(
-                        "cover.test", None, new_state
-                    )
+                    coordinator._handle_cover_state_change("cover.test", None, new_state)
                 mock_pause.assert_not_called()
 
     def test_within_settle_time_ignored(self, coordinator, mock_storage) -> None:
@@ -1091,9 +972,7 @@ class TestManualOverrideDetection:
         new_state = MockState("open", {"current_position": 40})
 
         with patch.object(coordinator, "pause_cover") as mock_pause:
-            with patch(
-                "custom_components.cover_automatic.coordinator.time_mod"
-            ) as mock_time:
+            with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
                 # Only 5 seconds elapsed, well within SETTLE_TIME (30)
                 mock_time.monotonic.return_value = 1005.0
                 coordinator._handle_cover_state_change("cover.test", None, new_state)
@@ -1111,9 +990,7 @@ class TestManualOverrideDetection:
         new_state = MockState("open", {"current_position": 40})
 
         with patch.object(coordinator, "pause_cover") as mock_pause:
-            with patch(
-                "custom_components.cover_automatic.coordinator.time_mod"
-            ) as mock_time:
+            with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
                 mock_time.monotonic.return_value = 9999.0
                 coordinator._handle_cover_state_change("cover.test", None, new_state)
             mock_pause.assert_called_once_with(cover)
@@ -1124,6 +1001,7 @@ class TestManualOverrideInApplyCycle:
 
     def _make_cover(self):
         from custom_components.cover_automatic.models import CoverConfig
+
         cover = MagicMock(spec=CoverConfig)
         cover.entity_id = "cover.test"
         cover.auto_enabled = True
@@ -1131,9 +1009,7 @@ class TestManualOverrideInApplyCycle:
         return cover
 
     @pytest.mark.asyncio
-    async def test_override_detected_in_apply_cycle(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_override_detected_in_apply_cycle(self, coordinator, mock_hass, mock_storage) -> None:
         """Position deviation beyond settle time triggers pause in apply cycle."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -1154,13 +1030,9 @@ class TestManualOverrideInApplyCycle:
             "inverted": False,
         }
         # Cover manually moved to 79% (deviation 21 > tolerance 2)
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 79}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 79})
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.time_mod"
-        ) as mock_time:
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
             mock_time.monotonic.return_value = 9999.0
             with patch.object(coordinator, "pause_cover") as mock_pause:
                 await coordinator.async_apply_positions()
@@ -1170,9 +1042,7 @@ class TestManualOverrideInApplyCycle:
         mock_hass.services.async_call.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_no_override_during_settle_time(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_no_override_during_settle_time(self, coordinator, mock_hass, mock_storage) -> None:
         """Position deviation within settle time is not treated as override."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -1193,13 +1063,9 @@ class TestManualOverrideInApplyCycle:
             "last_position_change": None,
             "inverted": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 79}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 79})
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.time_mod"
-        ) as mock_time:
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
             mock_time.monotonic.return_value = 9995.0  # 5s after command, within settle
             with patch.object(coordinator, "pause_cover") as mock_pause:
                 with patch("homeassistant.util.dt.now") as mock_now:
@@ -1208,9 +1074,7 @@ class TestManualOverrideInApplyCycle:
                 mock_pause.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_no_override_while_cover_moving(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_no_override_while_cover_moving(self, coordinator, mock_hass, mock_storage) -> None:
         """A physically moving cover is not misread as a manual override.
 
         Regression: HmIP-style actuators keep reporting the pre-move position
@@ -1240,12 +1104,8 @@ class TestManualOverrideInApplyCycle:
         for moving_state in ("opening", "closing"):
             coordinator._pending_settle.add("cover.test")
             # Hardware still reports the old position (33%) while travelling
-            mock_hass.states.get.return_value = MockState(
-                moving_state, {"current_position": 33}
-            )
-            with patch(
-                "custom_components.cover_automatic.coordinator.time_mod"
-            ) as mock_time:
+            mock_hass.states.get.return_value = MockState(moving_state, {"current_position": 33})
+            with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
                 mock_time.monotonic.return_value = 9999.0  # well beyond settle
                 with patch.object(coordinator, "pause_cover") as mock_pause:
                     await coordinator.async_apply_positions()
@@ -1256,9 +1116,7 @@ class TestManualOverrideInApplyCycle:
             mock_hass.services.async_call.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_unavailable_cover_skipped_in_apply_cycle(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_unavailable_cover_skipped_in_apply_cycle(self, coordinator, mock_hass, mock_storage) -> None:
         """Unavailable cover state is skipped entirely in apply cycle."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -1279,13 +1137,9 @@ class TestManualOverrideInApplyCycle:
             "inverted": False,
         }
         # Cover is unavailable (position attrs cleared -> default 0)
-        mock_hass.states.get.return_value = MockState(
-            "unavailable", {}
-        )
+        mock_hass.states.get.return_value = MockState("unavailable", {})
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.time_mod"
-        ) as mock_time:
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
             mock_time.monotonic.return_value = 9999.0
             with patch.object(coordinator, "pause_cover") as mock_pause:
                 await coordinator.async_apply_positions()
@@ -1299,15 +1153,14 @@ class TestPendingSettleSync:
 
     def _make_cover(self):
         from custom_components.cover_automatic.models import CoverConfig
+
         cover = MagicMock(spec=CoverConfig)
         cover.entity_id = "cover.test"
         cover.auto_enabled = True
         cover.pause_duration = 30
         return cover
 
-    def test_pending_settle_syncs_position_instead_of_override(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_pending_settle_syncs_position_instead_of_override(self, coordinator, mock_storage) -> None:
         """First state change after settle syncs position, no pause."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -1321,22 +1174,16 @@ class TestPendingSettleSync:
         new_state = MockState("open", {"current_position": 97})
 
         with patch.object(coordinator, "pause_cover") as mock_pause:
-            with patch(
-                "custom_components.cover_automatic.coordinator.time_mod"
-            ) as mock_time:
+            with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
                 mock_time.monotonic.return_value = 9999.0
-                coordinator._handle_cover_state_change(
-                    "cover.test", None, new_state
-                )
+                coordinator._handle_cover_state_change("cover.test", None, new_state)
             mock_pause.assert_not_called()
 
         # Position synced to actual
         assert coordinator._last_positions["cover.test"] == 97
         assert "cover.test" not in coordinator._pending_settle
 
-    def test_override_detected_after_settle_sync(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_override_detected_after_settle_sync(self, coordinator, mock_storage) -> None:
         """After settle sync, real manual override is still detected."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -1349,19 +1196,13 @@ class TestPendingSettleSync:
         new_state = MockState("open", {"current_position": 50})
 
         with patch.object(coordinator, "pause_cover") as mock_pause:
-            with patch(
-                "custom_components.cover_automatic.coordinator.time_mod"
-            ) as mock_time:
+            with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
                 mock_time.monotonic.return_value = 9999.0
-                coordinator._handle_cover_state_change(
-                    "cover.test", None, new_state
-                )
+                coordinator._handle_cover_state_change("cover.test", None, new_state)
             mock_pause.assert_called_once_with(cover)
 
     @pytest.mark.asyncio
-    async def test_apply_cycle_clears_pending_settle(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_apply_cycle_clears_pending_settle(self, coordinator, mock_hass, mock_storage) -> None:
         """Apply cycle syncs position for pending settle covers."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -1382,13 +1223,9 @@ class TestPendingSettleSync:
             "min_time_between_changes": 0,
             "inverted": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 97}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 97})
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.time_mod"
-        ) as mock_time:
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
             mock_time.monotonic.return_value = 9999.0
             with patch.object(coordinator, "pause_cover") as mock_pause:
                 await coordinator.async_apply_positions()
@@ -1401,9 +1238,7 @@ class TestPendingSettleSync:
 class TestPauseExpirySyncsPosition:
     """Tests for position sync on pause expiry in _sync_cover_statuses."""
 
-    def test_pause_expiry_syncs_last_positions(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_pause_expiry_syncs_last_positions(self, coordinator, mock_hass, mock_storage) -> None:
         """Expired pause syncs _last_positions to prevent false re-override."""
         coordinator._cover_states["cover.test"] = CoverStatus.PAUSED
         coordinator._last_positions["cover.test"] = 40  # old value
@@ -1421,9 +1256,7 @@ class TestPauseExpirySyncsPosition:
         mock_storage.get_cover_raw.return_value = mock_storage._data["covers"]["cover.test"]
 
         # Cover is actually at 100%
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 100}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 100})
 
         with patch("homeassistant.util.dt.now") as mock_now:
             mock_now.return_value.timestamp.return_value = 2000.0  # after pause_until
@@ -1436,9 +1269,7 @@ class TestPauseExpirySyncsPosition:
 class TestLockVentTransition:
     """Tests for lock->vent fallback in _handle_contact_sensor_change."""
 
-    def test_lock_to_vent_transition(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_lock_to_vent_transition(self, coordinator, mock_hass, mock_storage) -> None:
         """Lock sensor closes while vent sensor still open -> switches to VENTING."""
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
         cover_raw = {
@@ -1456,7 +1287,7 @@ class TestLockVentTransition:
         coordinator._handle_contact_sensor_change(
             "binary_sensor.window",
             ["cover.test"],  # lock_covers
-            [],              # vent_covers
+            [],  # vent_covers
             MockState("on"),
             MockState("off"),
         )
@@ -1467,9 +1298,7 @@ class TestLockVentTransition:
 class TestLockCoverInverted:
     """Tests for _lock_cover with inverted cover flag."""
 
-    def test_lock_cover_inverted_position(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_lock_cover_inverted_position(self, coordinator, mock_hass, mock_storage) -> None:
         """Inverted cover applies 100-lock_position as actual position."""
         mock_storage.get_cover_raw.return_value = {"inverted": True}
         mock_hass.async_create_task = MagicMock()
@@ -1488,9 +1317,7 @@ class TestLockCoverInverted:
 class TestOrphanCleanup:
     """Tests for orphan runtime dict cleanup during full refresh."""
 
-    def test_full_refresh_cleans_orphan_runtime_dicts(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_full_refresh_cleans_orphan_runtime_dicts(self, coordinator, mock_storage) -> None:
         """Orphaned entries in runtime dicts are removed on full_refresh=True."""
         # cover.gone no longer exists in storage; cover.active still does
         mock_storage._data = {"covers": {"cover.active": {}}, "rules": {}}
@@ -1506,9 +1333,7 @@ class TestOrphanCleanup:
         coordinator._last_command_time["cover.gone"] = 123.0
         coordinator._last_command_time["cover.active"] = 456.0
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.async_track_state_change_event"
-        ) as mock_track:
+        with patch("custom_components.cover_automatic.coordinator.async_track_state_change_event") as mock_track:
             mock_track.return_value = MagicMock()
             coordinator._setup_state_tracking(full_refresh=True)
 
@@ -1526,9 +1351,7 @@ class TestOrphanCleanup:
 class TestSyncCoverStatuses:
     """Tests for _sync_cover_statuses."""
 
-    def test_sync_auto_enabled_false_sets_manual(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_sync_auto_enabled_false_sets_manual(self, coordinator, mock_storage) -> None:
         """auto_enabled=False causes the cover to be set to MANUAL status."""
         mock_storage._data = {
             "covers": {
@@ -1543,33 +1366,23 @@ class TestSyncCoverStatuses:
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.MANUAL
 
-    def test_sync_auto_enabled_false_persists_manual(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_sync_auto_enabled_false_persists_manual(self, coordinator, mock_storage) -> None:
         """auto_enabled=False persists MANUAL so it survives a restart.
 
         Regression: the persisted cover status (rendered by the panel) stayed
         "auto" because only the in-memory state was updated.
         """
-        mock_storage._data = {
-            "covers": {"cover.test": {"auto_enabled": False}}
-        }
+        mock_storage._data = {"covers": {"cover.test": {"auto_enabled": False}}}
         mock_storage.get_cover_raw.return_value = {"auto_enabled": False}
         coordinator._cover_states["cover.test"] = CoverStatus.AUTO
 
         coordinator._sync_cover_statuses()
 
-        mock_storage.update_cover_status.assert_called_with(
-            "cover.test", CoverStatus.MANUAL.value, None
-        )
+        mock_storage.update_cover_status.assert_called_with("cover.test", CoverStatus.MANUAL.value, None)
 
-    def test_sync_auto_enabled_false_skips_redundant_persist(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_sync_auto_enabled_false_skips_redundant_persist(self, coordinator, mock_storage) -> None:
         """Already-MANUAL covers must not re-persist every update cycle."""
-        mock_storage._data = {
-            "covers": {"cover.test": {"auto_enabled": False}}
-        }
+        mock_storage._data = {"covers": {"cover.test": {"auto_enabled": False}}}
         mock_storage.get_cover_raw.return_value = {"auto_enabled": False}
         coordinator._cover_states["cover.test"] = CoverStatus.MANUAL
 
@@ -1629,9 +1442,7 @@ class TestRestoreCoverStates:
         coordinator._restore_cover_states()
 
         assert coordinator._cover_states["cover.living"] == CoverStatus.AUTO
-        mock_storage.update_cover_status.assert_called_once_with(
-            "cover.living", "auto", None
-        )
+        mock_storage.update_cover_status.assert_called_once_with("cover.living", "auto", None)
 
     def test_restore_locked_resets_to_auto(self, coordinator, mock_storage) -> None:
         """LOCKED covers are reset to AUTO (re-derived from sensors on sync)."""
@@ -1699,9 +1510,7 @@ class TestShutdownPendingSave:
     """Tests for async_shutdown pending-save flush."""
 
     @pytest.mark.asyncio
-    async def test_shutdown_flushes_pending_save(
-        self, coordinator, mock_storage
-    ) -> None:
+    async def test_shutdown_flushes_pending_save(self, coordinator, mock_storage) -> None:
         """When _save_task is not None it is cancelled via flush_pending_save and async_save is called."""
         mock_task = MagicMock()
         mock_storage._save_task = mock_task
@@ -1713,9 +1522,7 @@ class TestShutdownPendingSave:
         mock_storage.async_save.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_shutdown_handles_save_error(
-        self, coordinator, mock_storage
-    ) -> None:
+    async def test_shutdown_handles_save_error(self, coordinator, mock_storage) -> None:
         """When async_save raises during shutdown, no exception propagates."""
         mock_storage.async_save.side_effect = OSError("disk full")
         coordinator._unsub_state_change = []
@@ -1727,9 +1534,7 @@ class TestShutdownPendingSave:
         mock_storage.async_save.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_shutdown_cancels_tilt_tasks(
-        self, coordinator, mock_storage
-    ) -> None:
+    async def test_shutdown_cancels_tilt_tasks(self, coordinator, mock_storage) -> None:
         """Shutdown cancels all pending tilt tasks."""
         mock_task = MagicMock()
         mock_task.done.return_value = False
@@ -1746,9 +1551,7 @@ class TestTiltHandling:
     """Tests for tilt/slat control in coordinator."""
 
     @pytest.mark.asyncio
-    async def test_apply_positions_sends_tilt(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_apply_positions_sends_tilt(self, coordinator, mock_hass, mock_storage) -> None:
         """Test tilt command is sent after position when tilt changes."""
         coordinator.data = {
             "covers": {
@@ -1767,9 +1570,7 @@ class TestTiltHandling:
             "supports_tilt": True,
             "inverted_tilt": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 80, "supported_features": 143}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 80, "supported_features": 143})
         mock_hass.async_create_task = MagicMock()
 
         with patch("homeassistant.util.dt.now") as mock_now:
@@ -1784,9 +1585,7 @@ class TestTiltHandling:
         assert coordinator._last_tilt_positions["cover.test"] == 50
 
     @pytest.mark.asyncio
-    async def test_apply_positions_no_tilt_when_not_supported(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_apply_positions_no_tilt_when_not_supported(self, coordinator, mock_hass, mock_storage) -> None:
         """Test tilt command is not sent when cover doesn't support tilt."""
         coordinator.data = {
             "covers": {
@@ -1805,9 +1604,7 @@ class TestTiltHandling:
             "supports_tilt": False,
             "inverted_tilt": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 80, "supported_features": 15}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 80, "supported_features": 15})
 
         with patch("homeassistant.util.dt.now") as mock_now:
             mock_now.return_value.timestamp.return_value = 1000
@@ -1817,9 +1614,7 @@ class TestTiltHandling:
         assert "cover.test" not in coordinator._last_tilt_positions
 
     @pytest.mark.asyncio
-    async def test_apply_positions_inverted_tilt(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_apply_positions_inverted_tilt(self, coordinator, mock_hass, mock_storage) -> None:
         """Test inverted tilt: 100 - target_tilt applied."""
         coordinator.data = {
             "covers": {
@@ -1838,9 +1633,7 @@ class TestTiltHandling:
             "supports_tilt": True,
             "inverted_tilt": True,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 80, "supported_features": 143}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 80, "supported_features": 143})
         mock_hass.async_create_task = MagicMock()
 
         with patch("homeassistant.util.dt.now") as mock_now:
@@ -1850,9 +1643,7 @@ class TestTiltHandling:
         # 100 - 20 = 80
         assert coordinator._last_tilt_positions["cover.test"] == 80
 
-    def test_lock_cover_sends_tilt(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_lock_cover_sends_tilt(self, coordinator, mock_hass, mock_storage) -> None:
         """Test _lock_cover sends tilt when configured."""
         mock_storage.get_cover_raw.return_value = {
             "inverted": False,
@@ -1868,9 +1659,7 @@ class TestTiltHandling:
         # Two async_create_task calls: position + tilt
         assert mock_hass.async_create_task.call_count == 2
 
-    def test_lock_cover_no_tilt_when_none(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_lock_cover_no_tilt_when_none(self, coordinator, mock_hass, mock_storage) -> None:
         """Test _lock_cover skips tilt when lock_tilt is None."""
         mock_storage.get_cover_raw.return_value = {
             "inverted": False,
@@ -1886,9 +1675,7 @@ class TestTiltHandling:
         # Only one async_create_task call: position only
         assert mock_hass.async_create_task.call_count == 1
 
-    def test_lock_cover_inverted_tilt(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_lock_cover_inverted_tilt(self, coordinator, mock_hass, mock_storage) -> None:
         """Test _lock_cover applies tilt inversion."""
         mock_storage.get_cover_raw.return_value = {
             "inverted": False,
@@ -1906,24 +1693,18 @@ class TestTiltHandling:
     def test_supports_tilt_check(self, coordinator, mock_hass) -> None:
         """Test _supports_tilt helper checks feature flag."""
         # With tilt support (bit 7 = 128)
-        mock_hass.states.get.return_value = MockState(
-            "open", {"supported_features": 143}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"supported_features": 143})
         assert coordinator._supports_tilt("cover.test") is True
 
         # Without tilt support
-        mock_hass.states.get.return_value = MockState(
-            "open", {"supported_features": 15}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"supported_features": 15})
         assert coordinator._supports_tilt("cover.test") is False
 
         # No state
         mock_hass.states.get.return_value = None
         assert coordinator._supports_tilt("cover.test") is False
 
-    def test_manual_override_tilt_mismatch(
-        self, coordinator, mock_storage
-    ) -> None:
+    def test_manual_override_tilt_mismatch(self, coordinator, mock_storage) -> None:
         """Test tilt mismatch triggers manual override detection."""
         from custom_components.cover_automatic.models import CoverConfig
 
@@ -1942,9 +1723,7 @@ class TestTiltHandling:
         new_state = MockState("open", {"current_position": 50, "current_tilt_position": 20})
 
         with patch.object(coordinator, "pause_cover") as mock_pause:
-            with patch(
-                "custom_components.cover_automatic.coordinator.time_mod"
-            ) as mock_time:
+            with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
                 mock_time.monotonic.return_value = 9999.0
                 coordinator._handle_cover_state_change("cover.test", None, new_state)
             mock_pause.assert_called_once_with(cover)
@@ -1962,9 +1741,7 @@ class TestTiltHandling:
         )
 
     @pytest.mark.asyncio
-    async def test_send_tilt_delayed_updates_command_time(
-        self, coordinator, mock_hass
-    ) -> None:
+    async def test_send_tilt_delayed_updates_command_time(self, coordinator, mock_hass) -> None:
         """Test _send_tilt_delayed updates _last_command_time after sending."""
         coordinator._last_command_time["cover.test"] = 0.0
 
@@ -1973,9 +1750,7 @@ class TestTiltHandling:
         assert coordinator._last_command_time["cover.test"] > 0.0
 
     @pytest.mark.asyncio
-    async def test_tilt_only_update_no_position_change(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_tilt_only_update_no_position_change(self, coordinator, mock_hass, mock_storage) -> None:
         """Test tilt-only update when position is already at target."""
         coordinator.data = {
             "covers": {
@@ -1994,9 +1769,7 @@ class TestTiltHandling:
             "supports_tilt": True,
             "inverted_tilt": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 50, "supported_features": 143}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 50, "supported_features": 143})
         mock_hass.async_create_task = MagicMock()
 
         with patch("homeassistant.util.dt.now") as mock_now:
@@ -2013,9 +1786,7 @@ class TestTiltHandling:
         assert coordinator._last_command_time["cover.test"] > 0
 
     @pytest.mark.asyncio
-    async def test_tilt_unchanged_not_resent(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_tilt_unchanged_not_resent(self, coordinator, mock_hass, mock_storage) -> None:
         """Test tilt is not resent when it already matches the target."""
         coordinator._last_tilt_positions["cover.test"] = 70
         coordinator.data = {
@@ -2035,9 +1806,7 @@ class TestTiltHandling:
             "supports_tilt": True,
             "inverted_tilt": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 50, "supported_features": 143}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 50, "supported_features": 143})
         mock_hass.async_create_task = MagicMock()
 
         with patch("homeassistant.util.dt.now") as mock_now:
@@ -2048,9 +1817,7 @@ class TestTiltHandling:
         mock_hass.services.async_call.assert_not_called()
         mock_hass.async_create_task.assert_not_called()
 
-    def test_schedule_tilt_cancels_pending(
-        self, coordinator, mock_hass
-    ) -> None:
+    def test_schedule_tilt_cancels_pending(self, coordinator, mock_hass) -> None:
         """Test _schedule_tilt cancels any pending tilt task for the same cover."""
         old_task = MagicMock(spec=asyncio.Task)
         old_task.done.return_value = False
@@ -2062,9 +1829,7 @@ class TestTiltHandling:
         old_task.cancel.assert_called_once()
         assert coordinator._tilt_tasks["cover.test"] is not old_task
 
-    def test_schedule_tilt_skips_cancel_for_done_task(
-        self, coordinator, mock_hass
-    ) -> None:
+    def test_schedule_tilt_skips_cancel_for_done_task(self, coordinator, mock_hass) -> None:
         """Test _schedule_tilt does not cancel already-done tasks."""
         old_task = MagicMock(spec=asyncio.Task)
         old_task.done.return_value = True
@@ -2079,67 +1844,50 @@ class TestTiltHandling:
 class TestUpdateLastPositionFromState:
     """Tests for _update_last_position_from_state error handling."""
 
-    def test_update_position_from_state_normal(
-        self, coordinator, mock_hass
-    ) -> None:
+    def test_update_position_from_state_normal(self, coordinator, mock_hass) -> None:
         """Test normal position update from HA state."""
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 75, "current_tilt_position": 40}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 75, "current_tilt_position": 40})
 
         coordinator._update_last_position_from_state("cover.test")
 
         assert coordinator._last_positions["cover.test"] == 75
         assert coordinator._last_tilt_positions["cover.test"] == 40
 
-    def test_update_position_invalid_value_resets_to_none(
-        self, coordinator, mock_hass
-    ) -> None:
+    def test_update_position_invalid_value_resets_to_none(self, coordinator, mock_hass) -> None:
         """Test invalid position attribute resets tracked position to None."""
         coordinator._last_positions["cover.test"] = 50
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": "unavailable"}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": "unavailable"})
 
         coordinator._update_last_position_from_state("cover.test")
 
         # Reset to None to prevent false manual override detection
         assert coordinator._last_positions["cover.test"] is None
 
-    def test_update_position_none_value_resets_to_none(
-        self, coordinator, mock_hass
-    ) -> None:
+    def test_update_position_none_value_resets_to_none(self, coordinator, mock_hass) -> None:
         """Test None position attribute resets tracked position to None."""
         coordinator._last_positions["cover.test"] = 50
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": None}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": None})
 
         coordinator._update_last_position_from_state("cover.test")
 
         # int(None) raises TypeError, reset to None
         assert coordinator._last_positions["cover.test"] is None
 
-    def test_update_tilt_invalid_value_resets_to_none(
-        self, coordinator, mock_hass
-    ) -> None:
+    def test_update_tilt_invalid_value_resets_to_none(self, coordinator, mock_hass) -> None:
         """Test invalid tilt attribute resets to None."""
         coordinator._last_tilt_positions["cover.test"] = 60
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 75, "current_tilt_position": "abc"}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 75, "current_tilt_position": "abc"})
 
         coordinator._update_last_position_from_state("cover.test")
 
         assert coordinator._last_positions["cover.test"] == 75
         assert coordinator._last_tilt_positions["cover.test"] is None
 
-    def test_update_tilt_none_not_tracked(
-        self, coordinator, mock_hass
-    ) -> None:
+    def test_update_tilt_none_not_tracked(self, coordinator, mock_hass) -> None:
         """Test None tilt attribute does not update tracking."""
         mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 75}  # No current_tilt_position
+            "open",
+            {"current_position": 75},  # No current_tilt_position
         )
 
         coordinator._update_last_position_from_state("cover.test")
@@ -2147,9 +1895,7 @@ class TestUpdateLastPositionFromState:
         assert coordinator._last_positions["cover.test"] == 75
         assert "cover.test" not in coordinator._last_tilt_positions
 
-    def test_update_no_state_noop(
-        self, coordinator, mock_hass
-    ) -> None:
+    def test_update_no_state_noop(self, coordinator, mock_hass) -> None:
         """Test no HA state does nothing."""
         mock_hass.states.get.return_value = None
 
@@ -2158,9 +1904,7 @@ class TestUpdateLastPositionFromState:
         assert "cover.test" not in coordinator._last_positions
         assert "cover.test" not in coordinator._last_tilt_positions
 
-    def test_update_unavailable_state_noop(
-        self, coordinator, mock_hass
-    ) -> None:
+    def test_update_unavailable_state_noop(self, coordinator, mock_hass) -> None:
         """Test unavailable state does not overwrite tracked positions."""
         coordinator._last_positions["cover.test"] = 40
         mock_hass.states.get.return_value = MockState("unavailable", {})
@@ -2170,9 +1914,7 @@ class TestUpdateLastPositionFromState:
         # Must keep old value, not overwrite with 0
         assert coordinator._last_positions["cover.test"] == 40
 
-    def test_get_current_position_unavailable_returns_none(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_get_current_position_unavailable_returns_none(self, coordinator, mock_hass, mock_storage) -> None:
         """Test _get_current_position returns None for unavailable covers."""
         mock_hass.states.get.return_value = MockState("unavailable", {})
         mock_storage.get_cover_raw.return_value = {"inverted": False}
@@ -2185,9 +1927,7 @@ class TestUpdateLastPositionFromState:
 class TestVentSensorWithTilt:
     """Tests for vent sensor handling with tilt position."""
 
-    def test_vent_sensor_open_sets_venting_and_moves_if_below(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_vent_sensor_open_sets_venting_and_moves_if_below(self, coordinator, mock_hass, mock_storage) -> None:
         """Test vent sensor sets VENTING and moves cover up if below vent_position."""
         cover_raw = {
             "lock_sensor": None,
@@ -2214,9 +1954,7 @@ class TestVentSensorWithTilt:
         assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
         assert mock_hass.async_create_task.call_count == 1
 
-    def test_vent_sensor_open_no_move_if_above(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_vent_sensor_open_no_move_if_above(self, coordinator, mock_hass, mock_storage) -> None:
         """Test vent sensor sets VENTING but does not move if already above vent_position."""
         cover_raw = {
             "lock_sensor": None,
@@ -2244,9 +1982,7 @@ class TestVentSensorWithTilt:
         # No move command
         assert mock_hass.async_create_task.call_count == 0
 
-    def test_vent_close_returns_to_manual_when_auto_disabled(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_vent_close_returns_to_manual_when_auto_disabled(self, coordinator, mock_hass, mock_storage) -> None:
         """Vent closing on an auto-disabled cover must go to MANUAL, not AUTO.
 
         Regression: the event path hard-set AUTO, which let an AUTO apply cycle
@@ -2275,9 +2011,7 @@ class TestVentSensorWithTilt:
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.MANUAL
 
-    def test_vent_close_returns_to_auto_when_auto_enabled(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_vent_close_returns_to_auto_when_auto_enabled(self, coordinator, mock_hass, mock_storage) -> None:
         """Control: vent closing on a normal cover still returns to AUTO."""
         cover_raw = {
             "lock_sensor": None,
@@ -2302,9 +2036,7 @@ class TestVentSensorWithTilt:
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
 
-    def test_lock_to_vent_transition_sets_venting(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_lock_to_vent_transition_sets_venting(self, coordinator, mock_hass, mock_storage) -> None:
         """Test lock->vent transition switches to VENTING status."""
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
         cover_raw = {
@@ -2333,9 +2065,7 @@ class TestVentSensorWithTilt:
         # Must update UI
         coordinator.async_set_updated_data.assert_called()
 
-    def test_lock_to_vent_moves_cover_if_below_vent_position(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_lock_to_vent_moves_cover_if_below_vent_position(self, coordinator, mock_hass, mock_storage) -> None:
         """Test lock->vent transition moves cover to vent_position if below it."""
         coordinator._cover_states["cover.test"] = CoverStatus.LOCKED
         coordinator._pre_lock_states["cover.test"] = CoverStatus.AUTO
@@ -2366,7 +2096,8 @@ class TestVentSensorWithTilt:
         assert coordinator._last_positions["cover.test"] == 30
         # Must issue move command
         mock_hass.services.async_call.assert_called_with(
-            "cover", "set_cover_position",
+            "cover",
+            "set_cover_position",
             {"entity_id": "cover.test", "position": 30},
             blocking=False,
         )
@@ -2528,6 +2259,7 @@ class TestWindProtection:
             if entity_id == "cover.test":
                 return MockState("open", {"current_position": 100})
             return None
+
         mock_hass.states.get = states_get
 
         coordinator._check_wind_protection()
@@ -2550,6 +2282,7 @@ class TestWindProtection:
             if entity_id == "cover.test":
                 return MockState("open", {"current_position": 100})
             return None
+
         mock_hass.states.get = states_get
 
         coordinator._check_wind_protection()
@@ -2574,6 +2307,7 @@ class TestPauseCoverDuration:
     def test_pause_duration_zero_uses_zero_not_global(self, coordinator, mock_storage) -> None:
         """Test that pause_duration=0 on cover uses 0, not global default."""
         from custom_components.cover_automatic.models import CoverConfig
+
         mock_storage.pause_duration = 10
         cover = CoverConfig(entity_id="cover.test", name="Test", pause_duration=0)
         coordinator.data = {"covers": {}}
@@ -2584,6 +2318,7 @@ class TestPauseCoverDuration:
         call_args = mock_storage.update_cover_status.call_args
         pause_until = call_args[0][2]
         from homeassistant.util import dt as dt_util
+
         now = dt_util.now().timestamp()
         # 0 minutes = pause_until should be within 2 seconds of now
         assert abs(pause_until - now) < 2
@@ -2591,6 +2326,7 @@ class TestPauseCoverDuration:
     def test_pause_duration_none_uses_global(self, coordinator, mock_storage) -> None:
         """Test that pause_duration=None on cover falls back to global."""
         from custom_components.cover_automatic.models import CoverConfig
+
         mock_storage.pause_duration = 10
         cover = CoverConfig(entity_id="cover.test", name="Test", pause_duration=None)
         coordinator.data = {"covers": {}}
@@ -2600,6 +2336,7 @@ class TestPauseCoverDuration:
         call_args = mock_storage.update_cover_status.call_args
         pause_until = call_args[0][2]
         from homeassistant.util import dt as dt_util
+
         now = dt_util.now().timestamp()
         # 10 minutes = 600 seconds
         assert abs(pause_until - now - 600) < 2
@@ -2613,10 +2350,15 @@ class TestCommandStagger:
         """Test that no sleep is called when stagger is 0."""
         mock_storage.command_stagger = 0.0
         mock_storage.enabled = True
-        mock_storage.get_cover_raw = MagicMock(side_effect=lambda eid: {
-            "entity_id": eid, "inverted": False, "supports_tilt": False,
-            "min_position_change": 0, "min_time_between_changes": 0,
-        })
+        mock_storage.get_cover_raw = MagicMock(
+            side_effect=lambda eid: {
+                "entity_id": eid,
+                "inverted": False,
+                "supports_tilt": False,
+                "min_position_change": 0,
+                "min_time_between_changes": 0,
+            }
+        )
         mock_hass.states.get = MagicMock(return_value=MockState("open", {"current_position": 100}))
         coordinator.data = {
             "covers": {
@@ -2641,10 +2383,15 @@ class TestCommandStagger:
         """Test that sleep is called between commands when stagger > 0."""
         mock_storage.command_stagger = 0.5
         mock_storage.enabled = True
-        mock_storage.get_cover_raw = MagicMock(side_effect=lambda eid: {
-            "entity_id": eid, "inverted": False, "supports_tilt": False,
-            "min_position_change": 0, "min_time_between_changes": 0,
-        })
+        mock_storage.get_cover_raw = MagicMock(
+            side_effect=lambda eid: {
+                "entity_id": eid,
+                "inverted": False,
+                "supports_tilt": False,
+                "min_position_change": 0,
+                "min_time_between_changes": 0,
+            }
+        )
         mock_hass.states.get = MagicMock(return_value=MockState("open", {"current_position": 100}))
         coordinator.data = {
             "covers": {
@@ -2670,10 +2417,15 @@ class TestCommandStagger:
         """Test that no sleep is called when only one cover moves."""
         mock_storage.command_stagger = 0.5
         mock_storage.enabled = True
-        mock_storage.get_cover_raw = MagicMock(side_effect=lambda eid: {
-            "entity_id": eid, "inverted": False, "supports_tilt": False,
-            "min_position_change": 0, "min_time_between_changes": 0,
-        })
+        mock_storage.get_cover_raw = MagicMock(
+            side_effect=lambda eid: {
+                "entity_id": eid,
+                "inverted": False,
+                "supports_tilt": False,
+                "min_position_change": 0,
+                "min_time_between_changes": 0,
+            }
+        )
         mock_hass.states.get = MagicMock(return_value=MockState("open", {"current_position": 100}))
         coordinator.data = {
             "covers": {
@@ -2726,6 +2478,7 @@ class TestManualOverrideDuringVenting:
 
     def _make_cover(self):
         from custom_components.cover_automatic.models import CoverConfig
+
         cover = MagicMock(spec=CoverConfig)
         cover.entity_id = "cover.test"
         cover.auto_enabled = True
@@ -2743,17 +2496,13 @@ class TestManualOverrideDuringVenting:
         new_state = MockState("open", {"current_position": 80})
 
         with patch.object(coordinator, "pause_cover") as mock_pause:
-            with patch(
-                "custom_components.cover_automatic.coordinator.time_mod"
-            ) as mock_time:
+            with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
                 mock_time.monotonic.return_value = 9999.0
                 coordinator._handle_cover_state_change("cover.test", None, new_state)
             mock_pause.assert_called_once_with(cover)
 
     @pytest.mark.asyncio
-    async def test_apply_cycle_override_during_venting(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_apply_cycle_override_during_venting(self, coordinator, mock_hass, mock_storage) -> None:
         """Position deviation during VENTING triggers pause in apply cycle."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -2774,21 +2523,15 @@ class TestManualOverrideDuringVenting:
             "min_time_between_changes": 0,
             "inverted": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 80}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 80})
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.time_mod"
-        ) as mock_time:
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
             mock_time.monotonic.return_value = 9999.0
             with patch.object(coordinator, "pause_cover") as mock_pause:
                 await coordinator.async_apply_positions()
                 mock_pause.assert_called_once_with(cover)
 
-    def test_sync_respects_paused_during_venting(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_sync_respects_paused_during_venting(self, coordinator, mock_hass, mock_storage) -> None:
         """Vent sensor open + PAUSED status keeps PAUSED (pause not expired)."""
         cover_raw = {
             "lock_sensor": None,
@@ -2810,9 +2553,7 @@ class TestManualOverrideDuringVenting:
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.PAUSED
 
-    def test_sync_paused_expires_back_to_venting(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_sync_paused_expires_back_to_venting(self, coordinator, mock_hass, mock_storage) -> None:
         """Vent sensor open + PAUSED expired -> back to VENTING."""
         cover_raw = {
             "lock_sensor": None,
@@ -2833,13 +2574,9 @@ class TestManualOverrideDuringVenting:
                 coordinator._sync_cover_statuses()
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
-        mock_storage.update_cover_status.assert_called_with(
-            "cover.test", CoverStatus.VENTING.value, None
-        )
+        mock_storage.update_cover_status.assert_called_with("cover.test", CoverStatus.VENTING.value, None)
 
-    def test_vent_sensor_close_cancels_pause(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_vent_sensor_close_cancels_pause(self, coordinator, mock_hass, mock_storage) -> None:
         """Vent sensor closing while PAUSED -> immediate AUTO (no stale pause)."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -2863,13 +2600,9 @@ class TestManualOverrideDuringVenting:
             )
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
-        mock_storage.update_cover_status.assert_called_with(
-            "cover.test", CoverStatus.AUTO.value, None
-        )
+        mock_storage.update_cover_status.assert_called_with("cover.test", CoverStatus.AUTO.value, None)
 
-    def test_paused_to_venting_syncs_last_positions(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_paused_to_venting_syncs_last_positions(self, coordinator, mock_hass, mock_storage) -> None:
         """Vent sensor opening while PAUSED syncs _last_positions to prevent false override."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -2899,9 +2632,7 @@ class TestManualOverrideDuringVenting:
         # _last_positions synced to actual (80), not stale (50)
         assert coordinator._last_positions["cover.test"] == 80
 
-    def test_vent_open_while_paused_ends_pause_and_moves_up(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_vent_open_while_paused_ends_pause_and_moves_up(self, coordinator, mock_hass, mock_storage) -> None:
         """Vent sensor opening ends a running pause and moves up to vent_position.
 
         VENTING outranks PAUSED and the tilt is the newer user action, so the
@@ -2931,15 +2662,11 @@ class TestManualOverrideDuringVenting:
             )
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
-        mock_storage.update_cover_status.assert_called_with(
-            "cover.test", CoverStatus.VENTING.value, None
-        )
+        mock_storage.update_cover_status.assert_called_with("cover.test", CoverStatus.VENTING.value, None)
         assert coordinator._last_positions["cover.test"] == 30
         assert mock_hass.async_create_task.call_count == 1
 
-    def test_sync_venting_no_move_syncs_positions(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_sync_venting_no_move_syncs_positions(self, coordinator, mock_hass, mock_storage) -> None:
         """_sync_cover_statuses syncs _last_positions when entering VENTING without move."""
         cover_raw = {
             "lock_sensor": None,
@@ -2963,9 +2690,7 @@ class TestManualOverrideDuringVenting:
         assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
         assert coordinator._last_positions["cover.test"] == 80
 
-    def test_resume_during_venting_restores_venting(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_resume_during_venting_restores_venting(self, coordinator, mock_hass, mock_storage) -> None:
         """Resume while vent sensor open transitions to VENTING, not AUTO."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -2983,13 +2708,9 @@ class TestManualOverrideDuringVenting:
             coordinator.resume_cover("cover.test")
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.VENTING
-        mock_storage.update_cover_status.assert_called_with(
-            "cover.test", CoverStatus.VENTING.value, None
-        )
+        mock_storage.update_cover_status.assert_called_with("cover.test", CoverStatus.VENTING.value, None)
 
-    def test_resume_without_vent_restores_auto(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_resume_without_vent_restores_auto(self, coordinator, mock_hass, mock_storage) -> None:
         """Resume without vent sensor open transitions to AUTO."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -3008,9 +2729,7 @@ class TestManualOverrideDuringVenting:
 
         assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
 
-    def test_lock_to_vent_syncs_positions_when_no_move(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_lock_to_vent_syncs_positions_when_no_move(self, coordinator, mock_hass, mock_storage) -> None:
         """Lock-to-vent transition syncs _last_positions when cover already above vent_min."""
         cover_raw = {
             "lock_sensor": "binary_sensor.lock",
@@ -3047,15 +2766,14 @@ class TestSettleDuringVenting:
 
     def _make_cover(self):
         from custom_components.cover_automatic.models import CoverConfig
+
         cover = MagicMock(spec=CoverConfig)
         cover.entity_id = "cover.test"
         cover.auto_enabled = True
         cover.pause_duration = 30
         return cover
 
-    def test_vent_move_sets_pending_settle(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_vent_move_sets_pending_settle(self, coordinator, mock_hass, mock_storage) -> None:
         """Vent move adds cover to _pending_settle."""
         cover_raw = {
             "lock_sensor": None,
@@ -3072,16 +2790,17 @@ class TestSettleDuringVenting:
             mock_time.monotonic.return_value = 100.0
             with patch.object(coordinator, "_cover_val", return_value=30):
                 coordinator._handle_contact_sensor_change(
-                    "binary_sensor.vent", [], ["cover.test"],
-                    MockState("off"), MockState("on"),
+                    "binary_sensor.vent",
+                    [],
+                    ["cover.test"],
+                    MockState("off"),
+                    MockState("on"),
                 )
 
         assert "cover.test" in coordinator._pending_settle
 
     @pytest.mark.asyncio
-    async def test_apply_skips_cover_during_settle(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_apply_skips_cover_during_settle(self, coordinator, mock_hass, mock_storage) -> None:
         """Apply cycle skips covers in _pending_settle during settle time."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -3116,9 +2835,7 @@ class TestSettleDuringVenting:
         assert "cover.test" in coordinator._pending_settle
 
     @pytest.mark.asyncio
-    async def test_apply_detects_override_after_settle(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_apply_detects_override_after_settle(self, coordinator, mock_hass, mock_storage) -> None:
         """After settle, large deviation triggers override detection."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -3150,9 +2867,7 @@ class TestSettleDuringVenting:
                 mock_pause.assert_called_once_with(cover)
 
     @pytest.mark.asyncio
-    async def test_apply_syncs_small_deviation_after_settle(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_apply_syncs_small_deviation_after_settle(self, coordinator, mock_hass, mock_storage) -> None:
         """After settle, small deviation syncs position (normal actuator settling)."""
         cover = self._make_cover()
         mock_storage.covers = {"cover.test": cover}
@@ -3189,11 +2904,10 @@ class TestSettleDuringVenting:
 class TestStartupGraceOverrideProtection:
     """Tests for startup grace period blocking false override detection."""
 
-    def test_state_change_ignored_during_grace_period(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_state_change_ignored_during_grace_period(self, coordinator, mock_hass, mock_storage) -> None:
         """State changes during startup grace period should not trigger override."""
         from custom_components.cover_automatic.models import CoverConfig
+
         cover = MagicMock(spec=CoverConfig)
         cover.entity_id = "cover.test"
         cover.auto_enabled = True
@@ -3213,11 +2927,10 @@ class TestStartupGraceOverrideProtection:
         # Should NOT be paused (grace period protects)
         assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
 
-    def test_state_change_detected_after_grace_period(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_state_change_detected_after_grace_period(self, coordinator, mock_hass, mock_storage) -> None:
         """State changes after grace period should trigger override normally."""
         from custom_components.cover_automatic.models import CoverConfig
+
         cover = MagicMock(spec=CoverConfig)
         cover.entity_id = "cover.test"
         cover.auto_enabled = True
@@ -3244,11 +2957,10 @@ class TestStartupGraceOverrideProtection:
 class TestTiltSyncOnPositionSync:
     """Tests for tilt position syncing alongside position syncing."""
 
-    def test_post_settle_syncs_tilt_in_state_handler(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_post_settle_syncs_tilt_in_state_handler(self, coordinator, mock_hass, mock_storage) -> None:
         """Post-settle sync in state handler should also sync tilt."""
         from custom_components.cover_automatic.models import CoverConfig
+
         cover = MagicMock(spec=CoverConfig)
         cover.entity_id = "cover.test"
         cover.auto_enabled = True
@@ -3277,11 +2989,10 @@ class TestTiltSyncOnPositionSync:
         assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
 
     @pytest.mark.asyncio
-    async def test_hysteresis_skip_syncs_tilt(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_hysteresis_skip_syncs_tilt(self, coordinator, mock_hass, mock_storage) -> None:
         """Hysteresis skip should sync tilt to prevent false tilt override."""
         from custom_components.cover_automatic.models import CoverConfig
+
         cover = MagicMock(spec=CoverConfig)
         cover.entity_id = "cover.test"
         cover.auto_enabled = True
@@ -3302,9 +3013,7 @@ class TestTiltSyncOnPositionSync:
             "min_time_between_changes": 0,
             "inverted": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 50, "current_tilt_position": 70}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 50, "current_tilt_position": 70})
 
         with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
             mock_time.monotonic.return_value = 9999.0
@@ -3315,11 +3024,10 @@ class TestTiltSyncOnPositionSync:
         assert coordinator._last_tilt_positions["cover.test"] == 70
 
     @pytest.mark.asyncio
-    async def test_no_move_syncs_tilt(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_no_move_syncs_tilt(self, coordinator, mock_hass, mock_storage) -> None:
         """No-move sync should also sync tilt."""
         from custom_components.cover_automatic.models import CoverConfig
+
         cover = MagicMock(spec=CoverConfig)
         cover.entity_id = "cover.test"
         cover.auto_enabled = True
@@ -3340,9 +3048,7 @@ class TestTiltSyncOnPositionSync:
             "min_time_between_changes": 0,
             "inverted": False,
         }
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 50, "current_tilt_position": 80}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 50, "current_tilt_position": 80})
 
         with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
             mock_time.monotonic.return_value = 9999.0
@@ -3356,14 +3062,10 @@ class TestTiltSyncOnPositionSync:
 class TestLogbookHelper:
     """Test HA logbook entry helper."""
 
-    def test_logbook_calls_async_log_entry_when_enabled(
-        self, coordinator, mock_storage, mock_hass
-    ) -> None:
+    def test_logbook_calls_async_log_entry_when_enabled(self, coordinator, mock_storage, mock_hass) -> None:
         """_logbook calls async_log_entry when setting is enabled."""
         mock_storage.logbook_enabled = True
-        with patch(
-            "custom_components.cover_automatic.coordinator.async_log_entry"
-        ) as mock_log:
+        with patch("custom_components.cover_automatic.coordinator.async_log_entry") as mock_log:
             coordinator._logbook("moved 50% -> 80%", "cover.test")
         mock_log.assert_called_once_with(
             mock_hass,
@@ -3376,20 +3078,14 @@ class TestLogbookHelper:
     def test_logbook_skips_when_disabled(self, coordinator, mock_storage) -> None:
         """_logbook does nothing when logbook_enabled is False."""
         mock_storage.logbook_enabled = False
-        with patch(
-            "custom_components.cover_automatic.coordinator.async_log_entry"
-        ) as mock_log:
+        with patch("custom_components.cover_automatic.coordinator.async_log_entry") as mock_log:
             coordinator._logbook("moved 50% -> 80%", "cover.test")
         mock_log.assert_not_called()
 
-    def test_logbook_allows_global_message_without_entity(
-        self, coordinator, mock_storage, mock_hass
-    ) -> None:
+    def test_logbook_allows_global_message_without_entity(self, coordinator, mock_storage, mock_hass) -> None:
         """_logbook passes entity_id=None for global events (e.g. wind)."""
         mock_storage.logbook_enabled = True
-        with patch(
-            "custom_components.cover_automatic.coordinator.async_log_entry"
-        ) as mock_log:
+        with patch("custom_components.cover_automatic.coordinator.async_log_entry") as mock_log:
             coordinator._logbook("wind protection activated")
         mock_log.assert_called_once()
         _, kwargs = mock_log.call_args
@@ -3408,15 +3104,14 @@ class TestProtectiveStatusExitFreshApply:
 
     def _make_cover(self):
         from custom_components.cover_automatic.models import CoverConfig
+
         cover = MagicMock(spec=CoverConfig)
         cover.entity_id = "cover.test"
         cover.auto_enabled = True
         cover.pause_duration = 30
         return cover
 
-    def test_vent_close_schedules_async_request_refresh(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_vent_close_schedules_async_request_refresh(self, coordinator, mock_hass, mock_storage) -> None:
         """Closing the vent sensor must trigger an immediate refresh, not just
         an updated-data push. The lock-close path already does this via
         _unlock_cover; the vent-close path was inconsistent."""
@@ -3431,7 +3126,8 @@ class TestProtectiveStatusExitFreshApply:
         }
         mock_storage.get_cover_raw.return_value = cover_raw
         mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 85}  # at vent_position (inverted)
+            "open",
+            {"current_position": 85},  # at vent_position (inverted)
         )
 
         coordinator._handle_contact_sensor_change(
@@ -3446,9 +3142,7 @@ class TestProtectiveStatusExitFreshApply:
         assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
         coordinator.hass.async_create_task.assert_called()
 
-    def test_vent_close_marks_cover_for_hysteresis_bypass(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_vent_close_marks_cover_for_hysteresis_bypass(self, coordinator, mock_hass, mock_storage) -> None:
         """After a vent-close transition AUTO, the cover is marked for a
         one-shot time-hysteresis bypass."""
         cover = self._make_cover()
@@ -3461,9 +3155,7 @@ class TestProtectiveStatusExitFreshApply:
             "vent_position": 15,
         }
         mock_storage.get_cover_raw.return_value = cover_raw
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 85}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 85})
 
         coordinator._handle_contact_sensor_change(
             "binary_sensor.vent",
@@ -3475,9 +3167,7 @@ class TestProtectiveStatusExitFreshApply:
 
         assert "cover.test" in coordinator._post_protective_exit
 
-    def test_unlock_to_auto_marks_cover_for_hysteresis_bypass(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_unlock_to_auto_marks_cover_for_hysteresis_bypass(self, coordinator, mock_hass, mock_storage) -> None:
         """After a lock-close transition AUTO, the cover is marked for a
         one-shot time-hysteresis bypass too."""
         cover = self._make_cover()
@@ -3490,9 +3180,7 @@ class TestProtectiveStatusExitFreshApply:
             "vent_sensor": None,
         }
         mock_storage.get_cover_raw.return_value = cover_raw
-        mock_hass.states.get.return_value = MockState(
-            "closed", {"current_position": 0}
-        )
+        mock_hass.states.get.return_value = MockState("closed", {"current_position": 0})
 
         coordinator._unlock_cover("cover.test")
 
@@ -3543,30 +3231,21 @@ class TestProtectiveStatusExitFreshApply:
             "auto_enabled": True,
         }
         mock_storage.get_cover_raw.return_value = cover_raw
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 15}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 15})
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.dt_util"
-        ) as mock_dt:
+        with patch("custom_components.cover_automatic.coordinator.dt_util") as mock_dt:
             mock_dt.now.return_value.timestamp.return_value = now_wall
-            with patch(
-                "custom_components.cover_automatic.coordinator.time_mod"
-            ) as mock_time:
+            with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
                 mock_time.monotonic.return_value = 9999.0
                 await coordinator.async_apply_positions()
 
         # set_cover_position was called with position=0
         position_calls = [
-            call for call in mock_hass.services.async_call.call_args_list
-            if call.args[:2] == ("cover", "set_cover_position")
-            and call.args[2].get("position") == 0
+            call
+            for call in mock_hass.services.async_call.call_args_list
+            if call.args[:2] == ("cover", "set_cover_position") and call.args[2].get("position") == 0
         ]
-        assert position_calls, (
-            f"expected move to 0, services called: "
-            f"{mock_hass.services.async_call.call_args_list}"
-        )
+        assert position_calls, f"expected move to 0, services called: {mock_hass.services.async_call.call_args_list}"
         # Bypass is one-shot: consumed after pass
         assert "cover.test" not in coordinator._post_protective_exit
 
@@ -3608,32 +3287,25 @@ class TestProtectiveStatusExitFreshApply:
             "auto_enabled": True,
         }
         mock_storage.get_cover_raw.return_value = cover_raw
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 60}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 60})
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.dt_util"
-        ) as mock_dt:
+        with patch("custom_components.cover_automatic.coordinator.dt_util") as mock_dt:
             mock_dt.now.return_value.timestamp.return_value = now_wall
-            with patch(
-                "custom_components.cover_automatic.coordinator.time_mod"
-            ) as mock_time:
+            with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
                 mock_time.monotonic.return_value = 9999.0
                 await coordinator.async_apply_positions()
 
         # No move, time hysteresis recorded
         position_calls = [
-            call for call in mock_hass.services.async_call.call_args_list
+            call
+            for call in mock_hass.services.async_call.call_args_list
             if call.args[:2] == ("cover", "set_cover_position")
         ]
         assert position_calls == []
         assert coordinator._hysteresis_info.get("cover.test") == "time"
 
     @pytest.mark.asyncio
-    async def test_stale_bypass_discarded_when_status_leaves_auto(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_stale_bypass_discarded_when_status_leaves_auto(self, coordinator, mock_hass, mock_storage) -> None:
         """The one-shot bypass must be cancelled when the cover leaves
         AUTO/VENTING (e.g. manual override -> PAUSED) before the next apply
         cycle ran -- otherwise the stale flag skips the time hysteresis on an
@@ -3659,7 +3331,8 @@ class TestProtectiveStatusExitFreshApply:
 
         # No move while PAUSED, and the stale bypass flag is consumed
         position_calls = [
-            call for call in mock_hass.services.async_call.call_args_list
+            call
+            for call in mock_hass.services.async_call.call_args_list
             if call.args[:2] == ("cover", "set_cover_position")
         ]
         assert position_calls == []
@@ -3692,9 +3365,7 @@ class TestGetLiveCover:
         coordinator.engine = MagicMock()
         coordinator.engine._last_comfort_mode = {}
         mock_storage.rules = {}
-        coordinator.data = {
-            "covers": {"cover.test": {"target_position": 0, "matching_rule_id": "gone"}}
-        }
+        coordinator.data = {"covers": {"cover.test": {"target_position": 0, "matching_rule_id": "gone"}}}
 
         assert coordinator.get_live_cover("cover.test")["rule_name"] == "gone"
 

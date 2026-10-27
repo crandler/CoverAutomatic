@@ -1,4 +1,5 @@
 """Rule evaluation engine for CoverAutomatic."""
+
 from __future__ import annotations
 
 import logging
@@ -35,9 +36,7 @@ _WEATHER_MAP: dict[str, set[str]] = {
 # Condition types whose result depends on a specific cover/facade context
 # (facade azimuth, per-cover comfort range/sensor). They cannot be previewed
 # in the rule editor without one and report evaluable=False.
-_CONTEXT_DEPENDENT_TYPES: frozenset = frozenset(
-    {ConditionType.SUN_ON_FACADE, ConditionType.TEMPERATURE_COMFORT}
-)
+_CONTEXT_DEPENDENT_TYPES: frozenset = frozenset({ConditionType.SUN_ON_FACADE, ConditionType.TEMPERATURE_COMFORT})
 
 
 class RuleEngine:
@@ -85,7 +84,10 @@ class RuleEngine:
         winner = matching_rules[0][2]
         _LOGGER.debug(
             "[%s] Rule '%s' (P%d) -> position %d",
-            cover.entity_id, winner.name, winner.priority, winner.target_position,
+            cover.entity_id,
+            winner.name,
+            winner.priority,
+            winner.target_position,
         )
         return CoverTarget(
             position=winner.target_position,
@@ -133,13 +135,9 @@ class RuleEngine:
         if not rule.conditions:
             return True
         evaluator = any if rule.condition_operator == "or" else all
-        return evaluator(
-            self._evaluate_condition(c, cover) for c in rule.conditions
-        )
+        return evaluator(self._evaluate_condition(c, cover) for c in rule.conditions)
 
-    def _evaluate_condition(
-        self, condition: Condition, cover: CoverConfig, *, update_state: bool = True
-    ) -> bool:
+    def _evaluate_condition(self, condition: Condition, cover: CoverConfig, *, update_state: bool = True) -> bool:
         """Evaluate a single condition.
 
         update_state=False keeps threshold hysteresis state untouched, so the
@@ -154,13 +152,9 @@ class RuleEngine:
                 case ConditionType.SUN_ELEVATION_BELOW:
                     return self._eval_sun_elevation(condition, above=False)
                 case ConditionType.TEMPERATURE_ABOVE:
-                    return self._eval_temp_threshold(
-                        condition, above=True, update_state=update_state
-                    )
+                    return self._eval_temp_threshold(condition, above=True, update_state=update_state)
                 case ConditionType.TEMPERATURE_BELOW:
-                    return self._eval_temp_threshold(
-                        condition, above=False, update_state=update_state
-                    )
+                    return self._eval_temp_threshold(condition, above=False, update_state=update_state)
                 case ConditionType.TIME_BETWEEN:
                     return self._eval_time_between(condition)
                 case ConditionType.TIME_AFTER_SUNRISE:
@@ -174,9 +168,7 @@ class RuleEngine:
                 case ConditionType.STATE_IS:
                     return self._eval_state_is(condition)
                 case ConditionType.NUMERIC_STATE:
-                    return self._eval_numeric_state(
-                        condition, update_state=update_state
-                    )
+                    return self._eval_numeric_state(condition, update_state=update_state)
                 case ConditionType.TEMPERATURE_COMFORT:
                     return self._eval_temp_comfort(condition, cover)
                 case ConditionType.WEATHER_IS:
@@ -208,7 +200,9 @@ class RuleEngine:
         try:
             # cover is unused for global condition types (filtered above)
             matched = self._evaluate_condition(
-                condition, None, update_state=False,  # type: ignore[arg-type]
+                condition,
+                None,
+                update_state=False,  # type: ignore[arg-type]
             )
             actual, kind = self._preview_actual(condition)
             return {"evaluable": True, "matched": matched, "actual": actual, "kind": kind}
@@ -228,8 +222,10 @@ class RuleEngine:
         if t == ConditionType.TIME_BETWEEN:
             return dt_util.now().strftime("%H:%M"), "time"
         if t in (
-            ConditionType.TIME_AFTER_SUNRISE, ConditionType.TIME_BEFORE_SUNRISE,
-            ConditionType.TIME_AFTER_SUNSET, ConditionType.TIME_BEFORE_SUNSET,
+            ConditionType.TIME_AFTER_SUNRISE,
+            ConditionType.TIME_BEFORE_SUNRISE,
+            ConditionType.TIME_AFTER_SUNSET,
+            ConditionType.TIME_BEFORE_SUNSET,
         ):
             return self._preview_sun_time(condition), "sun_time"
         if t == ConditionType.NUMERIC_STATE:
@@ -251,15 +247,13 @@ class RuleEngine:
 
     def _preview_sun_time(self, condition: Condition) -> str | None:
         """Compute the threshold clock time (sun event + offset) as HH:MM."""
-        event_fn = (
-            get_sunrise_time if "sunrise" in condition.type.value else get_sunset_time
-        )
+        event_fn = get_sunrise_time if "sunrise" in condition.type.value else get_sunset_time
         event_time = event_fn(self.hass)
         if event_time is None:
             return None
         try:
             offset = int(condition.params.get("offset", 0))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             offset = 0
         target = dt_util.as_local(dt_util.utc_from_timestamp(event_time + offset * 60))
         return target.strftime("%H:%M")
@@ -282,7 +276,7 @@ class RuleEngine:
             return None
         try:
             return round(float(state.state), 1)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return None
 
     def _eval_sun_on_facade(self, condition: Condition, cover: CoverConfig) -> bool:
@@ -318,11 +312,7 @@ class RuleEngine:
                 return False
             if comfort_mode == ComfortMode.COOLING:
                 return True
-            if (
-                comfort_mode == ComfortMode.NEUTRAL
-                and cover.preemptive_shading
-                and self._check_solar_intensity()
-            ):
+            if comfort_mode == ComfortMode.NEUTRAL and cover.preemptive_shading and self._check_solar_intensity():
                 _LOGGER.debug(
                     "[%s] sun_on_facade: preemptive shading (solar above threshold)",
                     cover.entity_id,
@@ -330,7 +320,8 @@ class RuleEngine:
                 return True
             _LOGGER.debug(
                 "[%s] sun_on_facade: skipping shading (%s mode)",
-                cover.entity_id, comfort_mode.value,
+                cover.entity_id,
+                comfort_mode.value,
             )
             return False
 
@@ -355,20 +346,18 @@ class RuleEngine:
         state = self.hass.states.get(sensor_id)
         try:
             temp = float(state.state) if state is not None else None
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             temp = None
 
         if temp is None:
             prev = self._last_comfort_mode.get(cover.entity_id)
             last_read = self._last_comfort_read.get(cover.entity_id)
-            if (
-                prev is not None
-                and last_read is not None
-                and monotonic() - last_read < COMFORT_SENSOR_GRACE_PERIOD
-            ):
+            if prev is not None and last_read is not None and monotonic() - last_read < COMFORT_SENSOR_GRACE_PERIOD:
                 _LOGGER.debug(
                     "[%s] Comfort sensor %s unavailable, holding last mode %s (grace period)",
-                    cover.entity_id, sensor_id, prev.value,
+                    cover.entity_id,
+                    sensor_id,
+                    prev.value,
                 )
                 return prev
             return None
@@ -401,7 +390,12 @@ class RuleEngine:
         if mode != prev:
             _LOGGER.debug(
                 "[%s] Comfort mode: %s -> %s (%.1f°, range %.1f-%.1f)",
-                cover.entity_id, prev, mode.value, temp, comfort_min, comfort_max,
+                cover.entity_id,
+                prev,
+                mode.value,
+                temp,
+                comfort_min,
+                comfort_max,
             )
         self._last_comfort_mode[cover.entity_id] = mode
         return mode
@@ -425,11 +419,14 @@ class RuleEngine:
             return False
         try:
             value = float(state.state)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return False
         return self._threshold_with_hysteresis(
-            sensor_id, value, float(threshold),
-            above=True, update_state=update_state,
+            sensor_id,
+            value,
+            float(threshold),
+            above=True,
+            update_state=update_state,
             hysteresis=self.storage.solar_hysteresis,
         )
 
@@ -442,9 +439,7 @@ class RuleEngine:
             return False
         return position[1] > threshold if above else position[1] < threshold
 
-    def _eval_temp_threshold(
-        self, condition: Condition, *, above: bool, update_state: bool = True
-    ) -> bool:
+    def _eval_temp_threshold(self, condition: Condition, *, above: bool, update_state: bool = True) -> bool:
         """Evaluate outdoor temperature above/below threshold.
 
         Applies a hysteresis deadband around the threshold so a sensor
@@ -470,11 +465,15 @@ class RuleEngine:
         try:
             temp = float(state.state)
             threshold = float(threshold)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return False
 
         return self._threshold_with_hysteresis(
-            sensor_id, temp, threshold, above=above, update_state=update_state,
+            sensor_id,
+            temp,
+            threshold,
+            above=above,
+            update_state=update_state,
         )
 
     def _threshold_with_hysteresis(
@@ -524,7 +523,7 @@ class RuleEngine:
             # End time includes seconds for full-minute coverage
             end_sec = int(end_parts[2]) if len(end_parts) > 2 else 59
             end_time = time(int(end_parts[0]), int(end_parts[1]), end_sec)
-        except (ValueError, IndexError):
+        except ValueError, IndexError:
             return False
 
         now = dt_util.now().time()
@@ -542,7 +541,7 @@ class RuleEngine:
         """Evaluate time after sunrise/sunset with offset."""
         try:
             offset_minutes = int(condition.params.get("offset", 0))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return False
 
         event_time = event_fn(self.hass)
@@ -561,7 +560,7 @@ class RuleEngine:
         """
         try:
             offset_minutes = int(condition.params.get("offset", 0))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return False
 
         event_time = event_fn(self.hass)
@@ -585,9 +584,7 @@ class RuleEngine:
 
         return state.state == str(expected_state)
 
-    def _eval_numeric_state(
-        self, condition: Condition, *, update_state: bool = True
-    ) -> bool:
+    def _eval_numeric_state(self, condition: Condition, *, update_state: bool = True) -> bool:
         """Evaluate numeric_state condition.
 
         Compares any numeric entity (illuminance, humidity, power, price)
@@ -608,13 +605,17 @@ class RuleEngine:
             current = float(state.state)
             threshold = float(raw_value)
             hysteresis = float(condition.params.get("hysteresis") or 0)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return False
 
         above = str(condition.params.get("operator", "above")) != "below"
         return self._threshold_with_hysteresis(
-            entity_id, current, threshold,
-            above=above, update_state=update_state, hysteresis=hysteresis,
+            entity_id,
+            current,
+            threshold,
+            above=above,
+            update_state=update_state,
+            hysteresis=hysteresis,
         )
 
     def _eval_temp_comfort(self, condition: Condition, cover: CoverConfig) -> bool:

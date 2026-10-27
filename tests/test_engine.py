@@ -1,4 +1,5 @@
 """Tests for CoverAutomatic rule engine."""
+
 from __future__ import annotations
 
 from datetime import time
@@ -100,9 +101,7 @@ class TestRuleEngine:
         result = engine.evaluate_cover(test_cover)
         assert result is None
 
-    def test_evaluate_disabled_rule(
-        self, engine, mock_storage, test_cover
-    ) -> None:
+    def test_evaluate_disabled_rule(self, engine, mock_storage, test_cover) -> None:
         """Test disabled rules are skipped."""
         rule = Rule(
             id="test_rule",
@@ -115,9 +114,7 @@ class TestRuleEngine:
         result = engine.evaluate_cover(test_cover)
         assert result is None
 
-    def test_evaluate_matching_rule(
-        self, engine, mock_storage, test_cover
-    ) -> None:
+    def test_evaluate_matching_rule(self, engine, mock_storage, test_cover) -> None:
         """Test matching rule returns CoverTarget with target position."""
         rule = Rule(
             id="test_rule",
@@ -136,9 +133,7 @@ class TestRuleEngine:
         assert result.rule_id == "test_rule"
         assert result.rule_name == "Test Rule"
 
-    def test_evaluate_priority_ordering(
-        self, engine, mock_storage, test_cover
-    ) -> None:
+    def test_evaluate_priority_ordering(self, engine, mock_storage, test_cover) -> None:
         """Test higher priority rules take precedence."""
         low_priority = Rule(
             id="low",
@@ -163,9 +158,7 @@ class TestRuleEngine:
         assert result.rule_id == "high"
         assert result.rule_name == "High Priority"
 
-    def test_evaluate_no_match_returns_none_rule_id(
-        self, engine, mock_storage, test_cover
-    ) -> None:
+    def test_evaluate_no_match_returns_none_rule_id(self, engine, mock_storage, test_cover) -> None:
         """Test no matching rule returns None (no rule_id)."""
         result = engine.evaluate_cover(test_cover)
         assert result is None
@@ -174,9 +167,7 @@ class TestRuleEngine:
 class TestRuleApplies:
     """Tests for rule application logic."""
 
-    def test_rule_applies_to_cover_by_entity_id(
-        self, engine, test_cover
-    ) -> None:
+    def test_rule_applies_to_cover_by_entity_id(self, engine, test_cover) -> None:
         """Test rule applies when cover entity_id matches."""
         rule = Rule(
             id="test",
@@ -185,9 +176,7 @@ class TestRuleApplies:
         )
         assert engine._rule_applies_to_cover(rule, test_cover) is True
 
-    def test_rule_applies_to_cover_by_facade(
-        self, engine, test_cover
-    ) -> None:
+    def test_rule_applies_to_cover_by_facade(self, engine, test_cover) -> None:
         """Test rule applies when facade_id matches."""
         rule = Rule(
             id="test",
@@ -220,9 +209,7 @@ class TestRuleApplies:
         )
         assert engine._rule_applies_to_cover(rule, test_cover) is False
 
-    def test_rule_without_conditions_and_no_assignments_does_not_match(
-        self, engine, test_cover
-    ) -> None:
+    def test_rule_without_conditions_and_no_assignments_does_not_match(self, engine, test_cover) -> None:
         """Test global rule without conditions does not match any cover."""
         rule = Rule(id="test", name="Test", conditions=[])
         assert engine._rule_applies_to_cover(rule, test_cover) is False
@@ -231,9 +218,7 @@ class TestRuleApplies:
 class TestScenarioLogic:
     """Tests for scenario-based rule activation."""
 
-    def test_rule_disabled_in_scenario(
-        self, engine, mock_storage
-    ) -> None:
+    def test_rule_disabled_in_scenario(self, engine, mock_storage) -> None:
         """Test rule disabled by scenario."""
         scenario = Scenario(
             id="vacation",
@@ -246,9 +231,7 @@ class TestScenarioLogic:
 
         assert engine._rule_active_in_scenario(rule, "vacation") is False
 
-    def test_rule_active_in_default_scenario(
-        self, engine, mock_storage
-    ) -> None:
+    def test_rule_active_in_default_scenario(self, engine, mock_storage) -> None:
         """Test rule active when no scenario restrictions."""
         rule = Rule(id="test_rule", name="Test")
         mock_storage.scenarios = {}
@@ -259,9 +242,7 @@ class TestScenarioLogic:
 class TestConditionEvaluation:
     """Tests for condition evaluation."""
 
-    def test_eval_temp_above_true(
-        self, engine, mock_hass
-    ) -> None:
+    def test_eval_temp_above_true(self, engine, mock_hass) -> None:
         """Test temperature_above condition when true."""
         mock_hass.states.get.return_value = MockState("28.5")
 
@@ -272,9 +253,7 @@ class TestConditionEvaluation:
         result = engine._eval_temp_threshold(condition, above=True)
         assert result is True
 
-    def test_eval_temp_above_false(
-        self, engine, mock_hass
-    ) -> None:
+    def test_eval_temp_above_false(self, engine, mock_hass) -> None:
         """Test temperature_above condition when false."""
         mock_hass.states.get.return_value = MockState("20.0")
 
@@ -285,9 +264,7 @@ class TestConditionEvaluation:
         result = engine._eval_temp_threshold(condition, above=True)
         assert result is False
 
-    def test_eval_temp_above_invalid_state(
-        self, engine, mock_hass
-    ) -> None:
+    def test_eval_temp_above_invalid_state(self, engine, mock_hass) -> None:
         """Test temperature_above with invalid state returns false."""
         mock_hass.states.get.return_value = MockState("unavailable")
 
@@ -298,9 +275,7 @@ class TestConditionEvaluation:
         result = engine._eval_temp_threshold(condition, above=True)
         assert result is False
 
-    def test_eval_temp_above_missing_sensor(
-        self, engine, mock_hass
-    ) -> None:
+    def test_eval_temp_above_missing_sensor(self, engine, mock_hass) -> None:
         """Test temperature_above with missing sensor returns false."""
         mock_hass.states.get.return_value = None
 
@@ -311,9 +286,7 @@ class TestConditionEvaluation:
         result = engine._eval_temp_threshold(condition, above=True)
         assert result is False
 
-    def test_eval_temp_falls_back_to_outdoor_sensor(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_eval_temp_falls_back_to_outdoor_sensor(self, engine, mock_hass, mock_storage) -> None:
         """Test temperature condition uses global outdoor sensor as fallback."""
         mock_storage.outdoor_temp_sensor = "sensor.outdoor_global"
         mock_hass.states.get.return_value = MockState("30.0")
@@ -326,9 +299,7 @@ class TestConditionEvaluation:
         assert result is True
         mock_hass.states.get.assert_called_with("sensor.outdoor_global")
 
-    def test_eval_temp_no_sensor_at_all_returns_false(
-        self, engine, mock_storage
-    ) -> None:
+    def test_eval_temp_no_sensor_at_all_returns_false(self, engine, mock_storage) -> None:
         """Test temperature condition returns False when no sensor configured."""
         mock_storage.outdoor_temp_sensor = None
 
@@ -339,9 +310,7 @@ class TestConditionEvaluation:
         result = engine._eval_temp_threshold(condition, above=True)
         assert result is False
 
-    def test_eval_temp_below_true(
-        self, engine, mock_hass
-    ) -> None:
+    def test_eval_temp_below_true(self, engine, mock_hass) -> None:
         """Test temperature_below condition when true."""
         mock_hass.states.get.return_value = MockState("15.0")
 
@@ -352,9 +321,7 @@ class TestConditionEvaluation:
         result = engine._eval_temp_threshold(condition, above=False)
         assert result is True
 
-    def test_eval_state_is_true(
-        self, engine, mock_hass
-    ) -> None:
+    def test_eval_state_is_true(self, engine, mock_hass) -> None:
         """Test state_is condition when matching."""
         mock_hass.states.get.return_value = MockState("on")
 
@@ -365,9 +332,7 @@ class TestConditionEvaluation:
         result = engine._eval_state_is(condition)
         assert result is True
 
-    def test_eval_state_is_false(
-        self, engine, mock_hass
-    ) -> None:
+    def test_eval_state_is_false(self, engine, mock_hass) -> None:
         """Test state_is condition when not matching."""
         mock_hass.states.get.return_value = MockState("off")
 
@@ -379,9 +344,7 @@ class TestConditionEvaluation:
         assert result is False
 
     @patch("custom_components.cover_automatic.engine.dt_util")
-    def test_eval_time_between_true(
-        self, mock_dt_util, engine
-    ) -> None:
+    def test_eval_time_between_true(self, mock_dt_util, engine) -> None:
         """Test time_between condition when in range."""
         mock_now = MagicMock()
         mock_now.time.return_value = time(12, 0)
@@ -395,9 +358,7 @@ class TestConditionEvaluation:
         assert result is True
 
     @patch("custom_components.cover_automatic.engine.dt_util")
-    def test_eval_time_between_false(
-        self, mock_dt_util, engine
-    ) -> None:
+    def test_eval_time_between_false(self, mock_dt_util, engine) -> None:
         """Test time_between condition when outside range."""
         mock_now = MagicMock()
         mock_now.time.return_value = time(22, 0)
@@ -411,9 +372,7 @@ class TestConditionEvaluation:
         assert result is False
 
     @patch("custom_components.cover_automatic.engine.dt_util")
-    def test_eval_time_between_overnight(
-        self, mock_dt_util, engine
-    ) -> None:
+    def test_eval_time_between_overnight(self, mock_dt_util, engine) -> None:
         """Test time_between with overnight range (e.g., 22:00-06:00)."""
         mock_now = MagicMock()
         mock_now.time.return_value = time(23, 0)
@@ -430,9 +389,7 @@ class TestConditionEvaluation:
 class TestComfortCondition:
     """Tests for comfort mode condition."""
 
-    def test_eval_comfort_cooling_mode(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_eval_comfort_cooling_mode(self, engine, mock_hass, mock_storage) -> None:
         """Test comfort condition in cooling mode."""
         mock_hass.states.get.return_value = MockState("28.0")
 
@@ -443,9 +400,7 @@ class TestComfortCondition:
         result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is True
 
-    def test_eval_comfort_heating_mode(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_eval_comfort_heating_mode(self, engine, mock_hass, mock_storage) -> None:
         """Test comfort condition in heating mode."""
         mock_hass.states.get.return_value = MockState("18.0")
 
@@ -456,9 +411,7 @@ class TestComfortCondition:
         result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is True
 
-    def test_eval_comfort_neutral_mode(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_eval_comfort_neutral_mode(self, engine, mock_hass, mock_storage) -> None:
         """Test comfort condition in neutral mode."""
         mock_hass.states.get.return_value = MockState("23.0")
 
@@ -473,9 +426,7 @@ class TestComfortCondition:
 class TestWeatherCondition:
     """Tests for weather condition evaluation."""
 
-    def test_eval_weather_sunny(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_eval_weather_sunny(self, engine, mock_hass, mock_storage) -> None:
         """Test weather condition for sunny."""
         mock_hass.states.get.return_value = MockState("sunny")
 
@@ -486,9 +437,7 @@ class TestWeatherCondition:
         result = engine._eval_weather_is(condition)
         assert result is True
 
-    def test_eval_weather_clear_matches_sunny(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_eval_weather_clear_matches_sunny(self, engine, mock_hass, mock_storage) -> None:
         """Test clear weather matches sunny group."""
         mock_hass.states.get.return_value = MockState("clear")
 
@@ -499,9 +448,7 @@ class TestWeatherCondition:
         result = engine._eval_weather_is(condition)
         assert result is True
 
-    def test_eval_weather_cloudy(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_eval_weather_cloudy(self, engine, mock_hass, mock_storage) -> None:
         """Test weather condition for cloudy."""
         mock_hass.states.get.return_value = MockState("cloudy")
 
@@ -512,9 +459,7 @@ class TestWeatherCondition:
         result = engine._eval_weather_is(condition)
         assert result is True
 
-    def test_eval_weather_rainy(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_eval_weather_rainy(self, engine, mock_hass, mock_storage) -> None:
         """Test weather condition for rainy."""
         mock_hass.states.get.return_value = MockState("pouring")
 
@@ -525,9 +470,7 @@ class TestWeatherCondition:
         result = engine._eval_weather_is(condition)
         assert result is True
 
-    def test_eval_weather_no_match(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_eval_weather_no_match(self, engine, mock_hass, mock_storage) -> None:
         """Test weather condition when no match."""
         mock_hass.states.get.return_value = MockState("windy")
 
@@ -538,9 +481,7 @@ class TestWeatherCondition:
         result = engine._eval_weather_is(condition)
         assert result is False
 
-    def test_eval_weather_string_param(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_eval_weather_string_param(self, engine, mock_hass, mock_storage) -> None:
         """Test weather condition with string instead of list."""
         mock_hass.states.get.return_value = MockState("sunny")
 
@@ -555,9 +496,7 @@ class TestWeatherCondition:
 class TestConditionOperator:
     """Tests for condition operator logic (AND/OR)."""
 
-    def test_and_operator_all_true(
-        self, engine, mock_hass, test_cover
-    ) -> None:
+    def test_and_operator_all_true(self, engine, mock_hass, test_cover) -> None:
         """Test AND operator: all conditions true -> True."""
         mock_hass.states.get.return_value = MockState("30.0")
 
@@ -580,9 +519,7 @@ class TestConditionOperator:
         result = engine._evaluate_conditions(rule, test_cover)
         assert result is True
 
-    def test_and_operator_one_false(
-        self, engine, mock_hass, test_cover
-    ) -> None:
+    def test_and_operator_one_false(self, engine, mock_hass, test_cover) -> None:
         """Test AND operator: one condition false -> False."""
         mock_hass.states.get.return_value = MockState("22.0")
 
@@ -605,9 +542,7 @@ class TestConditionOperator:
         result = engine._evaluate_conditions(rule, test_cover)
         assert result is False
 
-    def test_or_operator_one_true(
-        self, engine, mock_hass, test_cover
-    ) -> None:
+    def test_or_operator_one_true(self, engine, mock_hass, test_cover) -> None:
         """Test OR operator: one condition true -> True."""
         mock_hass.states.get.return_value = MockState("22.0")
 
@@ -630,9 +565,7 @@ class TestConditionOperator:
         result = engine._evaluate_conditions(rule, test_cover)
         assert result is True
 
-    def test_or_operator_all_false(
-        self, engine, mock_hass, test_cover
-    ) -> None:
+    def test_or_operator_all_false(self, engine, mock_hass, test_cover) -> None:
         """Test OR operator: all conditions false -> False."""
         mock_hass.states.get.return_value = MockState("15.0")
 
@@ -655,9 +588,7 @@ class TestConditionOperator:
         result = engine._evaluate_conditions(rule, test_cover)
         assert result is False
 
-    def test_default_operator_is_and(
-        self, engine, mock_hass, test_cover
-    ) -> None:
+    def test_default_operator_is_and(self, engine, mock_hass, test_cover) -> None:
         """Test default operator is AND when not specified."""
         mock_hass.states.get.return_value = MockState("22.0")
 
@@ -680,9 +611,7 @@ class TestConditionOperator:
         result = engine._evaluate_conditions(rule, test_cover)
         assert result is False
 
-    def test_empty_conditions_returns_true(
-        self, engine, test_cover
-    ) -> None:
+    def test_empty_conditions_returns_true(self, engine, test_cover) -> None:
         """Test empty conditions list returns True for both operators."""
         rule_and = Rule(
             id="test_and",
@@ -705,9 +634,7 @@ class TestSunOnFacadeCondition:
     """Tests for sun_on_facade condition evaluation."""
 
     @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
-    def test_eval_sun_on_facade_with_explicit_facade_param(
-        self, mock_is_sun_on_facade, engine, mock_storage
-    ) -> None:
+    def test_eval_sun_on_facade_with_explicit_facade_param(self, mock_is_sun_on_facade, engine, mock_storage) -> None:
         """Test sun_on_facade uses explicit facade param from condition."""
         facade = Facade(
             id="north",
@@ -767,8 +694,11 @@ class TestSunOnFacadeCondition:
     ) -> None:
         """Test sun_on_facade returns False in HEATING mode to let sun in."""
         facade = Facade(
-            id="south", name="South", azimuth_start=135.0,
-            azimuth_end=225.0, direction="south",
+            id="south",
+            name="South",
+            azimuth_start=135.0,
+            azimuth_end=225.0,
+            direction="south",
         )
         mock_storage.facades = {"south": facade}
         mock_is_sun_on_facade.return_value = True
@@ -783,13 +713,14 @@ class TestSunOnFacadeCondition:
         assert engine._eval_sun_on_facade(condition, cover) is False
 
     @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
-    def test_eval_sun_on_facade_shades_in_cooling_mode(
-        self, mock_is_sun_on_facade, engine, mock_storage
-    ) -> None:
+    def test_eval_sun_on_facade_shades_in_cooling_mode(self, mock_is_sun_on_facade, engine, mock_storage) -> None:
         """Test sun_on_facade returns True in COOLING mode."""
         facade = Facade(
-            id="south", name="South", azimuth_start=135.0,
-            azimuth_end=225.0, direction="south",
+            id="south",
+            name="South",
+            azimuth_start=135.0,
+            azimuth_end=225.0,
+            direction="south",
         )
         mock_storage.facades = {"south": facade}
         mock_is_sun_on_facade.return_value = True
@@ -804,13 +735,14 @@ class TestSunOnFacadeCondition:
         assert engine._eval_sun_on_facade(condition, cover) is True
 
     @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
-    def test_eval_sun_on_facade_skips_in_neutral_mode(
-        self, mock_is_sun_on_facade, engine, mock_storage
-    ) -> None:
+    def test_eval_sun_on_facade_skips_in_neutral_mode(self, mock_is_sun_on_facade, engine, mock_storage) -> None:
         """Test sun_on_facade returns False in NEUTRAL mode (keep current position)."""
         facade = Facade(
-            id="south", name="South", azimuth_start=135.0,
-            azimuth_end=225.0, direction="south",
+            id="south",
+            name="South",
+            azimuth_start=135.0,
+            azimuth_end=225.0,
+            direction="south",
         )
         mock_storage.facades = {"south": facade}
         mock_is_sun_on_facade.return_value = True
@@ -825,13 +757,14 @@ class TestSunOnFacadeCondition:
         assert engine._eval_sun_on_facade(condition, cover) is False
 
     @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
-    def test_eval_sun_on_facade_no_sensor_always_shades(
-        self, mock_is_sun_on_facade, engine, mock_storage
-    ) -> None:
+    def test_eval_sun_on_facade_no_sensor_always_shades(self, mock_is_sun_on_facade, engine, mock_storage) -> None:
         """Test sun_on_facade shades when no indoor sensor is configured."""
         facade = Facade(
-            id="south", name="South", azimuth_start=135.0,
-            azimuth_end=225.0, direction="south",
+            id="south",
+            name="South",
+            azimuth_start=135.0,
+            azimuth_end=225.0,
+            direction="south",
         )
         mock_storage.facades = {"south": facade}
         mock_storage.indoor_temp_sensor = None
@@ -842,9 +775,7 @@ class TestSunOnFacadeCondition:
 
         assert engine._eval_sun_on_facade(condition, cover) is True
 
-    def test_eval_sun_on_facade_no_facade_returns_false(
-        self, engine, mock_storage
-    ) -> None:
+    def test_eval_sun_on_facade_no_facade_returns_false(self, engine, mock_storage) -> None:
         """Test sun_on_facade returns False when no facade id available."""
         mock_storage.facades = {}
 
@@ -862,9 +793,7 @@ class TestSunOnFacadeCondition:
 
         assert result is False
 
-    def test_eval_sun_on_facade_facade_not_in_storage(
-        self, engine, mock_storage, test_cover
-    ) -> None:
+    def test_eval_sun_on_facade_facade_not_in_storage(self, engine, mock_storage, test_cover) -> None:
         """Test sun_on_facade returns False when facade_id not found in storage."""
         mock_storage.facades = {}
 
@@ -935,9 +864,7 @@ class TestSunOnFacadeCondition:
         assert engine._eval_sun_on_facade(condition, cover) is False
 
     @patch("custom_components.cover_automatic.engine.is_sun_on_facade")
-    def test_eval_sun_on_facade_neutral_no_solar_sensor(
-        self, mock_is_sun_on_facade, engine, mock_storage
-    ) -> None:
+    def test_eval_sun_on_facade_neutral_no_solar_sensor(self, mock_is_sun_on_facade, engine, mock_storage) -> None:
         """Test sun_on_facade does not shade in NEUTRAL mode when no solar sensor is configured."""
         facade = Facade(id="south", name="South", azimuth_start=135.0, azimuth_end=225.0, direction="south")
         mock_storage.facades = {"south": facade}
@@ -986,7 +913,10 @@ class TestSunOnFacadeCondition:
         solar_state.state = "6000.0"
         engine.hass.states.get = lambda eid: {"sensor.indoor_temp": temp_state, "sensor.pv_power": solar_state}.get(eid)
         cover = CoverConfig(
-            entity_id="cover.bath", name="Bath", facade_id="south", preemptive_shading=False,
+            entity_id="cover.bath",
+            name="Bath",
+            facade_id="south",
+            preemptive_shading=False,
         )
         condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
         assert engine._eval_sun_on_facade(condition, cover) is False
@@ -1007,7 +937,10 @@ class TestSunOnFacadeCondition:
         solar_state.state = "1000.0"  # below threshold, irrelevant in COOLING
         engine.hass.states.get = lambda eid: {"sensor.indoor_temp": temp_state, "sensor.pv_power": solar_state}.get(eid)
         cover = CoverConfig(
-            entity_id="cover.bath", name="Bath", facade_id="south", preemptive_shading=False,
+            entity_id="cover.bath",
+            name="Bath",
+            facade_id="south",
+            preemptive_shading=False,
         )
         condition = Condition(type=ConditionType.SUN_ON_FACADE, params={})
         assert engine._eval_sun_on_facade(condition, cover) is True
@@ -1028,8 +961,11 @@ class TestComfortSensorGracePeriod:
     ) -> None:
         """A brief sensor outage must not drop the shading rule."""
         facade = Facade(
-            id="south", name="South", azimuth_start=135.0,
-            azimuth_end=225.0, direction="south",
+            id="south",
+            name="South",
+            azimuth_start=135.0,
+            azimuth_end=225.0,
+            direction="south",
         )
         mock_storage.facades = {"south": facade}
         mock_is_sun_on_facade.return_value = True
@@ -1080,9 +1016,7 @@ class TestTimeAfterSunriseCondition:
 
     @patch("custom_components.cover_automatic.engine.dt_util")
     @patch("custom_components.cover_automatic.engine.get_sunrise_time")
-    def test_time_after_sunrise_true(
-        self, mock_get_sunrise, mock_dt_util, engine
-    ) -> None:
+    def test_time_after_sunrise_true(self, mock_get_sunrise, mock_dt_util, engine) -> None:
         """Test time_after_sunrise returns True when current time is past sunrise + offset."""
         sunrise_ts = 1_700_000_000.0
         mock_get_sunrise.return_value = sunrise_ts
@@ -1099,9 +1033,7 @@ class TestTimeAfterSunriseCondition:
 
     @patch("custom_components.cover_automatic.engine.dt_util")
     @patch("custom_components.cover_automatic.engine.get_sunrise_time")
-    def test_time_after_sunrise_false(
-        self, mock_get_sunrise, mock_dt_util, engine
-    ) -> None:
+    def test_time_after_sunrise_false(self, mock_get_sunrise, mock_dt_util, engine) -> None:
         """Test time_after_sunrise returns False when current time is before sunrise + offset."""
         sunrise_ts = 1_700_000_000.0
         mock_get_sunrise.return_value = sunrise_ts
@@ -1118,9 +1050,7 @@ class TestTimeAfterSunriseCondition:
         assert result is False
 
     @patch("custom_components.cover_automatic.engine.get_sunrise_time")
-    def test_time_after_sunrise_no_sunrise(
-        self, mock_get_sunrise, engine
-    ) -> None:
+    def test_time_after_sunrise_no_sunrise(self, mock_get_sunrise, engine) -> None:
         """Test time_after_sunrise returns False when sunrise time is unavailable."""
         mock_get_sunrise.return_value = None
 
@@ -1134,9 +1064,7 @@ class TestTimeAfterSunriseCondition:
         assert result is False
 
     @patch("custom_components.cover_automatic.engine.get_sunrise_time")
-    def test_time_after_sunrise_invalid_offset(
-        self, mock_get_sunrise, engine
-    ) -> None:
+    def test_time_after_sunrise_invalid_offset(self, mock_get_sunrise, engine) -> None:
         """Test time_after_sunrise returns False when offset is non-numeric."""
         mock_get_sunrise.return_value = 1_700_000_000.0
 
@@ -1155,9 +1083,7 @@ class TestTimeAfterSunsetCondition:
 
     @patch("custom_components.cover_automatic.engine.dt_util")
     @patch("custom_components.cover_automatic.engine.get_sunset_time")
-    def test_time_after_sunset_true(
-        self, mock_get_sunset, mock_dt_util, engine
-    ) -> None:
+    def test_time_after_sunset_true(self, mock_get_sunset, mock_dt_util, engine) -> None:
         """Test time_after_sunset returns True when current time is past sunset + offset."""
         sunset_ts = 1_700_070_000.0
         mock_get_sunset.return_value = sunset_ts
@@ -1174,9 +1100,7 @@ class TestTimeAfterSunsetCondition:
 
     @patch("custom_components.cover_automatic.engine.dt_util")
     @patch("custom_components.cover_automatic.engine.get_sunset_time")
-    def test_time_after_sunset_false(
-        self, mock_get_sunset, mock_dt_util, engine
-    ) -> None:
+    def test_time_after_sunset_false(self, mock_get_sunset, mock_dt_util, engine) -> None:
         """Test time_after_sunset returns False when current time is before sunset + offset."""
         sunset_ts = 1_700_070_000.0
         mock_get_sunset.return_value = sunset_ts
@@ -1198,9 +1122,7 @@ class TestTimeBeforeSunsetCondition:
 
     @patch("custom_components.cover_automatic.engine.dt_util")
     @patch("custom_components.cover_automatic.engine.get_sunset_time")
-    def test_time_before_sunset_true(
-        self, mock_get_sunset, mock_dt_util, engine
-    ) -> None:
+    def test_time_before_sunset_true(self, mock_get_sunset, mock_dt_util, engine) -> None:
         """Test time_before_sunset returns True when current time is before sunset + offset.
 
         With offset=-60, the cutoff is 60 minutes before sunset. Two hours before
@@ -1221,9 +1143,7 @@ class TestTimeBeforeSunsetCondition:
 
     @patch("custom_components.cover_automatic.engine.dt_util")
     @patch("custom_components.cover_automatic.engine.get_sunset_time")
-    def test_time_before_sunset_false_inside_cutoff(
-        self, mock_get_sunset, mock_dt_util, engine
-    ) -> None:
+    def test_time_before_sunset_false_inside_cutoff(self, mock_get_sunset, mock_dt_util, engine) -> None:
         """Test time_before_sunset returns False once cutoff is reached.
 
         With offset=-60, the cutoff is 60 min before sunset. 30 min before
@@ -1244,9 +1164,7 @@ class TestTimeBeforeSunsetCondition:
 
     @patch("custom_components.cover_automatic.engine.dt_util")
     @patch("custom_components.cover_automatic.engine.get_sunset_time")
-    def test_time_before_sunset_false_after_sunset(
-        self, mock_get_sunset, mock_dt_util, engine
-    ) -> None:
+    def test_time_before_sunset_false_after_sunset(self, mock_get_sunset, mock_dt_util, engine) -> None:
         """Test time_before_sunset returns False after sunset has passed."""
         sunset_ts = 1_700_070_000.0
         mock_get_sunset.return_value = sunset_ts
@@ -1262,9 +1180,7 @@ class TestTimeBeforeSunsetCondition:
         assert result is False
 
     @patch("custom_components.cover_automatic.engine.get_sunset_time")
-    def test_time_before_sunset_no_sunset(
-        self, mock_get_sunset, engine
-    ) -> None:
+    def test_time_before_sunset_no_sunset(self, mock_get_sunset, engine) -> None:
         """Test time_before_sunset returns False when sunset time is unavailable."""
         mock_get_sunset.return_value = None
 
@@ -1278,9 +1194,7 @@ class TestTimeBeforeSunsetCondition:
         assert result is False
 
     @patch("custom_components.cover_automatic.engine.get_sunset_time")
-    def test_time_before_sunset_invalid_offset(
-        self, mock_get_sunset, engine
-    ) -> None:
+    def test_time_before_sunset_invalid_offset(self, mock_get_sunset, engine) -> None:
         """Test time_before_sunset returns False when offset is non-numeric."""
         mock_get_sunset.return_value = 1_700_070_000.0
 
@@ -1299,9 +1213,7 @@ class TestTimeBeforeSunriseCondition:
 
     @patch("custom_components.cover_automatic.engine.dt_util")
     @patch("custom_components.cover_automatic.engine.get_sunrise_time")
-    def test_time_before_sunrise_true(
-        self, mock_get_sunrise, mock_dt_util, engine
-    ) -> None:
+    def test_time_before_sunrise_true(self, mock_get_sunrise, mock_dt_util, engine) -> None:
         """Test time_before_sunrise returns True well before sunrise."""
         sunrise_ts = 1_700_000_000.0
         mock_get_sunrise.return_value = sunrise_ts
@@ -1318,9 +1230,7 @@ class TestTimeBeforeSunriseCondition:
 
     @patch("custom_components.cover_automatic.engine.dt_util")
     @patch("custom_components.cover_automatic.engine.get_sunrise_time")
-    def test_time_before_sunrise_false_inside_cutoff(
-        self, mock_get_sunrise, mock_dt_util, engine
-    ) -> None:
+    def test_time_before_sunrise_false_inside_cutoff(self, mock_get_sunrise, mock_dt_util, engine) -> None:
         """Test time_before_sunrise returns False inside the cutoff window.
 
         With offset=-30, the cutoff is 30 min before sunrise. 10 min before
@@ -1344,9 +1254,7 @@ class TestSunElevationCondition:
     """Tests for sun elevation above/below condition."""
 
     @patch("custom_components.cover_automatic.engine.get_sun_position")
-    def test_sun_elevation_above_true(
-        self, mock_get_sun, engine
-    ) -> None:
+    def test_sun_elevation_above_true(self, mock_get_sun, engine) -> None:
         """Test sun_elevation_above returns True when elevation exceeds threshold."""
         mock_get_sun.return_value = (180.0, 45.0)  # azimuth, elevation
 
@@ -1358,9 +1266,7 @@ class TestSunElevationCondition:
         assert result is True
 
     @patch("custom_components.cover_automatic.engine.get_sun_position")
-    def test_sun_elevation_above_false(
-        self, mock_get_sun, engine
-    ) -> None:
+    def test_sun_elevation_above_false(self, mock_get_sun, engine) -> None:
         """Test sun_elevation_above returns False when elevation is below threshold."""
         mock_get_sun.return_value = (180.0, 15.0)
 
@@ -1372,9 +1278,7 @@ class TestSunElevationCondition:
         assert result is False
 
     @patch("custom_components.cover_automatic.engine.get_sun_position")
-    def test_sun_elevation_below_true(
-        self, mock_get_sun, engine
-    ) -> None:
+    def test_sun_elevation_below_true(self, mock_get_sun, engine) -> None:
         """Test sun_elevation_below returns True when elevation is below threshold."""
         mock_get_sun.return_value = (180.0, 10.0)
 
@@ -1386,9 +1290,7 @@ class TestSunElevationCondition:
         assert result is True
 
     @patch("custom_components.cover_automatic.engine.get_sun_position")
-    def test_sun_elevation_below_false(
-        self, mock_get_sun, engine
-    ) -> None:
+    def test_sun_elevation_below_false(self, mock_get_sun, engine) -> None:
         """Test sun_elevation_below returns False when elevation exceeds threshold."""
         mock_get_sun.return_value = (180.0, 35.0)
 
@@ -1400,9 +1302,7 @@ class TestSunElevationCondition:
         assert result is False
 
     @patch("custom_components.cover_automatic.engine.get_sun_position")
-    def test_sun_elevation_no_position(
-        self, mock_get_sun, engine
-    ) -> None:
+    def test_sun_elevation_no_position(self, mock_get_sun, engine) -> None:
         """Test sun elevation returns False when sun position is unavailable."""
         mock_get_sun.return_value = None
 
@@ -1414,9 +1314,7 @@ class TestSunElevationCondition:
         assert engine._eval_sun_elevation(condition, above=False) is False
 
     @patch("custom_components.cover_automatic.engine.get_sun_position")
-    def test_sun_elevation_at_exact_threshold(
-        self, mock_get_sun, engine
-    ) -> None:
+    def test_sun_elevation_at_exact_threshold(self, mock_get_sun, engine) -> None:
         """Test sun elevation at exact threshold returns False (strict > / <)."""
         mock_get_sun.return_value = (180.0, 30.0)
 
@@ -1433,9 +1331,7 @@ class TestSunElevationCondition:
 class TestComfortModeEdgeCases:
     """Tests for comfort mode string parameter and invalid fallback."""
 
-    def test_comfort_mode_string_cooling(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_comfort_mode_string_cooling(self, engine, mock_hass, mock_storage) -> None:
         """Test comfort condition with string 'cooling' (from deserialized data)."""
         mock_hass.states.get.return_value = MockState("28.0")
 
@@ -1446,9 +1342,7 @@ class TestComfortModeEdgeCases:
         result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is True
 
-    def test_comfort_mode_string_heating(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_comfort_mode_string_heating(self, engine, mock_hass, mock_storage) -> None:
         """Test comfort condition with string 'heating'."""
         mock_hass.states.get.return_value = MockState("18.0")
 
@@ -1459,9 +1353,7 @@ class TestComfortModeEdgeCases:
         result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is True
 
-    def test_comfort_mode_string_neutral(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_comfort_mode_string_neutral(self, engine, mock_hass, mock_storage) -> None:
         """Test comfort condition with string 'neutral'."""
         mock_hass.states.get.return_value = MockState("23.0")
 
@@ -1472,9 +1364,7 @@ class TestComfortModeEdgeCases:
         result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is True
 
-    def test_comfort_mode_invalid_string_falls_back_to_cooling(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_comfort_mode_invalid_string_falls_back_to_cooling(self, engine, mock_hass, mock_storage) -> None:
         """Test invalid mode string falls back to ComfortMode.COOLING."""
         mock_hass.states.get.return_value = MockState("28.0")
 
@@ -1486,9 +1376,7 @@ class TestComfortModeEdgeCases:
         result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is True
 
-    def test_comfort_mode_invalid_string_no_match(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_comfort_mode_invalid_string_no_match(self, engine, mock_hass, mock_storage) -> None:
         """Test invalid mode falls back to COOLING but doesn't match HEATING temp."""
         mock_hass.states.get.return_value = MockState("18.0")
 
@@ -1500,9 +1388,7 @@ class TestComfortModeEdgeCases:
         result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is False
 
-    def test_comfort_mode_no_sensor(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_comfort_mode_no_sensor(self, engine, mock_hass, mock_storage) -> None:
         """Test comfort condition returns False when no sensor configured."""
         mock_storage.indoor_temp_sensor = None
 
@@ -1513,9 +1399,7 @@ class TestComfortModeEdgeCases:
         result = engine._eval_temp_comfort(condition, CoverConfig(entity_id="cover.test", name="Test"))
         assert result is False
 
-    def test_comfort_mode_invalid_temp_state(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_comfort_mode_invalid_temp_state(self, engine, mock_hass, mock_storage) -> None:
         """Test comfort condition returns False when temp state is non-numeric."""
         mock_hass.states.get.return_value = MockState("unavailable")
 
@@ -1530,9 +1414,7 @@ class TestComfortModeEdgeCases:
 class TestComfortModeFirstEval:
     """Tests for comfort mode first evaluation (prev=None) after restart."""
 
-    def test_first_eval_neutral_in_upper_hysteresis_band(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_first_eval_neutral_in_upper_hysteresis_band(self, engine, mock_hass, mock_storage) -> None:
         """First eval with temp in upper hysteresis band returns NEUTRAL, not COOLING."""
         # comfort_max=25, h=1.0 -> hysteresis band 24.0-25.0
         # 24.2 is in band but below hard boundary -> must be NEUTRAL
@@ -1541,9 +1423,7 @@ class TestComfortModeFirstEval:
         mode = engine._get_comfort_mode(cover)
         assert mode == ComfortMode.NEUTRAL
 
-    def test_first_eval_neutral_in_lower_hysteresis_band(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_first_eval_neutral_in_lower_hysteresis_band(self, engine, mock_hass, mock_storage) -> None:
         """First eval with temp in lower hysteresis band returns NEUTRAL, not HEATING."""
         # comfort_min=21, h=1.0 -> hysteresis band 21.0-22.0
         # 21.5 is in band but above hard boundary -> must be NEUTRAL
@@ -1552,18 +1432,14 @@ class TestComfortModeFirstEval:
         mode = engine._get_comfort_mode(cover)
         assert mode == ComfortMode.NEUTRAL
 
-    def test_first_eval_cooling_at_hard_boundary(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_first_eval_cooling_at_hard_boundary(self, engine, mock_hass, mock_storage) -> None:
         """First eval at hard upper boundary returns COOLING."""
         mock_hass.states.get.return_value = MockState("25.0")
         cover = CoverConfig(entity_id="cover.test", name="Test")
         mode = engine._get_comfort_mode(cover)
         assert mode == ComfortMode.COOLING
 
-    def test_first_eval_heating_at_hard_boundary(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_first_eval_heating_at_hard_boundary(self, engine, mock_hass, mock_storage) -> None:
         """First eval at hard lower boundary returns HEATING."""
         mock_hass.states.get.return_value = MockState("21.0")
         cover = CoverConfig(entity_id="cover.test", name="Test")
@@ -1574,9 +1450,7 @@ class TestComfortModeFirstEval:
 class TestConditionExceptionHandling:
     """Tests for exception handling in condition evaluation."""
 
-    def test_evaluate_condition_exception_returns_false(
-        self, engine, mock_storage, test_cover
-    ) -> None:
+    def test_evaluate_condition_exception_returns_false(self, engine, mock_storage, test_cover) -> None:
         """Test _evaluate_condition returns False when evaluation raises an exception."""
         mock_storage.facades = None  # Causes AttributeError on .get()
 
@@ -1593,9 +1467,7 @@ class TestConditionExceptionHandling:
 class TestTiltInEngine:
     """Tests for tilt support in rule engine."""
 
-    def test_evaluate_returns_tilt_when_set(
-        self, engine, mock_storage, test_cover
-    ) -> None:
+    def test_evaluate_returns_tilt_when_set(self, engine, mock_storage, test_cover) -> None:
         """Test evaluate_cover returns CoverTarget with tilt_position."""
         rule = Rule(
             id="tilt_rule",
@@ -1613,9 +1485,7 @@ class TestTiltInEngine:
         assert result.position == 30
         assert result.tilt_position == 50
 
-    def test_evaluate_returns_none_tilt_when_not_set(
-        self, engine, mock_storage, test_cover
-    ) -> None:
+    def test_evaluate_returns_none_tilt_when_not_set(self, engine, mock_storage, test_cover) -> None:
         """Test evaluate_cover returns None tilt when not configured."""
         rule = Rule(
             id="no_tilt",
@@ -1631,9 +1501,7 @@ class TestTiltInEngine:
         assert result.position == 70
         assert result.tilt_position is None
 
-    def test_priority_with_tilt(
-        self, engine, mock_storage, test_cover
-    ) -> None:
+    def test_priority_with_tilt(self, engine, mock_storage, test_cover) -> None:
         """Test higher priority rule's tilt wins."""
         low = Rule(
             id="low",
@@ -1816,9 +1684,7 @@ class TestPreviewCondition:
 
     def test_preview_context_dependent_comfort_no_side_effect(self, engine) -> None:
         """temperature_comfort is context-dependent and must not touch comfort state."""
-        cond = Condition(
-            type=ConditionType.TEMPERATURE_COMFORT, params={"mode": "cooling"}
-        )
+        cond = Condition(type=ConditionType.TEMPERATURE_COMFORT, params={"mode": "cooling"})
         assert engine.preview_condition(cond) == {"evaluable": False}
         # A preview must never mutate the grace-period tracking dicts.
         assert engine._last_comfort_mode == {}
@@ -1828,9 +1694,7 @@ class TestPreviewCondition:
         """Global temp condition returns matched + rounded actual value."""
         engine.storage.outdoor_temp_sensor = "sensor.outdoor"
         engine.hass.states.get.return_value = MockState("28.53")
-        cond = Condition(
-            type=ConditionType.TEMPERATURE_ABOVE, params={"temperature": 25}
-        )
+        cond = Condition(type=ConditionType.TEMPERATURE_ABOVE, params={"temperature": 25})
         result = engine.preview_condition(cond)
         assert result["evaluable"] is True
         assert result["matched"] is True
@@ -1841,9 +1705,7 @@ class TestPreviewCondition:
         """Non-matching temp condition still reports the actual value."""
         engine.storage.outdoor_temp_sensor = "sensor.outdoor"
         engine.hass.states.get.return_value = MockState("28.0")
-        cond = Condition(
-            type=ConditionType.TEMPERATURE_BELOW, params={"temperature": 15}
-        )
+        cond = Condition(type=ConditionType.TEMPERATURE_BELOW, params={"temperature": 15})
         result = engine.preview_condition(cond)
         assert result["matched"] is False
         assert result["actual"] == 28.0
@@ -1851,9 +1713,7 @@ class TestPreviewCondition:
     def test_preview_temperature_missing_sensor_actual_none(self, engine) -> None:
         """No sensor configured -> evaluable but actual is None."""
         engine.storage.outdoor_temp_sensor = None
-        cond = Condition(
-            type=ConditionType.TEMPERATURE_ABOVE, params={"temperature": 25}
-        )
+        cond = Condition(type=ConditionType.TEMPERATURE_ABOVE, params={"temperature": 25})
         result = engine.preview_condition(cond)
         assert result["evaluable"] is True
         assert result["actual"] is None
@@ -1904,9 +1764,7 @@ class TestPreviewCondition:
             "custom_components.cover_automatic.engine.get_sun_position",
             return_value=(180.0, 23.456),
         ):
-            cond = Condition(
-                type=ConditionType.SUN_ELEVATION_ABOVE, params={"elevation": 10}
-            )
+            cond = Condition(type=ConditionType.SUN_ELEVATION_ABOVE, params={"elevation": 10})
             result = engine.preview_condition(cond)
         assert result["matched"] is True
         assert result["actual"] == 23.5
@@ -1970,9 +1828,7 @@ class TestThresholdHysteresis:
         mock_hass.states.get.return_value = MockState("19.6")
         assert engine._eval_temp_threshold(self._cond(), above=False) is False
 
-    def test_zero_hysteresis_keeps_legacy_behaviour(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_zero_hysteresis_keeps_legacy_behaviour(self, engine, mock_hass, mock_storage) -> None:
         """With h = 0 the evaluation stays a plain comparison."""
         mock_storage.threshold_hysteresis = 0.0
         readings = ["19.1", "19.0", "19.1"]
@@ -2047,9 +1903,7 @@ class TestNumericState:
     def test_missing_entity_is_false(self, engine, mock_hass) -> None:
         """A condition without entity never matches."""
         mock_hass.states.get.return_value = MockState("1500")
-        condition = Condition(
-            type=ConditionType.NUMERIC_STATE, params={"value": 1000}
-        )
+        condition = Condition(type=ConditionType.NUMERIC_STATE, params={"value": 1000})
         assert engine._eval_numeric_state(condition) is False
 
     def test_unknown_entity_is_false(self, engine, mock_hass) -> None:
@@ -2155,9 +2009,7 @@ class TestSolarHysteresis:
         self._setup(engine, mock_storage, "unavailable")
         assert engine._check_solar_intensity() is False
 
-    def test_state_is_isolated_from_condition_with_same_threshold(
-        self, engine, mock_hass, mock_storage
-    ) -> None:
+    def test_state_is_isolated_from_condition_with_same_threshold(self, engine, mock_hass, mock_storage) -> None:
         """Same sensor and threshold but a different buffer must not share state.
 
         Reusing one entity as both solar_sensor and a numeric_state condition

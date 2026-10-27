@@ -1,4 +1,5 @@
 """Tests for CoverAutomatic storage manager."""
+
 from __future__ import annotations
 
 import asyncio
@@ -210,7 +211,10 @@ class TestStorageProperties:
     def test_wind_properties_defaults_in_fresh_storage(self, storage) -> None:
         """Test wind settings exist with defaults after load."""
         storage._data = {
-            "facades": {}, "covers": {}, "rules": {}, "scenarios": {},
+            "facades": {},
+            "covers": {},
+            "rules": {},
+            "scenarios": {},
             "active_scenario": "everyday",
             "wind_sensor": None,
             "wind_speed_threshold": 0.0,
@@ -303,11 +307,7 @@ class TestStorageCRUD:
     @pytest.mark.asyncio
     async def test_remove_facade(self, storage, mock_store) -> None:
         """Test removing a facade."""
-        storage._data = {
-            "facades": {
-                "south": {"id": "south", "name": "South"}
-            }
-        }
+        storage._data = {"facades": {"south": {"id": "south", "name": "South"}}}
         await storage.async_remove_facade("south")
 
         assert "south" not in storage._data["facades"]
@@ -336,11 +336,7 @@ class TestStorageCRUD:
     @pytest.mark.asyncio
     async def test_remove_cover(self, storage, mock_store) -> None:
         """Test removing a cover configuration."""
-        storage._data = {
-            "covers": {
-                "cover.test": {"entity_id": "cover.test", "name": "Test"}
-            }
-        }
+        storage._data = {"covers": {"cover.test": {"entity_id": "cover.test", "name": "Test"}}}
         await storage.async_remove_cover("cover.test")
 
         assert "cover.test" not in storage._data["covers"]
@@ -363,11 +359,7 @@ class TestStorageCRUD:
     @pytest.mark.asyncio
     async def test_remove_rule(self, storage, mock_store) -> None:
         """Test removing a rule."""
-        storage._data = {
-            "rules": {
-                "rule1": {"id": "rule1", "name": "Rule"}
-            }
-        }
+        storage._data = {"rules": {"rule1": {"id": "rule1", "name": "Rule"}}}
         await storage.async_remove_rule("rule1")
 
         assert "rule1" not in storage._data["rules"]
@@ -389,11 +381,7 @@ class TestStorageCRUD:
     @pytest.mark.asyncio
     async def test_remove_scenario(self, storage, mock_store) -> None:
         """Test removing a scenario."""
-        storage._data = {
-            "scenarios": {
-                "summer": {"id": "summer", "name": "Summer"}
-            }
-        }
+        storage._data = {"scenarios": {"summer": {"id": "summer", "name": "Summer"}}}
         await storage.async_remove_scenario("summer")
 
         assert "summer" not in storage._data["scenarios"]
@@ -515,9 +503,7 @@ class TestExportImport:
         mock_store.async_save.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_import_resets_invalid_active_scenario(
-        self, storage, mock_store
-    ) -> None:
+    async def test_import_resets_invalid_active_scenario(self, storage, mock_store) -> None:
         """Test import resets active_scenario if it references a non-existent scenario."""
         import_data = {
             "facades": {},
@@ -534,9 +520,7 @@ class TestExportImport:
         mock_store.async_save.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_import_empty_scenarios_resets_to_everyday(
-        self, storage, mock_store
-    ) -> None:
+    async def test_import_empty_scenarios_resets_to_everyday(self, storage, mock_store) -> None:
         """Test import with no scenarios defaults active_scenario to 'everyday'."""
         import_data = {
             "facades": {},
@@ -583,9 +567,7 @@ class TestDebouncedSave:
             mock_store.async_save.assert_called_once_with(storage._data)
 
     @pytest.mark.asyncio
-    async def test_debounced_save_handles_cancellation(
-        self, storage, mock_store
-    ) -> None:
+    async def test_debounced_save_handles_cancellation(self, storage, mock_store) -> None:
         """Test _debounced_save handles cancellation gracefully."""
         with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
             await storage._debounced_save()
@@ -593,9 +575,7 @@ class TestDebouncedSave:
         mock_store.async_save.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_debounced_save_handles_errors(
-        self, storage, mock_store
-    ) -> None:
+    async def test_debounced_save_handles_errors(self, storage, mock_store) -> None:
         """Test _debounced_save handles save errors."""
         mock_store.async_save.side_effect = Exception("Save failed")
 
@@ -661,9 +641,7 @@ class TestImportGlobalSettings:
     """Tests for global settings preservation during async_import_data."""
 
     @pytest.mark.asyncio
-    async def test_import_preserves_existing_global_settings(
-        self, storage, mock_store
-    ) -> None:
+    async def test_import_preserves_existing_global_settings(self, storage, mock_store) -> None:
         """Global settings absent from import data are preserved from existing _data."""
         storage._data = {
             "facades": {},
@@ -691,9 +669,7 @@ class TestImportGlobalSettings:
         assert storage._data["comfort_temp_max"] == 26.0
 
     @pytest.mark.asyncio
-    async def test_import_preserves_extended_global_settings(
-        self, storage, mock_store
-    ) -> None:
+    async def test_import_preserves_extended_global_settings(self, storage, mock_store) -> None:
         """Extended global settings (enabled, tilt, hysteresis, etc.) are preserved."""
         storage._data = {
             "facades": {},
@@ -739,9 +715,7 @@ class TestImportGlobalSettings:
         assert storage._data["logbook_enabled"] is False
 
     @pytest.mark.asyncio
-    async def test_import_overwrites_global_settings_when_present(
-        self, storage, mock_store
-    ) -> None:
+    async def test_import_overwrites_global_settings_when_present(self, storage, mock_store) -> None:
         """Global settings present in import data overwrite existing values."""
         storage._data = {
             "facades": {},
@@ -772,9 +746,7 @@ class TestRemoveFacadeCleanup:
     """Tests for cleanup side-effects of async_remove_facade."""
 
     @pytest.mark.asyncio
-    async def test_remove_facade_cleans_cover_facade_references(
-        self, storage, mock_store
-    ) -> None:
+    async def test_remove_facade_cleans_cover_facade_references(self, storage, mock_store) -> None:
         """Covers that reference the removed facade have their facade_id set to None."""
         storage._data = {
             "facades": {
@@ -810,9 +782,7 @@ class TestRemoveFacadeCleanup:
         assert storage._data["covers"]["cover.bedroom"]["facade_id"] == "f2"
 
     @pytest.mark.asyncio
-    async def test_remove_facade_cleans_rule_facade_references(
-        self, storage, mock_store
-    ) -> None:
+    async def test_remove_facade_cleans_rule_facade_references(self, storage, mock_store) -> None:
         """Rules that reference the removed facade no longer contain its ID."""
         storage._data = {
             "facades": {
@@ -858,9 +828,7 @@ class TestRemoveCoverCleanup:
     """Tests for cleanup side-effects of async_remove_cover."""
 
     @pytest.mark.asyncio
-    async def test_remove_cover_cleans_rule_cover_references(
-        self, storage, mock_store
-    ) -> None:
+    async def test_remove_cover_cleans_rule_cover_references(self, storage, mock_store) -> None:
         """Rules that reference the removed cover no longer contain its ID."""
         storage._data = {
             "facades": {},
@@ -905,9 +873,7 @@ class TestRemoveRuleCleanup:
     """Tests for cleanup side-effects of async_remove_rule."""
 
     @pytest.mark.asyncio
-    async def test_remove_rule_cleans_scenario_disabled_references(
-        self, storage, mock_store
-    ) -> None:
+    async def test_remove_rule_cleans_scenario_disabled_references(self, storage, mock_store) -> None:
         """Scenarios that had the removed rule in rules_disabled no longer contain it."""
         storage._data = {
             "facades": {},
@@ -1118,8 +1084,7 @@ class TestPauseDurationMigrationRunsOnce:
         from custom_components.cover_automatic.api import ws_cover_update
 
         conn = MagicMock()
-        msg = {"id": 1, "type": "cover_automatic/cover/update",
-               "entity_id": "cover.a", "pause_duration": minutes}
+        msg = {"id": 1, "type": "cover_automatic/cover/update", "entity_id": "cover.a", "pause_duration": minutes}
         await ws_cover_update(hass, conn, msg, storage, MagicMock())
         conn.send_result.assert_called_once()
 
@@ -1148,8 +1113,9 @@ class TestPauseDurationMigrationRunsOnce:
             cover = CoverConfig(entity_id="cover.a", name="A").to_dict()
             cover["pause_duration"] = 120
             with open(path, "w", encoding="utf-8") as fh:
-                json.dump({"version": 1, "minor_version": 1, "key": STORAGE_KEY,
-                           "data": {"covers": {"cover.a": cover}}}, fh)
+                json.dump(
+                    {"version": 1, "minor_version": 1, "key": STORAGE_KEY, "data": {"covers": {"cover.a": cover}}}, fh
+                )
 
             storage = await _restart(hass)
             assert storage.covers["cover.a"].pause_duration is None

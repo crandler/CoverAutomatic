@@ -1,4 +1,5 @@
 """Tests for CoverAutomatic platform entities."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -53,9 +54,7 @@ class TestSwitchPlatform:
         )
         mock_coordinator.storage.covers = {"cover.living_room": mock_cover}
 
-        switch = CoverAutomaticAutoSwitch(
-            mock_coordinator, "cover.living_room", "Living Room"
-        )
+        switch = CoverAutomaticAutoSwitch(mock_coordinator, "cover.living_room", "Living Room")
         switch.hass = MagicMock()
 
         assert switch.unique_id == "cover_automatic_cover.living_room_auto"
@@ -130,9 +129,7 @@ class TestSensorPlatform:
 
         mock_coordinator.get_cover_status.return_value = CoverStatus.PAUSED
 
-        sensor = CoverAutomaticStatusSensor(
-            mock_coordinator, "cover.test", "Test"
-        )
+        sensor = CoverAutomaticStatusSensor(mock_coordinator, "cover.test", "Test")
         sensor.hass = MagicMock()
 
         assert sensor.native_value == "paused"
@@ -141,12 +138,14 @@ class TestSensorPlatform:
         """Winning rule and target are attributes, usable in automations."""
         from custom_components.cover_automatic.sensor import CoverAutomaticStatusSensor
 
-        mock_coordinator.get_live_cover = MagicMock(return_value={
-            "rule_id": "day",
-            "rule_name": "Day",
-            "target_position": 40,
-            "comfort_mode": "neutral",
-        })
+        mock_coordinator.get_live_cover = MagicMock(
+            return_value={
+                "rule_id": "day",
+                "rule_name": "Day",
+                "target_position": 40,
+                "comfort_mode": "neutral",
+            }
+        )
 
         sensor = CoverAutomaticStatusSensor(mock_coordinator, "cover.test", "Test")
         sensor.hass = MagicMock()
@@ -179,9 +178,7 @@ class TestSensorPlatform:
 
         mock_coordinator.get_cover_status.return_value = CoverStatus.AUTO
 
-        sensor = CoverAutomaticStatusSensor(
-            mock_coordinator, "cover.test", "Test"
-        )
+        sensor = CoverAutomaticStatusSensor(mock_coordinator, "cover.test", "Test")
         sensor.hass = MagicMock()
 
         assert sensor.icon == "mdi:robot"
@@ -192,9 +189,7 @@ class TestSensorPlatform:
 
         mock_coordinator.get_cover_status.return_value = CoverStatus.PAUSED
 
-        sensor = CoverAutomaticStatusSensor(
-            mock_coordinator, "cover.test", "Test"
-        )
+        sensor = CoverAutomaticStatusSensor(mock_coordinator, "cover.test", "Test")
         sensor.hass = MagicMock()
 
         assert sensor.icon == "mdi:pause-circle"
@@ -205,9 +200,7 @@ class TestSensorPlatform:
 
         mock_coordinator.get_cover_status.return_value = CoverStatus.LOCKED
 
-        sensor = CoverAutomaticStatusSensor(
-            mock_coordinator, "cover.test", "Test"
-        )
+        sensor = CoverAutomaticStatusSensor(mock_coordinator, "cover.test", "Test")
         sensor.hass = MagicMock()
 
         assert sensor.icon == "mdi:lock"
@@ -218,9 +211,7 @@ class TestSensorPlatform:
 
         mock_coordinator.get_cover_status.return_value = CoverStatus.MANUAL
 
-        sensor = CoverAutomaticStatusSensor(
-            mock_coordinator, "cover.test", "Test"
-        )
+        sensor = CoverAutomaticStatusSensor(mock_coordinator, "cover.test", "Test")
         sensor.hass = MagicMock()
 
         assert sensor.icon == "mdi:hand-back-right"
@@ -231,9 +222,7 @@ class TestSensorPlatform:
 
         mock_coordinator.get_cover_status.return_value = CoverStatus.VENTING
 
-        sensor = CoverAutomaticStatusSensor(
-            mock_coordinator, "cover.test", "Test"
-        )
+        sensor = CoverAutomaticStatusSensor(mock_coordinator, "cover.test", "Test")
         sensor.hass = MagicMock()
 
         assert sensor.icon == "mdi:window-open-variant"
@@ -244,9 +233,7 @@ class TestSensorPlatform:
 
         mock_coordinator.get_cover_status.return_value = CoverStatus.WIND_PROTECTED
 
-        sensor = CoverAutomaticStatusSensor(
-            mock_coordinator, "cover.test", "Test"
-        )
+        sensor = CoverAutomaticStatusSensor(mock_coordinator, "cover.test", "Test")
         sensor.hass = MagicMock()
 
         assert sensor.icon == "mdi:weather-windy"
@@ -265,11 +252,7 @@ class TestSensorPlatform:
         """Test facade sun sensor when sun is on facade."""
         from custom_components.cover_automatic.sensor import FacadeSunSensor
 
-        mock_coordinator.data = {
-            "facades": {
-                "south": {"sun_on_facade": True}
-            }
-        }
+        mock_coordinator.data = {"facades": {"south": {"sun_on_facade": True}}}
 
         sensor = FacadeSunSensor(mock_coordinator, "south", "South")
         sensor.hass = MagicMock()
@@ -281,11 +264,7 @@ class TestSensorPlatform:
         """Test facade sun sensor when sun is not on facade."""
         from custom_components.cover_automatic.sensor import FacadeSunSensor
 
-        mock_coordinator.data = {
-            "facades": {
-                "south": {"sun_on_facade": False}
-            }
-        }
+        mock_coordinator.data = {"facades": {"south": {"sun_on_facade": False}}}
 
         sensor = FacadeSunSensor(mock_coordinator, "south", "South")
         sensor.hass = MagicMock()
@@ -471,11 +450,7 @@ class TestFacadeSunSensorUnknown:
         """Test facade sun sensor returns None when facade_id is absent from data."""
         from custom_components.cover_automatic.sensor import FacadeSunSensor
 
-        mock_coordinator.data = {
-            "facades": {
-                "north": {"sun_on_facade": True}
-            }
-        }
+        mock_coordinator.data = {"facades": {"north": {"sun_on_facade": True}}}
 
         sensor = FacadeSunSensor(mock_coordinator, "south", "South")
         sensor.hass = MagicMock()

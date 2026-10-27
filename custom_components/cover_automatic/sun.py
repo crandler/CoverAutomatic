@@ -1,4 +1,5 @@
 """Sun position calculations for CoverAutomatic."""
+
 from __future__ import annotations
 
 import logging
@@ -53,7 +54,8 @@ def get_sun_position(hass: HomeAssistant) -> tuple[float, float] | None:
 
 
 def is_sun_on_facade(
-    hass: HomeAssistant, facade: Facade,
+    hass: HomeAssistant,
+    facade: Facade,
 ) -> bool:
     """Check if sun is shining on a facade.
 
@@ -105,7 +107,8 @@ def get_sunset_time(hass: HomeAssistant) -> float | None:
 
 
 def get_facade_sun_times(
-    hass: HomeAssistant, facade: Facade,
+    hass: HomeAssistant,
+    facade: Facade,
 ) -> tuple[str | None, str | None]:
     """Return today's sun entry and exit time (local HH:MM) for a facade.
 
@@ -136,7 +139,9 @@ def get_facade_sun_times(
 
 
 def _compute_facade_sun_times(
-    hass: HomeAssistant, facade: Facade, day: date,
+    hass: HomeAssistant,
+    facade: Facade,
+    day: date,
 ) -> tuple[str | None, str | None]:
     """Scan the local day for the first period the sun shines on the facade."""
     observer = Observer(hass.config.latitude, hass.config.longitude, hass.config.elevation)
@@ -169,7 +174,9 @@ def _compute_facade_sun_times(
 
 
 def _boundary(
-    lit: Callable[[datetime], bool], inside: datetime, outside: datetime,
+    lit: Callable[[datetime], bool],
+    inside: datetime,
+    outside: datetime,
 ) -> datetime:
     """Bisect between a lit and an unlit moment, return the lit side of the edge."""
     while abs(outside - inside) > _BOUNDARY_PRECISION:

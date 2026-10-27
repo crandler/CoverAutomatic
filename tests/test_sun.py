@@ -1,4 +1,5 @@
 """Tests for sun position calculations."""
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -93,19 +94,13 @@ class TestGetSunPosition:
 
     def test_returns_azimuth_elevation(self, mock_hass) -> None:
         """Test returns azimuth and elevation tuple."""
-        mock_hass.states.get.return_value = MockState(
-            "above_horizon",
-            {"azimuth": 180.5, "elevation": 45.2}
-        )
+        mock_hass.states.get.return_value = MockState("above_horizon", {"azimuth": 180.5, "elevation": 45.2})
         result = get_sun_position(mock_hass)
         assert result == (180.5, 45.2)
 
     def test_handles_invalid_attributes(self, mock_hass) -> None:
         """Test handles invalid azimuth/elevation values."""
-        mock_hass.states.get.return_value = MockState(
-            "above_horizon",
-            {"azimuth": "invalid", "elevation": None}
-        )
+        mock_hass.states.get.return_value = MockState("above_horizon", {"azimuth": "invalid", "elevation": None})
         result = get_sun_position(mock_hass)
         assert result is None
 
@@ -115,62 +110,38 @@ class TestIsSunOnFacade:
 
     def test_sun_on_south_facade(self, mock_hass, south_facade) -> None:
         """Test sun detection on south facade."""
-        mock_hass.states.get.return_value = MockState(
-            "above_horizon",
-            {"azimuth": 180.0, "elevation": 30.0}
-        )
+        mock_hass.states.get.return_value = MockState("above_horizon", {"azimuth": 180.0, "elevation": 30.0})
         result = is_sun_on_facade(mock_hass, south_facade)
         assert result is True
 
-    def test_sun_not_on_south_facade_wrong_azimuth(
-        self, mock_hass, south_facade
-    ) -> None:
+    def test_sun_not_on_south_facade_wrong_azimuth(self, mock_hass, south_facade) -> None:
         """Test sun not on south facade when azimuth is outside range."""
-        mock_hass.states.get.return_value = MockState(
-            "above_horizon",
-            {"azimuth": 90.0, "elevation": 30.0}
-        )
+        mock_hass.states.get.return_value = MockState("above_horizon", {"azimuth": 90.0, "elevation": 30.0})
         result = is_sun_on_facade(mock_hass, south_facade)
         assert result is False
 
-    def test_sun_on_north_facade_wrap_around_morning(
-        self, mock_hass, north_facade
-    ) -> None:
+    def test_sun_on_north_facade_wrap_around_morning(self, mock_hass, north_facade) -> None:
         """Test sun on north facade in morning (azimuth < 45)."""
-        mock_hass.states.get.return_value = MockState(
-            "above_horizon",
-            {"azimuth": 30.0, "elevation": 10.0}
-        )
+        mock_hass.states.get.return_value = MockState("above_horizon", {"azimuth": 30.0, "elevation": 10.0})
         result = is_sun_on_facade(mock_hass, north_facade)
         assert result is True
 
-    def test_sun_on_north_facade_wrap_around_evening(
-        self, mock_hass, north_facade
-    ) -> None:
+    def test_sun_on_north_facade_wrap_around_evening(self, mock_hass, north_facade) -> None:
         """Test sun on north facade in evening (azimuth > 315)."""
-        mock_hass.states.get.return_value = MockState(
-            "above_horizon",
-            {"azimuth": 330.0, "elevation": 10.0}
-        )
+        mock_hass.states.get.return_value = MockState("above_horizon", {"azimuth": 330.0, "elevation": 10.0})
         result = is_sun_on_facade(mock_hass, north_facade)
         assert result is True
 
     def test_sun_not_on_north_facade_midday(self, mock_hass, north_facade) -> None:
         """Test sun not on north facade during midday."""
-        mock_hass.states.get.return_value = MockState(
-            "above_horizon",
-            {"azimuth": 180.0, "elevation": 45.0}
-        )
+        mock_hass.states.get.return_value = MockState("above_horizon", {"azimuth": 180.0, "elevation": 45.0})
         result = is_sun_on_facade(mock_hass, north_facade)
         assert result is False
 
     def test_sun_below_min_elevation(self, mock_hass, south_facade) -> None:
         """Test sun not on facade when below minimum elevation."""
         south_facade.min_elevation = 20.0
-        mock_hass.states.get.return_value = MockState(
-            "above_horizon",
-            {"azimuth": 180.0, "elevation": 10.0}
-        )
+        mock_hass.states.get.return_value = MockState("above_horizon", {"azimuth": 180.0, "elevation": 10.0})
         result = is_sun_on_facade(mock_hass, south_facade)
         assert result is False
 
@@ -209,8 +180,12 @@ def _on(day: date):
 
 def _facade(start: float, end: float, min_elevation: float = 0.0) -> Facade:
     return Facade(
-        id="f", name="F", azimuth_start=start, azimuth_end=end,
-        direction="custom", min_elevation=min_elevation,
+        id="f",
+        name="F",
+        azimuth_start=start,
+        azimuth_end=end,
+        direction="custom",
+        min_elevation=min_elevation,
     )
 
 

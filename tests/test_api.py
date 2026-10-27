@@ -1,4 +1,5 @@
 """Tests for CoverAutomatic WebSocket API."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -25,6 +26,7 @@ from custom_components.cover_automatic.models import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_storage(
     *,
@@ -123,6 +125,7 @@ def _make_hass() -> MagicMock:
 # _sanitize_id
 # ---------------------------------------------------------------------------
 
+
 class TestSanitizeId:
     """Tests for ID sanitization."""
 
@@ -159,6 +162,7 @@ class TestSanitizeId:
 # ---------------------------------------------------------------------------
 # _parse_conditions
 # ---------------------------------------------------------------------------
+
 
 class TestParseConditions:
     """Tests for condition parsing."""
@@ -200,6 +204,7 @@ class TestParseConditions:
 # ---------------------------------------------------------------------------
 # _build_config_response
 # ---------------------------------------------------------------------------
+
 
 class TestBuildConfigResponse:
     """Tests for config response builder."""
@@ -315,6 +320,7 @@ class TestBuildConfigResponse:
 # async_setup_api
 # ---------------------------------------------------------------------------
 
+
 class TestApiSetup:
     """Tests for API registration."""
 
@@ -325,9 +331,7 @@ class TestApiSetup:
 
         from homeassistant.components import websocket_api as real_ws
 
-        with patch(
-            "custom_components.cover_automatic.api.websocket_api"
-        ) as mock_ws:
+        with patch("custom_components.cover_automatic.api.websocket_api") as mock_ws:
             mock_ws.BASE_COMMAND_MESSAGE_SCHEMA = real_ws.BASE_COMMAND_MESSAGE_SCHEMA
             async_setup_api(hass, storage, coordinator)
             assert mock_ws.async_register_command.call_count == 22
@@ -340,9 +344,7 @@ class TestApiSetup:
         from homeassistant.components import websocket_api as real_ws
 
         registered_schemas = []
-        with patch(
-            "custom_components.cover_automatic.api.websocket_api"
-        ) as mock_ws:
+        with patch("custom_components.cover_automatic.api.websocket_api") as mock_ws:
             mock_ws.BASE_COMMAND_MESSAGE_SCHEMA = real_ws.BASE_COMMAND_MESSAGE_SCHEMA
 
             def capture_register(hass, command_type, handler=None, schema=None):
@@ -358,6 +360,7 @@ class TestApiSetup:
 # ---------------------------------------------------------------------------
 # WS Handler Tests
 # ---------------------------------------------------------------------------
+
 
 class TestWsGetConfig:
     """Tests for cover_automatic/config handler."""
@@ -576,10 +579,12 @@ class TestWsCoverAdd:
         state1.attributes = {"friendly_name": "Cover 1"}
         state2 = MagicMock()
         state2.attributes = {"friendly_name": "Cover 2"}
-        hass.states.get = MagicMock(side_effect=lambda eid: {
-            "cover.one": state1,
-            "cover.two": state2,
-        }.get(eid))
+        hass.states.get = MagicMock(
+            side_effect=lambda eid: {
+                "cover.one": state1,
+                "cover.two": state2,
+            }.get(eid)
+        )
 
         msg = {
             "id": 1,
@@ -836,9 +841,13 @@ class TestWsRuleUpdate:
 
         hass = _make_hass()
         conn = _make_connection()
-        rule = Rule(id="r1", name="Rule", conditions=[
-            Condition(type=ConditionType.SUN_ON_FACADE, params={"facade_id": "s1"}),
-        ])
+        rule = Rule(
+            id="r1",
+            name="Rule",
+            conditions=[
+                Condition(type=ConditionType.SUN_ON_FACADE, params={"facade_id": "s1"}),
+            ],
+        )
         storage = _make_storage(rules={"r1": rule})
         coordinator = _make_coordinator()
 
@@ -863,9 +872,13 @@ class TestWsRuleUpdate:
 
         hass = _make_hass()
         conn = _make_connection()
-        rule = Rule(id="r1", name="Rule", conditions=[
-            Condition(type=ConditionType.SUN_ON_FACADE, params={"facade_id": "s1"}),
-        ])
+        rule = Rule(
+            id="r1",
+            name="Rule",
+            conditions=[
+                Condition(type=ConditionType.SUN_ON_FACADE, params={"facade_id": "s1"}),
+            ],
+        )
         storage = _make_storage(rules={"r1": rule})
         coordinator = _make_coordinator()
 
@@ -1674,6 +1687,7 @@ class TestWsSettingsUpdate:
 # _unique_id
 # ---------------------------------------------------------------------------
 
+
 class TestUniqueId:
     """Tests for _unique_id."""
 
@@ -1692,6 +1706,7 @@ class TestUniqueId:
 # ---------------------------------------------------------------------------
 # Global tilt defaults in config response
 # ---------------------------------------------------------------------------
+
 
 class TestConfigResponseTiltDefaults:
     """Tests for tilt defaults in config response."""
@@ -2013,6 +2028,7 @@ class TestRulePreviewConditions:
 # Version handling (no blocking manifest read at import time)
 # ---------------------------------------------------------------------------
 
+
 class TestVersionHandling:
     """The panel version must not come from a blocking file read.
 
@@ -2032,9 +2048,7 @@ class TestVersionHandling:
 
             from homeassistant.components import websocket_api as real_ws
 
-            with patch(
-                "custom_components.cover_automatic.api.websocket_api"
-            ) as mock_ws:
+            with patch("custom_components.cover_automatic.api.websocket_api") as mock_ws:
                 mock_ws.BASE_COMMAND_MESSAGE_SCHEMA = real_ws.BASE_COMMAND_MESSAGE_SCHEMA
                 async_setup_api(hass, storage, coordinator, version="9.9.9")
 

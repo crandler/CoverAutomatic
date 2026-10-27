@@ -1,4 +1,5 @@
 """Tests for CoverAutomatic config flow."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, PropertyMock
@@ -39,9 +40,7 @@ class TestConfigFlow:
 
         result = await flow.async_step_user({})
 
-        flow.async_create_entry.assert_called_once_with(
-            title="CoverAutomatic", data={}
-        )
+        flow.async_create_entry.assert_called_once_with(title="CoverAutomatic", data={})
         assert result["type"] == "create_entry"
 
     def test_async_get_options_flow_returns_correct_class(self) -> None:
@@ -83,15 +82,11 @@ class TestOptionsFlow:
     @pytest.mark.asyncio
     async def test_init_creates_entry_on_submit(self, options_flow) -> None:
         """Test init step creates entry preserving existing options."""
-        options_flow.async_create_entry = MagicMock(
-            return_value={"type": "create_entry"}
-        )
+        options_flow.async_create_entry = MagicMock(return_value={"type": "create_entry"})
 
         result = await options_flow.async_step_init({})
 
-        options_flow.async_create_entry.assert_called_once_with(
-            title="", data={"scan_interval": 60}
-        )
+        options_flow.async_create_entry.assert_called_once_with(title="", data={"scan_interval": 60})
         assert result["type"] == "create_entry"
 
     @pytest.mark.asyncio

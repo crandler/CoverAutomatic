@@ -1,4 +1,5 @@
 """Switch platform for CoverAutomatic."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -44,9 +45,7 @@ async def async_setup_entry(
             async_add_entities(entities)
 
     _async_add_new_entities()
-    entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_ENTITIES_CHANGED, _async_add_new_entities)
-    )
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_ENTITIES_CHANGED, _async_add_new_entities))
 
 
 class CoverAutomaticMasterSwitch(CoordinatorEntity[CoverAutomaticCoordinator], SwitchEntity):

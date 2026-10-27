@@ -1,4 +1,5 @@
 """Data update coordinator for CoverAutomatic."""
+
 from __future__ import annotations
 
 import asyncio
@@ -111,7 +112,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if tilt_val is not None:
             try:
                 self._last_tilt_positions[entity_id] = int(tilt_val)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 pass
 
     async def async_setup(self) -> None:
@@ -120,9 +121,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._restore_cover_states()
         await self._async_setup_default_scenarios()
         self._setup_state_tracking()
-        self._unsub_update_listener = self.async_add_listener(
-            self._fire_update_event
-        )
+        self._unsub_update_listener = self.async_add_listener(self._fire_update_event)
 
     @callback
     def _fire_update_event(self) -> None:
@@ -151,9 +150,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.debug("[%s] Startup: reset %s -> AUTO", entity_id, stored_status)
             self._cover_states[entity_id] = CoverStatus.AUTO
             if stored_status != CoverStatus.AUTO.value:
-                self.storage.update_cover_status(
-                    entity_id, CoverStatus.AUTO.value, None
-                )
+                self.storage.update_cover_status(entity_id, CoverStatus.AUTO.value, None)
 
     async def _async_setup_default_scenarios(self) -> None:
         """Create default scenarios if none exist."""
@@ -229,7 +226,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         value.cancel()
             # Per-entity sets: drop orphaned entity ids as well
             for state_set in (
-                self._pending_settle, self._post_protective_exit, self._lock_to_restore,
+                self._pending_settle,
+                self._post_protective_exit,
+                self._lock_to_restore,
             ):
                 state_set -= set(state_set) - current_covers
 
@@ -330,7 +329,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return None
         try:
             return float(state.state)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return None
 
     def _check_wind_protection(self) -> None:
@@ -392,16 +391,15 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self.data is not None:
             self.async_set_updated_data(self.data)
 
-    async def _send_staggered_commands(
-        self, commands: list[tuple[str, int]]
-    ) -> None:
+    async def _send_staggered_commands(self, commands: list[tuple[str, int]]) -> None:
         """Send position commands with optional stagger delay between them."""
         stagger = self.storage.command_stagger
         for i, (entity_id, position) in enumerate(commands):
             if i > 0 and stagger > 0:
                 await asyncio.sleep(stagger)
             await self.hass.services.async_call(
-                "cover", "set_cover_position",
+                "cover",
+                "set_cover_position",
                 {"entity_id": entity_id, "position": position},
                 blocking=False,
             )
@@ -448,7 +446,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._pending_settle.add(entity_id)
                     self.hass.async_create_task(
                         self.hass.services.async_call(
-                            "cover", "set_cover_position",
+                            "cover",
+                            "set_cover_position",
                             {"entity_id": entity_id, "position": actual},
                             blocking=False,
                         )
@@ -491,9 +490,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         else:
             lock_covers, vent_covers = self._get_covers_by_sensor(entity_id)
             if lock_covers or vent_covers:
-                self._handle_contact_sensor_change(
-                    entity_id, lock_covers, vent_covers, old_state, new_state
-                )
+                self._handle_contact_sensor_change(entity_id, lock_covers, vent_covers, old_state, new_state)
             else:
                 self.hass.async_create_task(self.async_request_refresh())
 
@@ -546,9 +543,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 return False
             if sensor not in sensor_state_cache:
                 state = self.hass.states.get(sensor)
-                sensor_state_cache[sensor] = (
-                    state is not None and state.state in BINARY_SENSOR_ON_STATES
-                )
+                sensor_state_cache[sensor] = state is not None and state.state in BINARY_SENSOR_ON_STATES
             return sensor_state_cache[sensor]
 
         # Handle lock sensor covers (window open -> fully open)
@@ -593,7 +588,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self._pending_settle.add(cover_id)
                         self.hass.async_create_task(
                             self.hass.services.async_call(
-                                "cover", "set_cover_position",
+                                "cover",
+                                "set_cover_position",
                                 {"entity_id": cover_id, "position": actual},
                                 blocking=False,
                             )
@@ -631,7 +627,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._pending_settle.add(cover_id)
                     self.hass.async_create_task(
                         self.hass.services.async_call(
-                            "cover", "set_cover_position",
+                            "cover",
+                            "set_cover_position",
                             {"entity_id": cover_id, "position": actual},
                             blocking=False,
                         )
@@ -639,7 +636,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 else:
                     _LOGGER.info(
                         "[%s] Vent sensor open -> VENTING (at %d%%, min %d%%)",
-                        cover_id, current if current is not None else 0, vent_pos,
+                        cover_id,
+                        current if current is not None else 0,
+                        vent_pos,
                     )
                     self._update_last_position_from_state(cover_id)
                 self._cover_states[cover_id] = CoverStatus.VENTING
@@ -651,11 +650,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 # disabled returns to MANUAL, not AUTO, so the refresh triggered
                 # below does not run an AUTO apply cycle (which could move a
                 # disabled cover) before the next sync would correct the status.
-                target = (
-                    CoverStatus.AUTO
-                    if cover_raw.get("auto_enabled", True)
-                    else CoverStatus.MANUAL
-                )
+                target = CoverStatus.AUTO if cover_raw.get("auto_enabled", True) else CoverStatus.MANUAL
                 _LOGGER.info("[%s] Vent sensor closed -> %s", cover_id, target.value)
                 self._cover_states[cover_id] = target
                 self.storage.update_cover_status(cover_id, target.value, None)
@@ -675,16 +670,14 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return None
         try:
             pos = int(state.attributes.get("current_position", 0))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return None
         cover_raw = self.storage.get_cover_raw(entity_id)
         if cover_raw and cover_raw.get("inverted", False):
             pos = 100 - pos
         return pos
 
-    def _lock_cover(
-        self, entity_id: str, lock_position: int, *, lock_tilt: int | None = None
-    ) -> None:
+    def _lock_cover(self, entity_id: str, lock_position: int, *, lock_tilt: int | None = None) -> None:
         """Lock a cover due to open contact sensor."""
         # Save previous state for restoration after unlock
         # If paused, save as AUTO (pause cancelled by lock priority)
@@ -745,9 +738,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             pause_until = cover_raw.get("pause_until") if cover_raw else None
             if pause_until and dt_util.now().timestamp() < pause_until:
                 self._cover_states[entity_id] = CoverStatus.PAUSED
-                self.storage.update_cover_status(
-                    entity_id, CoverStatus.PAUSED.value, pause_until
-                )
+                self.storage.update_cover_status(entity_id, CoverStatus.PAUSED.value, pause_until)
                 # Update expected position to current to prevent false override
                 self._update_last_position_from_state(entity_id)
                 if self.data is not None:
@@ -757,9 +748,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Restore MANUAL if cover was manual before lock
         if previous == CoverStatus.MANUAL:
             self._cover_states[entity_id] = CoverStatus.MANUAL
-            self.storage.update_cover_status(
-                entity_id, CoverStatus.MANUAL.value, None
-            )
+            self.storage.update_cover_status(entity_id, CoverStatus.MANUAL.value, None)
             self._update_last_position_from_state(entity_id)
             if self.data is not None:
                 self.async_set_updated_data(self.data)
@@ -770,9 +759,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             cover_raw = self.storage.get_cover_raw(entity_id)
             if cover_raw and self._is_sensor_open(cover_raw, "vent_sensor"):
                 self._cover_states[entity_id] = CoverStatus.VENTING
-                self.storage.update_cover_status(
-                    entity_id, CoverStatus.VENTING.value, None
-                )
+                self.storage.update_cover_status(entity_id, CoverStatus.VENTING.value, None)
                 self._sync_position_after_unlock(entity_id)
                 if self.data is not None:
                     self.async_set_updated_data(self.data)
@@ -800,7 +787,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             moving = state.state in ("opening", "closing")
             try:
                 current = int(state.attributes.get("current_position", 0))
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 current = None
             arrived = current is not None and abs(current - expected) <= MANUAL_OVERRIDE_TOLERANCE
             if (settling or moving) and not arrived:
@@ -813,10 +800,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         state = self.hass.states.get(entity_id)
         if state and state.state not in ("unavailable", "unknown"):
             try:
-                self._last_positions[entity_id] = int(
-                    state.attributes.get("current_position", 0)
-                )
-            except (ValueError, TypeError):
+                self._last_positions[entity_id] = int(state.attributes.get("current_position", 0))
+            except ValueError, TypeError:
                 _LOGGER.warning(
                     "Invalid position attribute for %s, resetting tracked position",
                     entity_id,
@@ -826,12 +811,10 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if tilt_val is not None:
                 try:
                     self._last_tilt_positions[entity_id] = int(tilt_val)
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     self._last_tilt_positions[entity_id] = None
 
-    def _handle_cover_state_change(
-        self, entity_id: str, old_state: Any, new_state: Any
-    ) -> None:
+    def _handle_cover_state_change(self, entity_id: str, old_state: Any, new_state: Any) -> None:
         """Handle cover position changes to detect manual overrides."""
         if new_state is None:
             return
@@ -864,7 +847,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         try:
             current_position = int(new_state.attributes.get("current_position", 0))
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return
 
         # After settle time, sync actual position before override check
@@ -879,7 +862,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if expected_target is not None and abs(current_position - expected_target) > settle_threshold:
                 _LOGGER.debug(
                     "[%s] Post-settle: large deviation %d%% vs expected %d%%, checking override",
-                    entity_id, current_position, expected_target,
+                    entity_id,
+                    current_position,
+                    expected_target,
                 )
                 # Fall through to override check below
             else:
@@ -887,15 +872,15 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._sync_tilt_from_state(entity_id, new_state)
                 _LOGGER.debug(
                     "[%s] Post-settle sync: position %d%%",
-                    entity_id, current_position,
+                    entity_id,
+                    current_position,
                 )
                 return
 
         expected_position = self._last_positions.get(entity_id)
 
         position_mismatch = (
-            expected_position is not None
-            and abs(current_position - expected_position) > MANUAL_OVERRIDE_TOLERANCE
+            expected_position is not None and abs(current_position - expected_position) > MANUAL_OVERRIDE_TOLERANCE
         )
 
         # Check tilt mismatch if cover supports tilt
@@ -908,7 +893,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     current_tilt = int(current_tilt_val)
                     if abs(current_tilt - expected_tilt) > MANUAL_OVERRIDE_TOLERANCE:
                         tilt_mismatch = True
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     pass
 
         if position_mismatch or tilt_mismatch:
@@ -930,9 +915,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._log(LOG_EVENT_STATUS, cover.entity_id, f"{prev.value} -> paused")
         duration = cover.pause_duration if cover.pause_duration is not None else self.storage.pause_duration
         pause_until = dt_util.now().timestamp() + (duration * 60)
-        self.storage.update_cover_status(
-            cover.entity_id, CoverStatus.PAUSED.value, pause_until
-        )
+        self.storage.update_cover_status(cover.entity_id, CoverStatus.PAUSED.value, pause_until)
         if prev != CoverStatus.PAUSED:
             self._logbook(
                 f"paused for {duration} min (manual override)",
@@ -1052,7 +1035,8 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self._pending_settle.add(entity_id)
                         self.hass.async_create_task(
                             self.hass.services.async_call(
-                                "cover", "set_cover_position",
+                                "cover",
+                                "set_cover_position",
                                 {"entity_id": entity_id, "position": actual},
                                 blocking=False,
                             )
@@ -1152,8 +1136,11 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return {}
 
     def _log(
-        self, event_type: str, entity_id: str | None = None,
-        message: str = "", data: dict[str, Any] | None = None,
+        self,
+        event_type: str,
+        entity_id: str | None = None,
+        message: str = "",
+        data: dict[str, Any] | None = None,
     ) -> None:
         """Add an activity log entry if log_storage is available."""
         if self.log_storage:
@@ -1215,7 +1202,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     rule_name = self.storage.rules.get(matching_rule_id)
                     rn = rule_name.name if rule_name else matching_rule_id
                     self._log(
-                        LOG_EVENT_RULE, entity_id, f"{rn} -> {target_position}%",
+                        LOG_EVENT_RULE,
+                        entity_id,
+                        f"{rn} -> {target_position}%",
                         {"rule_id": matching_rule_id, "position": target_position},
                     )
 
@@ -1307,7 +1296,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             try:
                 current = int(state.attributes.get("current_position", 0))
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 continue
 
             # Skip covers still settling after our commands (vent/lock moves, rule commands)
@@ -1322,7 +1311,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if expected_target is not None and abs(current - expected_target) > settle_threshold:
                     _LOGGER.debug(
                         "[%s] Post-settle: large deviation %d%% vs expected %d%%",
-                        entity_id, current, expected_target,
+                        entity_id,
+                        current,
+                        expected_target,
                     )
                     # Don't sync -- let override check below detect the manual move
                 else:
@@ -1343,7 +1334,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if cover and cover.auto_enabled:
                     _LOGGER.info(
                         "[%s] Manual override detected in apply cycle (expected %d, got %d)",
-                        entity_id, expected, current,
+                        entity_id,
+                        expected,
+                        current,
                     )
                     self.pause_cover(cover)
                     continue
@@ -1364,10 +1357,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             min_change = self._cover_val(cover_raw, "min_position_change")
             position_diff = abs(current - target)
             if position_diff < min_change and position_diff > 0:
-                _LOGGER.debug(
-                    "Skipping %s: position change %d < min %d",
-                    entity_id, position_diff, min_change
-                )
+                _LOGGER.debug("Skipping %s: position change %d < min %d", entity_id, position_diff, min_change)
                 self._hysteresis_info[entity_id] = "position"
                 self._last_positions[entity_id] = current
                 self._sync_tilt_from_state(entity_id, state)
@@ -1381,10 +1371,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             min_time = self._cover_val(cover_raw, "min_time_between_changes")
             last_change = cover_raw.get("last_position_change")
             current_rule = cover_data.get("matching_rule_id")
-            rule_changed = (
-                entity_id in self._last_move_rule
-                and current_rule != self._last_move_rule[entity_id]
-            )
+            rule_changed = entity_id in self._last_move_rule and current_rule != self._last_move_rule[entity_id]
             status_just_reset = entity_id in self._post_protective_exit
             if (
                 position_diff > 0
@@ -1394,8 +1381,7 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 and not status_just_reset
             ):
                 _LOGGER.debug(
-                    "Skipping %s: only %ds since last change (min %ds)",
-                    entity_id, int(now - last_change), min_time
+                    "Skipping %s: only %ds since last change (min %ds)", entity_id, int(now - last_change), min_time
                 )
                 self._hysteresis_info[entity_id] = "time"
                 self._last_positions[entity_id] = current
@@ -1429,7 +1415,9 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._last_move_rule[entity_id] = cover_data.get("matching_rule_id")
                 self._pending_settle.add(entity_id)
                 self._log(
-                    LOG_EVENT_POSITION, entity_id, f"{current}% -> {target}%",
+                    LOG_EVENT_POSITION,
+                    entity_id,
+                    f"{current}% -> {target}%",
                     {"from": current, "to": target, "rule_id": cover_data.get("matching_rule_id")},
                 )
                 rule_id = cover_data.get("matching_rule_id")
@@ -1470,20 +1458,14 @@ class CoverAutomaticCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         features = state.attributes.get("supported_features", 0)
         return bool(features & TILT_FEATURE_FLAG)
 
-    def _schedule_tilt(
-        self, entity_id: str, tilt: int, delay: float
-    ) -> None:
+    def _schedule_tilt(self, entity_id: str, tilt: int, delay: float) -> None:
         """Schedule a tilt command, cancelling any pending one for the same cover."""
         old_task = self._tilt_tasks.get(entity_id)
         if old_task and not old_task.done():
             old_task.cancel()
-        self._tilt_tasks[entity_id] = self.hass.async_create_task(
-            self._send_tilt_delayed(entity_id, tilt, delay)
-        )
+        self._tilt_tasks[entity_id] = self.hass.async_create_task(self._send_tilt_delayed(entity_id, tilt, delay))
 
-    async def _send_tilt_delayed(
-        self, entity_id: str, tilt: int, delay: float
-    ) -> None:
+    async def _send_tilt_delayed(self, entity_id: str, tilt: int, delay: float) -> None:
         """Send tilt command after optional delay."""
         try:
             if delay > 0:

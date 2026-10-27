@@ -1,4 +1,5 @@
 """Tests for CoverAutomatic services."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -98,9 +99,7 @@ class TestServiceSetup:
         assert mock_hass.services.async_register.call_count == 7
 
         # Verify each service was registered
-        registered_services = [
-            call[0][1] for call in mock_hass.services.async_register.call_args_list
-        ]
+        registered_services = [call[0][1] for call in mock_hass.services.async_register.call_args_list]
         for service in expected_services:
             assert service in registered_services
 
@@ -161,9 +160,7 @@ class TestPauseResumeServices:
         return hass, mock_coordinator, mock_cover
 
     @pytest.mark.asyncio
-    async def test_pause_service_calls_coordinator(
-        self, mock_hass_with_data
-    ) -> None:
+    async def test_pause_service_calls_coordinator(self, mock_hass_with_data) -> None:
         """Test pause service calls coordinator.pause_cover."""
         hass, coordinator, cover = mock_hass_with_data
 
@@ -187,9 +184,7 @@ class TestPauseResumeServices:
         coordinator.pause_cover.assert_called_once_with(cover)
 
     @pytest.mark.asyncio
-    async def test_resume_service_calls_coordinator(
-        self, mock_hass_with_data
-    ) -> None:
+    async def test_resume_service_calls_coordinator(self, mock_hass_with_data) -> None:
         """Test resume service calls coordinator.resume_cover."""
         hass, coordinator, cover = mock_hass_with_data
 
@@ -237,9 +232,7 @@ class TestScenarioService:
         return hass, mock_storage, mock_coordinator
 
     @pytest.mark.asyncio
-    async def test_set_scenario_changes_active_scenario(
-        self, mock_hass_with_scenarios
-    ) -> None:
+    async def test_set_scenario_changes_active_scenario(self, mock_hass_with_scenarios) -> None:
         """Test set_scenario changes the active scenario."""
         hass, storage, coordinator = mock_hass_with_scenarios
 
@@ -262,9 +255,7 @@ class TestScenarioService:
         coordinator.async_request_refresh.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_set_scenario_invalid_scenario_logs_error(
-        self, mock_hass_with_scenarios
-    ) -> None:
+    async def test_set_scenario_invalid_scenario_logs_error(self, mock_hass_with_scenarios) -> None:
         """Test set_scenario with invalid scenario logs error."""
         hass, storage, coordinator = mock_hass_with_scenarios
 
@@ -280,9 +271,7 @@ class TestScenarioService:
         call = MagicMock()
         call.data = {"scenario": "nonexistent"}
 
-        with patch(
-            "custom_components.cover_automatic.services._LOGGER"
-        ) as mock_logger:
+        with patch("custom_components.cover_automatic.services._LOGGER") as mock_logger:
             await handlers["set_scenario"](call)
 
             mock_logger.error.assert_called()
@@ -302,9 +291,7 @@ class TestExportImportServices:
         hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *args: fn(*args))
 
         mock_storage = MagicMock()
-        mock_storage.get_raw_data = MagicMock(
-            return_value={"facades": {}, "covers": {}}
-        )
+        mock_storage.get_raw_data = MagicMock(return_value={"facades": {}, "covers": {}})
         mock_storage.async_import_data = AsyncMock()
 
         mock_coordinator = MagicMock()
@@ -341,9 +328,7 @@ class TestExportImportServices:
                 "custom_components.cover_automatic.services._validate_export_path",
                 return_value=None,
             ),
-            patch(
-                "custom_components.cover_automatic.services.open", create=True
-            ) as mock_open,
+            patch("custom_components.cover_automatic.services.open", create=True) as mock_open,
         ):
             await handlers["export_config"](call)
 
@@ -394,18 +379,14 @@ class TestExportImportServices:
         call.data = {}
         call.context.user_id = None
 
-        with patch(
-            "custom_components.cover_automatic.services._LOGGER"
-        ) as mock_logger:
+        with patch("custom_components.cover_automatic.services._LOGGER") as mock_logger:
             await handlers["import_config"](call)
 
             mock_logger.error.assert_called()
             storage.async_import_data.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_import_rejects_oversized_file(
-        self, mock_hass_with_export_data
-    ) -> None:
+    async def test_import_rejects_oversized_file(self, mock_hass_with_export_data) -> None:
         """Test import_config rejects files exceeding MAX_IMPORT_FILE_SIZE."""
         hass, storage, coordinator = mock_hass_with_export_data
 
@@ -434,9 +415,7 @@ class TestExportImportServices:
                 "custom_components.cover_automatic.services._validate_config_path",
                 return_value=mock_path,
             ),
-            patch(
-                "custom_components.cover_automatic.services._LOGGER"
-            ) as mock_logger,
+            patch("custom_components.cover_automatic.services._LOGGER") as mock_logger,
         ):
             await handlers["import_config"](call)
 
@@ -478,9 +457,7 @@ class TestPauseAllResumeAllServices:
         return hass, mock_coordinator, [cover1, cover2]
 
     @pytest.mark.asyncio
-    async def test_pause_all_pauses_every_cover(
-        self, mock_hass_with_multiple_covers
-    ) -> None:
+    async def test_pause_all_pauses_every_cover(self, mock_hass_with_multiple_covers) -> None:
         """Test pause_all calls pause_cover for every cover."""
         hass, coordinator, covers = mock_hass_with_multiple_covers
 
@@ -501,9 +478,7 @@ class TestPauseAllResumeAllServices:
         assert coordinator.pause_cover.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_resume_all_resumes_every_cover(
-        self, mock_hass_with_multiple_covers
-    ) -> None:
+    async def test_resume_all_resumes_every_cover(self, mock_hass_with_multiple_covers) -> None:
         """Test resume_all calls resume_cover for every cover."""
         hass, coordinator, covers = mock_hass_with_multiple_covers
 
@@ -554,9 +529,7 @@ class TestExportHappyPath:
         return hass, mock_storage, mock_coordinator
 
     @pytest.mark.asyncio
-    async def test_export_writes_yaml_file(
-        self, mock_hass_with_export_data, tmp_path
-    ) -> None:
+    async def test_export_writes_yaml_file(self, mock_hass_with_export_data, tmp_path) -> None:
         """Test export_config writes the storage data as YAML via executor job."""
         hass, storage, coordinator = mock_hass_with_export_data
         hass.config.config_dir = str(tmp_path)
@@ -593,25 +566,15 @@ class TestExportPathRestrictions:
 
     def test_rejects_non_yaml_extension(self) -> None:
         """Export must use a .yaml/.yml extension."""
-        assert (
-            _validate_export_path("/config/cover_automatic/backup.txt", "/config")
-            is None
-        )
+        assert _validate_export_path("/config/cover_automatic/backup.txt", "/config") is None
 
     def test_rejects_traversal_out_of_subdir(self) -> None:
         """Traversal escaping the export subdirectory is rejected."""
-        assert (
-            _validate_export_path(
-                "/config/cover_automatic/../configuration.yaml", "/config"
-            )
-            is None
-        )
+        assert _validate_export_path("/config/cover_automatic/../configuration.yaml", "/config") is None
 
     def test_accepts_yaml_in_subdir(self) -> None:
         """Absolute YAML path inside the export subdirectory is accepted."""
-        result = _validate_export_path(
-            "/config/cover_automatic/backup.yaml", "/config"
-        )
+        result = _validate_export_path("/config/cover_automatic/backup.yaml", "/config")
         assert result == Path("/config/cover_automatic/backup.yaml")
 
     def test_accepts_yml_extension(self) -> None:
@@ -633,9 +596,7 @@ class TestExportPathRestrictions:
         hass.services.async_register = MagicMock()
         hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *args: fn(*args))
         hass.config.config_dir = str(tmp_path)
-        hass.config.path = MagicMock(
-            side_effect=lambda *parts: str(tmp_path.joinpath(*parts))
-        )
+        hass.config.path = MagicMock(side_effect=lambda *parts: str(tmp_path.joinpath(*parts)))
 
         mock_storage = MagicMock()
         mock_storage.get_raw_data = MagicMock(return_value={"facades": {}, "covers": {}})
@@ -661,9 +622,7 @@ class TestExportPathRestrictions:
         return handlers["export_config"]
 
     @pytest.mark.asyncio
-    async def test_export_rejects_path_outside_subdir(
-        self, mock_hass_for_export, tmp_path
-    ) -> None:
+    async def test_export_rejects_path_outside_subdir(self, mock_hass_for_export, tmp_path) -> None:
         """Export to a HA core file inside the config dir is rejected without writing."""
         hass = mock_hass_for_export
         handler = await self._get_export_handler(hass)
@@ -680,9 +639,7 @@ class TestExportPathRestrictions:
         assert not (tmp_path / "cover_automatic").exists()
 
     @pytest.mark.asyncio
-    async def test_export_default_path_in_subdir(
-        self, mock_hass_for_export, tmp_path
-    ) -> None:
+    async def test_export_default_path_in_subdir(self, mock_hass_for_export, tmp_path) -> None:
         """Default export path lands inside the export subdirectory."""
         hass = mock_hass_for_export
         handler = await self._get_export_handler(hass)
@@ -693,9 +650,7 @@ class TestExportPathRestrictions:
 
         await handler(call)
 
-        hass.config.path.assert_called_once_with(
-            "cover_automatic", "cover_automatic_backup.yaml"
-        )
+        hass.config.path.assert_called_once_with("cover_automatic", "cover_automatic_backup.yaml")
         hass.async_add_executor_job.assert_called_once()
         assert (tmp_path / "cover_automatic" / "cover_automatic_backup.yaml").is_file()
 
@@ -760,9 +715,7 @@ class TestImportHappyPath:
         return hass, mock_storage, mock_coordinator, import_data
 
     @pytest.mark.asyncio
-    async def test_import_reads_and_applies_data(
-        self, mock_hass_with_import_data
-    ) -> None:
+    async def test_import_reads_and_applies_data(self, mock_hass_with_import_data) -> None:
         """Test import_config reads the file and applies data to storage and coordinator."""
         hass, storage, coordinator, import_data = mock_hass_with_import_data
 
@@ -781,9 +734,7 @@ class TestImportHappyPath:
 
         await handlers["import_config"](call)
 
-        hass.async_add_executor_job.assert_called_once_with(
-            _read_import_file, "/config/backup.yaml", "/config"
-        )
+        hass.async_add_executor_job.assert_called_once_with(_read_import_file, "/config/backup.yaml", "/config")
         storage.async_import_data.assert_called_once_with(import_data)
         coordinator.refresh_state_tracking.assert_called_once()
         # Devices and entities follow the import, diffed against the pre-import state
@@ -821,9 +772,7 @@ class TestImportValidationErrors:
         return hass, mock_storage, mock_coordinator
 
     @pytest.mark.asyncio
-    async def test_import_value_error_from_storage(
-        self, mock_hass_for_import_errors
-    ) -> None:
+    async def test_import_value_error_from_storage(self, mock_hass_for_import_errors) -> None:
         """Test import_config catches ValueError from storage gracefully."""
         hass, storage, coordinator = mock_hass_for_import_errors
         storage.async_import_data = AsyncMock(side_effect=ValueError("bad data"))
@@ -847,9 +796,7 @@ class TestImportValidationErrors:
         coordinator.refresh_state_tracking.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_import_type_error_from_storage(
-        self, mock_hass_for_import_errors
-    ) -> None:
+    async def test_import_type_error_from_storage(self, mock_hass_for_import_errors) -> None:
         """Test import_config catches TypeError from storage gracefully."""
         hass, storage, coordinator = mock_hass_for_import_errors
         storage.async_import_data = AsyncMock(side_effect=TypeError("wrong type"))

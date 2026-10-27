@@ -1,4 +1,5 @@
 """Pytest fixtures for CoverAutomatic tests."""
+
 from __future__ import annotations
 
 import pytest

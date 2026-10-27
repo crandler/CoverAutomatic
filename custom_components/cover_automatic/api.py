@@ -1,4 +1,5 @@
 """WebSocket API for CoverAutomatic config panel."""
+
 from __future__ import annotations
 
 import copy
@@ -28,28 +29,56 @@ _LOGGER = logging.getLogger(__name__)
 
 # Cover fields that can be updated via WS API
 _UPDATABLE_COVER_FIELDS = (
-    "name", "facade_id", "auto_enabled", "pause_duration",
-    "lock_sensor", "lock_position", "vent_sensor", "vent_position",
-    "inverted", "supports_tilt", "lock_tilt_position", "vent_tilt_position",
-    "inverted_tilt", "indoor_temp_sensor", "comfort_temp_min", "comfort_temp_max",
+    "name",
+    "facade_id",
+    "auto_enabled",
+    "pause_duration",
+    "lock_sensor",
+    "lock_position",
+    "vent_sensor",
+    "vent_position",
+    "inverted",
+    "supports_tilt",
+    "lock_tilt_position",
+    "vent_tilt_position",
+    "inverted_tilt",
+    "indoor_temp_sensor",
+    "comfort_temp_min",
+    "comfort_temp_max",
     "preemptive_shading",
-    "min_position_change", "min_time_between_changes",
+    "min_position_change",
+    "min_time_between_changes",
 )
 
 # Settings fields that can be updated via WS API
 _SETTINGS_FIELDS = (
     "enabled",
-    "outdoor_temp_sensor", "indoor_temp_sensor", "weather_entity",
-    "comfort_temp_min", "comfort_temp_max", "comfort_hysteresis",
-    "threshold_hysteresis", "pause_duration",
-    "lock_position", "vent_position", "lock_tilt_position", "vent_tilt_position",
-    "min_position_change", "min_time_between_changes",
-    "house_rotation", "active_scenario",
+    "outdoor_temp_sensor",
+    "indoor_temp_sensor",
+    "weather_entity",
+    "comfort_temp_min",
+    "comfort_temp_max",
+    "comfort_hysteresis",
+    "threshold_hysteresis",
+    "pause_duration",
+    "lock_position",
+    "vent_position",
+    "lock_tilt_position",
+    "vent_tilt_position",
+    "min_position_change",
+    "min_time_between_changes",
+    "house_rotation",
+    "active_scenario",
     "workday_sensor",
-    "wind_sensor", "wind_speed_threshold", "wind_speed_hysteresis",
+    "wind_sensor",
+    "wind_speed_threshold",
+    "wind_speed_hysteresis",
     "command_stagger",
-    "solar_sensor", "solar_threshold", "solar_hysteresis",
-    "logbook_enabled", "update_check_enabled",
+    "solar_sensor",
+    "solar_threshold",
+    "solar_hysteresis",
+    "logbook_enabled",
+    "update_check_enabled",
 )
 
 # Umlaut replacement map
@@ -91,7 +120,8 @@ def _unique_id(base_id: str, existing: dict[str, Any]) -> str:
 
 
 def _build_config_response(
-    storage: CoverAutomaticStorage, hass: HomeAssistant | None = None,
+    storage: CoverAutomaticStorage,
+    hass: HomeAssistant | None = None,
     coordinator: CoverAutomaticCoordinator | None = None,
 ) -> dict[str, Any]:
     """Build full config response dict from storage."""
@@ -146,7 +176,9 @@ def _build_config_response(
 
 
 def _sync_cover_facade_ids(
-    storage: CoverAutomaticStorage, facade_id: str, cover_ids: list[str],
+    storage: CoverAutomaticStorage,
+    facade_id: str,
+    cover_ids: list[str],
 ) -> None:
     """Sync cover.facade_id based on facade.cover_ids assignment.
 
@@ -171,7 +203,10 @@ def _sync_cover_facade_ids(
 
 
 def _sync_facade_cover_ids(
-    storage: CoverAutomaticStorage, entity_id: str, new_facade_id: str | None, old_facade_id: str | None,
+    storage: CoverAutomaticStorage,
+    entity_id: str,
+    new_facade_id: str | None,
+    old_facade_id: str | None,
 ) -> None:
     """Sync facade.cover_ids based on cover.facade_id change.
 
@@ -220,6 +255,7 @@ def _unknown_refs_msg(facade_ids: list[str], cover_ids: list[str]) -> str:
 # ---------------------------------------------------------------------------
 # Handler functions (public for testability)
 # ---------------------------------------------------------------------------
+
 
 async def ws_get_config(
     hass: HomeAssistant,
@@ -582,9 +618,7 @@ async def ws_rule_reorder(
 
     unknown = _missing_ids(rule_ids, rules_data)
     if unknown:
-        connection.send_error(
-            msg["id"], "not_found", f"Unknown rule(s): {', '.join(unknown)}"
-        )
+        connection.send_error(msg["id"], "not_found", f"Unknown rule(s): {', '.join(unknown)}")
         return
 
     total = len(rule_ids)
@@ -630,9 +664,7 @@ async def ws_scenario_add(
     rules_disabled = msg.get("rules_disabled", [])
     unknown = _missing_ids(rules_disabled, storage.rules)
     if unknown:
-        connection.send_error(
-            msg["id"], "not_found", f"Unknown rule(s): {', '.join(unknown)}"
-        )
+        connection.send_error(msg["id"], "not_found", f"Unknown rule(s): {', '.join(unknown)}")
         return
     scenario = Scenario(
         id=_unique_id(_sanitize_id(name), storage.scenarios),
@@ -662,9 +694,7 @@ async def ws_scenario_update(
     if "rules_disabled" in msg:
         unknown = _missing_ids(msg["rules_disabled"], storage.rules)
         if unknown:
-            connection.send_error(
-                msg["id"], "not_found", f"Unknown rule(s): {', '.join(unknown)}"
-            )
+            connection.send_error(msg["id"], "not_found", f"Unknown rule(s): {', '.join(unknown)}")
             return
 
     updated = Scenario(
@@ -711,9 +741,7 @@ async def ws_settings_update(
     # in-memory state half-updated while disk still has the old values.
     if "active_scenario" in msg and msg["active_scenario"]:
         if msg["active_scenario"] not in storage._data.get("scenarios", {}):
-            connection.send_error(
-                msg["id"], "not_found", f"Scenario '{msg['active_scenario']}' not found"
-            )
+            connection.send_error(msg["id"], "not_found", f"Scenario '{msg['active_scenario']}' not found")
             return
 
     # All validations passed -- now apply atomically.
@@ -822,6 +850,7 @@ async def ws_import_config(
 # ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
+
 
 def async_setup_api(
     hass: HomeAssistant,
@@ -1087,13 +1116,10 @@ def async_setup_api(
                 msg: dict[str, Any],
             ) -> None:
                 await fn(hass, connection, msg, storage, coordinator)
+
             if ct not in read_only_commands:
                 return websocket_api.require_admin(_handler)
             return _handler
 
-        schema = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend(
-            {vol.Required("type"): command_type, **extra_schema}
-        )
-        websocket_api.async_register_command(
-            hass, command_type, _make_handler(handler_fn, command_type), schema
-        )
+        schema = websocket_api.BASE_COMMAND_MESSAGE_SCHEMA.extend({vol.Required("type"): command_type, **extra_schema})
+        websocket_api.async_register_command(hass, command_type, _make_handler(handler_fn, command_type), schema)

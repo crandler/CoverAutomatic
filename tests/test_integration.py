@@ -1,4 +1,5 @@
 """Integration tests for CoverAutomatic coordinator flows."""
+
 from __future__ import annotations
 
 from contextlib import asynccontextmanager, contextmanager
@@ -120,6 +121,7 @@ def coordinator(mock_hass, mock_storage):
 
         # Create real engine
         from custom_components.cover_automatic.engine import RuleEngine
+
         coord.engine = RuleEngine(mock_hass, mock_storage)
 
         return coord
@@ -140,7 +142,10 @@ class TestStartupSkipIntegration:
         )
         facade = Facade(id="south", name="South", azimuth_start=135.0, azimuth_end=225.0, direction="south")
         rule = Rule(
-            id="r1", name="Sun", enabled=True, priority=10,
+            id="r1",
+            name="Sun",
+            enabled=True,
+            priority=10,
             conditions=[Condition(type=ConditionType.TEMPERATURE_ABOVE, params={"sensor": "sensor.temp", "value": 10})],
             target_position=50,
         )
@@ -148,9 +153,12 @@ class TestStartupSkipIntegration:
         mock_storage.covers = {"cover.test": cover}
         mock_storage.rules = {"r1": rule}
         cover_raw = {
-            "entity_id": "cover.test", "auto_enabled": True,
-            "min_position_change": 1, "min_time_between_changes": 0,
-            "last_position_change": None, "inverted": False,
+            "entity_id": "cover.test",
+            "auto_enabled": True,
+            "min_position_change": 1,
+            "min_time_between_changes": 0,
+            "last_position_change": None,
+            "inverted": False,
         }
         mock_storage._data = {"covers": {"cover.test": cover_raw}, "facades": {}, "rules": {}, "scenarios": {}}
         mock_storage.get_cover_raw.return_value = cover_raw
@@ -167,9 +175,7 @@ class TestStartupSkipIntegration:
         self._setup(coordinator, mock_hass, mock_storage)
         coordinator._startup_skip = True
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.time_mod"
-        ) as mock_time:
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
             # 10s after startup -> within grace period
             mock_time.monotonic.return_value = coordinator._startup_time + 10
             result = await coordinator._async_update_data()
@@ -184,9 +190,7 @@ class TestStartupSkipIntegration:
         self._setup(coordinator, mock_hass, mock_storage)
         coordinator._startup_skip = False
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.time_mod"
-        ) as mock_time:
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
             # 90s after startup -> still within 120s grace period
             mock_time.monotonic.return_value = coordinator._startup_time + 90
             await coordinator._async_update_data()
@@ -199,9 +203,7 @@ class TestStartupSkipIntegration:
         self._setup(coordinator, mock_hass, mock_storage)
         coordinator._startup_skip = False
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.time_mod"
-        ) as mock_time:
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
             mock_time.monotonic.return_value = coordinator._startup_time + 200
             with patch("homeassistant.util.dt.now") as mock_now:
                 mock_now.return_value.timestamp.return_value = 1000
@@ -214,9 +216,7 @@ class TestHappyPathIntegration:
     """Integration tests for the happy path: rule matches -> cover moves."""
 
     @pytest.mark.asyncio
-    async def test_rule_matches_and_cover_moves(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_rule_matches_and_cover_moves(self, coordinator, mock_hass, mock_storage) -> None:
         """Test complete flow: rule evaluation -> position calculation -> service call."""
         # Setup: facade, cover, and rule
         facade = Facade(
@@ -292,9 +292,7 @@ class TestHappyPathIntegration:
         )
 
     @pytest.mark.asyncio
-    async def test_no_matching_rule_no_movement(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_no_matching_rule_no_movement(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that cover doesn't move when no rules match."""
         cover = CoverConfig(
             entity_id="cover.bedroom",
@@ -332,9 +330,7 @@ class TestHappyPathIntegration:
         mock_hass.services.async_call.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_disabled_rule_not_evaluated(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_disabled_rule_not_evaluated(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that disabled rules are not evaluated."""
         cover = CoverConfig(entity_id="cover.test", name="Test", auto_enabled=True)
         rule = Rule(
@@ -359,9 +355,7 @@ class TestHappyPathIntegration:
 class TestStateTransitionIntegration:
     """Integration tests for state transitions."""
 
-    def test_manual_override_pauses_cover(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_manual_override_pauses_cover(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that manual position change pauses automation."""
         cover = CoverConfig(
             entity_id="cover.test",
@@ -378,9 +372,7 @@ class TestStateTransitionIntegration:
         old_state = MockState("open", {"current_position": 30})
         new_state = MockState("open", {"current_position": 80})  # Manual change
 
-        with patch(
-            "custom_components.cover_automatic.coordinator.time_mod"
-        ) as mock_time:
+        with patch("custom_components.cover_automatic.coordinator.time_mod") as mock_time:
             mock_time.monotonic.return_value = 9999.0  # Well past SETTLE_TIME
             coordinator._handle_cover_state_change("cover.test", old_state, new_state)
 
@@ -388,9 +380,7 @@ class TestStateTransitionIntegration:
         assert coordinator._cover_states["cover.test"] == CoverStatus.PAUSED
         mock_storage.update_cover_status.assert_called()
 
-    def test_pause_timeout_resumes_automation(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_pause_timeout_resumes_automation(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that paused cover resumes after timeout via _sync_cover_statuses."""
         mock_storage._data = {
             "covers": {
@@ -416,9 +406,7 @@ class TestStateTransitionIntegration:
 
         assert status == CoverStatus.AUTO
 
-    def test_lock_sensor_locks_cover(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_lock_sensor_locks_cover(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that opening lock sensor locks the cover."""
         mock_storage._data = {
             "covers": {
@@ -453,9 +441,7 @@ class TestStateTransitionIntegration:
         # Cover should be locked
         assert coordinator._cover_states["cover.test"] == CoverStatus.LOCKED
 
-    def test_lock_sensor_unlocks_cover(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_lock_sensor_unlocks_cover(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that closing lock sensor unlocks the cover."""
         mock_storage._data = {
             "covers": {
@@ -492,9 +478,7 @@ class TestStateTransitionIntegration:
         # Cover should be unlocked (AUTO)
         assert coordinator._cover_states["cover.test"] == CoverStatus.AUTO
 
-    def test_vent_sensor_moves_to_vent_position(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    def test_vent_sensor_moves_to_vent_position(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that opening vent sensor moves cover to vent position."""
         mock_storage._data = {
             "covers": {
@@ -535,9 +519,7 @@ class TestHysteresisIntegration:
     """Integration tests for hysteresis logic."""
 
     @pytest.mark.asyncio
-    async def test_small_position_change_blocked(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_small_position_change_blocked(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that small position changes are blocked by hysteresis."""
         cover = CoverConfig(
             entity_id="cover.test",
@@ -581,9 +563,7 @@ class TestHysteresisIntegration:
         mock_hass.services.async_call.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_large_position_change_allowed(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_large_position_change_allowed(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that large position changes are allowed."""
         cover = CoverConfig(
             entity_id="cover.test",
@@ -627,9 +607,7 @@ class TestHysteresisIntegration:
         mock_hass.services.async_call.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_time_hysteresis_blocks_rapid_changes(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_time_hysteresis_blocks_rapid_changes(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that rapid position changes are blocked by time hysteresis."""
         cover = CoverConfig(
             entity_id="cover.test",
@@ -675,9 +653,7 @@ class TestHysteresisIntegration:
         mock_hass.services.async_call.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_time_hysteresis_allows_after_delay(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_time_hysteresis_allows_after_delay(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that position changes are allowed after sufficient delay."""
         cover = CoverConfig(
             entity_id="cover.test",
@@ -728,9 +704,7 @@ class TestScenarioIntegration:
     """Integration tests for scenario-based rule activation."""
 
     @pytest.mark.asyncio
-    async def test_rule_disabled_in_scenario_not_evaluated(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_rule_disabled_in_scenario_not_evaluated(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that rules disabled in active scenario are not evaluated."""
         cover = CoverConfig(entity_id="cover.test", name="Test", auto_enabled=True)
         rule = Rule(
@@ -760,9 +734,7 @@ class TestScenarioIntegration:
         assert result["covers"]["cover.test"]["target_position"] is None
 
     @pytest.mark.asyncio
-    async def test_rule_active_in_scenario_evaluated(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_rule_active_in_scenario_evaluated(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that rules not disabled in scenario are evaluated."""
         cover = CoverConfig(entity_id="cover.test", name="Test", auto_enabled=True)
         rule = Rule(
@@ -812,9 +784,7 @@ class TestTiltEndToEndIntegration:
     """Integration tests for tilt control end-to-end flow."""
 
     @pytest.mark.asyncio
-    async def test_rule_with_tilt_applies_both(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_rule_with_tilt_applies_both(self, coordinator, mock_hass, mock_storage) -> None:
         """Test complete flow: rule with tilt -> evaluation -> position + tilt commands."""
         cover = CoverConfig(
             entity_id="cover.raffstore",
@@ -862,9 +832,7 @@ class TestTiltEndToEndIntegration:
 
         mock_hass.states.get.side_effect = lambda entity_id: {
             "sensor.outdoor_temp": MockState("25.0"),
-            "cover.raffstore": MockState(
-                "open", {"current_position": 100, "supported_features": 143}
-            ),
+            "cover.raffstore": MockState("open", {"current_position": 100, "supported_features": 143}),
         }.get(entity_id)
 
         result = await coordinator._async_update_data()
@@ -882,9 +850,7 @@ class TestTiltEndToEndIntegration:
         )
 
     @pytest.mark.asyncio
-    async def test_rule_without_tilt_no_tilt_sent(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_rule_without_tilt_no_tilt_sent(self, coordinator, mock_hass, mock_storage) -> None:
         """Test rule without tilt_position does not send tilt command."""
         cover = CoverConfig(
             entity_id="cover.basic",
@@ -924,9 +890,7 @@ class TestTiltEndToEndIntegration:
         }
         mock_storage.get_cover_raw.return_value = mock_storage._data["covers"]["cover.basic"]
 
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 100, "supported_features": 143}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 100, "supported_features": 143})
 
         result = await coordinator._async_update_data()
 
@@ -937,9 +901,7 @@ class TestTiltEndToEndIntegration:
         mock_hass.services.async_call.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_tilt_inverted_end_to_end(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_tilt_inverted_end_to_end(self, coordinator, mock_hass, mock_storage) -> None:
         """Test inverted tilt end-to-end: 100 - target_tilt applied."""
         cover = CoverConfig(
             entity_id="cover.inv_tilt",
@@ -979,9 +941,7 @@ class TestTiltEndToEndIntegration:
         }
         mock_storage.get_cover_raw.return_value = mock_storage._data["covers"]["cover.inv_tilt"]
 
-        mock_hass.states.get.return_value = MockState(
-            "open", {"current_position": 100, "supported_features": 143}
-        )
+        mock_hass.states.get.return_value = MockState("open", {"current_position": 100, "supported_features": 143})
 
         await coordinator._async_update_data()
 
@@ -993,9 +953,7 @@ class TestInvertedCoverIntegration:
     """Integration tests for inverted covers."""
 
     @pytest.mark.asyncio
-    async def test_inverted_cover_position_flipped(
-        self, coordinator, mock_hass, mock_storage
-    ) -> None:
+    async def test_inverted_cover_position_flipped(self, coordinator, mock_hass, mock_storage) -> None:
         """Test that inverted cover positions are correctly flipped."""
         cover = CoverConfig(
             entity_id="cover.inverted",
@@ -1161,9 +1119,7 @@ class TestSetupEntryReload:
         server = SimpleNamespace(app=app)
 
         async def register_static_paths(configs):
-            HomeAssistantHTTP._async_register_static_paths(
-                server, configs, {c.url_path: None for c in configs}
-            )
+            HomeAssistantHTTP._async_register_static_paths(server, configs, {c.url_path: None for c in configs})
 
         hass = MagicMock()
         hass.data = {}
@@ -1262,8 +1218,15 @@ async def _real_instance(tmp_path, cover_ids, facade_ids):
     await er.async_load(hass, load_empty=True)
 
     entry = ConfigEntry(
-        domain=DOMAIN, data={}, options={}, title="CoverAutomatic", source="user",
-        version=1, minor_version=1, unique_id=None, discovery_keys={},
+        domain=DOMAIN,
+        data={},
+        options={},
+        title="CoverAutomatic",
+        source="user",
+        version=1,
+        minor_version=1,
+        unique_id=None,
+        discovery_keys={},
         subentries_data=None,
     )
     hass.config_entries._entries[entry.entry_id] = entry
@@ -1273,18 +1236,20 @@ async def _real_instance(tmp_path, cover_ids, facade_ids):
     for cover_id in cover_ids:
         await storage.async_add_cover(CoverConfig(entity_id=cover_id, name=cover_id))
     for facade_id in facade_ids:
-        await storage.async_add_facade(
-            Facade(id=facade_id, name=facade_id, azimuth_start=135.0, azimuth_end=225.0)
-        )
+        await storage.async_add_facade(Facade(id=facade_id, name=facade_id, azimuth_start=135.0, azimuth_end=225.0))
 
     coordinator = CoverAutomaticCoordinator(hass, storage, 60, config_entry=entry)
     entry.runtime_data = SimpleNamespace(coordinator=coordinator, storage=storage)
 
     for domain, module in (("sensor", sensor), ("switch", switch)):
         platform = EntityPlatform(
-            hass=hass, logger=logging.getLogger(__name__), domain=domain,
-            platform_name=DOMAIN, platform=module,
-            scan_interval=timedelta(seconds=60), entity_namespace=None,
+            hass=hass,
+            logger=logging.getLogger(__name__),
+            domain=domain,
+            platform_name=DOMAIN,
+            platform=module,
+            scan_interval=timedelta(seconds=60),
+            entity_namespace=None,
         )
         assert await platform.async_setup_entry(entry)
     await hass.async_block_till_done()
@@ -1304,7 +1269,8 @@ def _device_entities(hass, entry, identifier):
 
     device = next(
         (
-            d for d in dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+            d
+            for d in dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
             if (DOMAIN, identifier) in d.identifiers
         ),
         None,
@@ -1327,7 +1293,10 @@ class TestDeleteRemovesDevice:
         from custom_components.cover_automatic.api import ws_cover_delete
 
         async with _real_instance(tmp_path, ["cover.a", "cover.b"], []) as (
-            hass, entry, storage, coordinator,
+            hass,
+            entry,
+            storage,
+            coordinator,
         ):
             _, entity_ids = _device_entities(hass, entry, "cover.a")
             assert len(entity_ids) == 2  # status sensor + automation switch
@@ -1349,7 +1318,10 @@ class TestDeleteRemovesDevice:
         from custom_components.cover_automatic.api import ws_facade_delete
 
         async with _real_instance(tmp_path, ["cover.a"], ["south", "west"]) as (
-            hass, entry, storage, coordinator,
+            hass,
+            entry,
+            storage,
+            coordinator,
         ):
             _, entity_ids = _device_entities(hass, entry, "facade_south")
             assert len(entity_ids) == 3  # sun on facade + entry/exit time
@@ -1374,7 +1346,10 @@ class TestRemoveConfigEntryDevice:
         from custom_components.cover_automatic import async_remove_config_entry_device
 
         async with _real_instance(tmp_path, ["cover.a", "cover.gone"], ["south"]) as (
-            hass, entry, storage, coordinator,
+            hass,
+            entry,
+            storage,
+            coordinator,
         ):
             # Pre-fix delete: storage only, device stays behind
             await storage.async_remove_cover("cover.gone")
@@ -1403,7 +1378,10 @@ class TestEntitiesFollowStorage:
         from custom_components.cover_automatic.api import ws_cover_add
 
         async with _real_instance(tmp_path, ["cover.a"], []) as (
-            hass, entry, storage, coordinator,
+            hass,
+            entry,
+            storage,
+            coordinator,
         ):
             msg = {"id": 1, "entity_ids": ["cover.new"]}
             await ws_cover_add(hass, MagicMock(), msg, storage, coordinator)
@@ -1420,7 +1398,10 @@ class TestEntitiesFollowStorage:
         from custom_components.cover_automatic.api import ws_facade_add
 
         async with _real_instance(tmp_path, [], ["south"]) as (
-            hass, entry, storage, coordinator,
+            hass,
+            entry,
+            storage,
+            coordinator,
         ):
             msg = {"id": 1, "name": "West", "direction": "west"}
             await ws_facade_add(hass, MagicMock(), msg, storage, coordinator)
@@ -1437,7 +1418,10 @@ class TestEntitiesFollowStorage:
         from custom_components.cover_automatic.api import ws_cover_add, ws_cover_delete
 
         async with _real_instance(tmp_path, ["cover.a"], []) as (
-            hass, entry, storage, coordinator,
+            hass,
+            entry,
+            storage,
+            coordinator,
         ):
             await ws_cover_delete(hass, MagicMock(), {"id": 1, "entity_id": "cover.a"}, storage, coordinator)
             await hass.async_block_till_done()
@@ -1453,16 +1437,19 @@ class TestEntitiesFollowStorage:
         from custom_components.cover_automatic.api import ws_import_config
 
         async with _real_instance(tmp_path, ["cover.a", "cover.b"], ["south"]) as (
-            hass, entry, storage, coordinator,
+            hass,
+            entry,
+            storage,
+            coordinator,
         ):
             data = {
-                "covers": {
-                    cid: CoverConfig(entity_id=cid, name=cid).to_dict()
-                    for cid in ("cover.b", "cover.c")
-                },
+                "covers": {cid: CoverConfig(entity_id=cid, name=cid).to_dict() for cid in ("cover.b", "cover.c")},
                 "facades": {
                     "north": Facade(
-                        id="north", name="North", azimuth_start=315.0, azimuth_end=45.0,
+                        id="north",
+                        name="North",
+                        azimuth_start=315.0,
+                        azimuth_end=45.0,
                     ).to_dict(),
                 },
                 "rules": {},
@@ -1489,14 +1476,21 @@ class TestPanelAutoToggleUpdatesEntities:
     async def _setup(self, hass, entry, storage, coordinator):
         """Add a global rule that matches, refresh, return (switch, sensor) ids."""
         hass.states.async_set("sensor.outdoor_temp", "25")
-        await storage.async_add_rule(Rule(
-            id="shade", name="Shade", enabled=True, priority=10,
-            conditions=[Condition(
-                type=ConditionType.TEMPERATURE_ABOVE,
-                params={"sensor": "sensor.outdoor_temp", "value": 20},
-            )],
-            target_position=30,
-        ))
+        await storage.async_add_rule(
+            Rule(
+                id="shade",
+                name="Shade",
+                enabled=True,
+                priority=10,
+                conditions=[
+                    Condition(
+                        type=ConditionType.TEMPERATURE_ABOVE,
+                        params={"sensor": "sensor.outdoor_temp", "value": 20},
+                    )
+                ],
+                target_position=30,
+            )
+        )
         await coordinator.async_refresh()
         await hass.async_block_till_done()
         _, entity_ids = _device_entities(hass, entry, "cover.a")
@@ -1509,7 +1503,10 @@ class TestPanelAutoToggleUpdatesEntities:
         from custom_components.cover_automatic.api import ws_cover_update
 
         async with _real_instance(tmp_path, ["cover.a"], []) as (
-            hass, entry, storage, coordinator,
+            hass,
+            entry,
+            storage,
+            coordinator,
         ):
             switch_id, sensor_id = await self._setup(hass, entry, storage, coordinator)
             assert hass.states.get(switch_id).state == "on"
@@ -1530,7 +1527,10 @@ class TestPanelAutoToggleUpdatesEntities:
         from custom_components.cover_automatic.api import ws_cover_update
 
         async with _real_instance(tmp_path, ["cover.a"], []) as (
-            hass, entry, storage, coordinator,
+            hass,
+            entry,
+            storage,
+            coordinator,
         ):
             storage.get_cover_raw("cover.a")["auto_enabled"] = False
             storage._invalidate_cache()
@@ -1559,7 +1559,10 @@ class TestPanelAutoToggleUpdatesEntities:
         from custom_components.cover_automatic.api import ws_cover_update
 
         async with _real_instance(tmp_path, ["cover.a"], []) as (
-            hass, entry, storage, coordinator,
+            hass,
+            entry,
+            storage,
+            coordinator,
         ):
             switch_id, sensor_id = await self._setup(hass, entry, storage, coordinator)
             for msg_id, enabled in enumerate((False, True, False), start=1):
@@ -1604,14 +1607,22 @@ class _LockSensorScenario:
             hass.states.async_set(self.WIND, "0")
             storage.wind_sensor = self.WIND
             storage.wind_speed_threshold = 10.0
-        await storage.async_add_rule(Rule(
-            id="close", name="Close", enabled=True, priority=10, cover_ids=["cover.a"],
-            conditions=[Condition(
-                type=ConditionType.TEMPERATURE_ABOVE,
-                params={"sensor": "sensor.outdoor_temp", "value": 20},
-            )],
-            target_position=0,
-        ))
+        await storage.async_add_rule(
+            Rule(
+                id="close",
+                name="Close",
+                enabled=True,
+                priority=10,
+                cover_ids=["cover.a"],
+                conditions=[
+                    Condition(
+                        type=ConditionType.TEMPERATURE_ABOVE,
+                        params={"sensor": "sensor.outdoor_temp", "value": 20},
+                    )
+                ],
+                target_position=0,
+            )
+        )
         return calls
 
     @staticmethod
@@ -1955,9 +1966,7 @@ class TestWindowClosedDuringLockMove(_LockSensorScenario):
         [(30, 10, 25), (None, 10, 25), (80, 35, 45)],
         ids=["reports-motion", "silent-until-arrival", "slower-than-settle"],
     )
-    async def test_cover_returns_to_rule_target(
-        self, tmp_path, clock, moving, unlock_at, arrive_at
-    ) -> None:
+    async def test_cover_returns_to_rule_target(self, tmp_path, clock, moving, unlock_at, arrive_at) -> None:
         async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
             calls = await self._lock_closed_cover(hass, storage, coordinator)
             start = clock[0]
@@ -2046,23 +2055,29 @@ class TestWindowOpenedDuringStagger(_LockSensorScenario):
         ],
         ids=["window-opened", "window-tilted", "nothing-changed"],
     )
-    async def test_window_opened_during_stagger_pause(
-        self, tmp_path, sensor, status, follow_up
-    ) -> None:
+    async def test_window_opened_during_stagger_pause(self, tmp_path, sensor, status, follow_up) -> None:
         async with _real_instance(tmp_path, ["cover.b", "cover.a"], []) as (hass, _, storage, coordinator):
             calls = await self._setup(hass, storage, "off")
             hass.states.async_set(self.TILT, "off")
             storage.get_cover_raw("cover.a")["vent_sensor"] = self.TILT
             storage._invalidate_cache()
             hass.states.async_set("cover.b", "open", {"current_position": 100})
-            await storage.async_add_rule(Rule(
-                id="close_b", name="Close B", enabled=True, priority=10, cover_ids=["cover.b"],
-                conditions=[Condition(
-                    type=ConditionType.TEMPERATURE_ABOVE,
-                    params={"sensor": "sensor.outdoor_temp", "value": 20},
-                )],
-                target_position=0,
-            ))
+            await storage.async_add_rule(
+                Rule(
+                    id="close_b",
+                    name="Close B",
+                    enabled=True,
+                    priority=10,
+                    cover_ids=["cover.b"],
+                    conditions=[
+                        Condition(
+                            type=ConditionType.TEMPERATURE_ABOVE,
+                            params={"sensor": "sensor.outdoor_temp", "value": 20},
+                        )
+                    ],
+                    target_position=0,
+                )
+            )
             storage.command_stagger = 0.1
             opened = {"lock": self.WINDOW, "vent": self.TILT}.get(sensor)
 
@@ -2093,12 +2108,18 @@ class TestDeleteKeepsRuleScope:
     @staticmethod
     def _rule(rule_id: str, cover_ids=(), facade_ids=()) -> Rule:
         return Rule(
-            id=rule_id, name=rule_id, enabled=True, priority=10,
-            cover_ids=list(cover_ids), facade_ids=list(facade_ids),
-            conditions=[Condition(
-                type=ConditionType.TEMPERATURE_ABOVE,
-                params={"sensor": "sensor.outdoor_temp", "value": 20},
-            )],
+            id=rule_id,
+            name=rule_id,
+            enabled=True,
+            priority=10,
+            cover_ids=list(cover_ids),
+            facade_ids=list(facade_ids),
+            conditions=[
+                Condition(
+                    type=ConditionType.TEMPERATURE_ABOVE,
+                    params={"sensor": "sensor.outdoor_temp", "value": 20},
+                )
+            ],
             target_position=0,
         )
 
@@ -2107,7 +2128,10 @@ class TestDeleteKeepsRuleScope:
         from custom_components.cover_automatic.api import ws_cover_delete
 
         async with _real_instance(tmp_path, ["cover.a", "cover.b"], []) as (
-            hass, _, storage, coordinator,
+            hass,
+            _,
+            storage,
+            coordinator,
         ):
             hass.states.async_set("sensor.outdoor_temp", "25")
             await storage.async_add_rule(self._rule("bath", cover_ids=["cover.a"]))
@@ -2123,7 +2147,10 @@ class TestDeleteKeepsRuleScope:
         from custom_components.cover_automatic.api import ws_facade_delete
 
         async with _real_instance(tmp_path, ["cover.a"], ["south"]) as (
-            hass, _, storage, coordinator,
+            hass,
+            _,
+            storage,
+            coordinator,
         ):
             hass.states.async_set("sensor.outdoor_temp", "25")
             await storage.async_add_rule(self._rule("south_rule", facade_ids=["south"]))
@@ -2138,12 +2165,13 @@ class TestDeleteKeepsRuleScope:
         from custom_components.cover_automatic.api import ws_cover_delete, ws_facade_delete
 
         async with _real_instance(tmp_path, ["cover.a", "cover.b"], ["south"]) as (
-            hass, _, storage, coordinator,
+            hass,
+            _,
+            storage,
+            coordinator,
         ):
             await storage.async_add_rule(self._rule("two_covers", cover_ids=["cover.a", "cover.b"]))
-            await storage.async_add_rule(
-                self._rule("cover_and_facade", cover_ids=["cover.a"], facade_ids=["south"])
-            )
+            await storage.async_add_rule(self._rule("cover_and_facade", cover_ids=["cover.a"], facade_ids=["south"]))
 
             await ws_cover_delete(hass, MagicMock(), {"id": 1, "entity_id": "cover.a"}, storage, coordinator)
 
@@ -2162,7 +2190,10 @@ class TestDeleteKeepsRuleScope:
         from custom_components.cover_automatic.api import ws_cover_delete
 
         async with _real_instance(tmp_path, ["cover.a", "cover.b"], []) as (
-            hass, _, storage, coordinator,
+            hass,
+            _,
+            storage,
+            coordinator,
         ):
             await storage.async_add_rule(self._rule("everywhere"))
 
@@ -2212,14 +2243,22 @@ class TestImportKeepsSettingsUsable:
             hass.services.async_register("cover", "set_cover_position", _record)
             hass.states.async_set("cover.a", "open", {"current_position": 100})
             hass.states.async_set("sensor.outdoor_temp", "25")
-            await storage.async_add_rule(Rule(
-                id="close", name="Close", enabled=True, priority=10, cover_ids=["cover.a"],
-                conditions=[Condition(
-                    type=ConditionType.TEMPERATURE_ABOVE,
-                    params={"sensor": "sensor.outdoor_temp", "value": 20},
-                )],
-                target_position=0,
-            ))
+            await storage.async_add_rule(
+                Rule(
+                    id="close",
+                    name="Close",
+                    enabled=True,
+                    priority=10,
+                    cover_ids=["cover.a"],
+                    conditions=[
+                        Condition(
+                            type=ConditionType.TEMPERATURE_ABOVE,
+                            params={"sensor": "sensor.outdoor_temp", "value": 20},
+                        )
+                    ],
+                    target_position=0,
+                )
+            )
 
             await self._import(hass, storage, coordinator, await self._export(hass, storage, coordinator))
 
@@ -2265,9 +2304,13 @@ class TestImportKeepsSettingsUsable:
         async with _real_instance(tmp_path, [], []) as (hass, _, storage, _coordinator):
             raw = storage.get_raw_data()
             raw.update(
-                enabled=None, logbook_enabled=None, min_position_change=None,
-                min_time_between_changes=None, comfort_temp_min=None,
-                lock_tilt_position=None, outdoor_temp_sensor=None,
+                enabled=None,
+                logbook_enabled=None,
+                min_position_change=None,
+                min_time_between_changes=None,
+                comfort_temp_min=None,
+                lock_tilt_position=None,
+                outdoor_temp_sensor=None,
             )
             await storage._store.async_save(raw)
 
@@ -2308,7 +2351,9 @@ class TestImportKeepsRuntimeStatus:
     def _file(*covers: CoverConfig) -> dict:
         return {
             "covers": {c.entity_id: c.to_dict() for c in covers},
-            "facades": {}, "rules": {}, "scenarios": {},
+            "facades": {},
+            "rules": {},
+            "scenarios": {},
         }
 
     @pytest.mark.asyncio
@@ -2318,9 +2363,14 @@ class TestImportKeepsRuntimeStatus:
             paused_until = storage.get_cover_raw("cover.a")["pause_until"]
             assert paused_until is not None
 
-            await self._import(hass, storage, coordinator, self._file(
-                CoverConfig(entity_id="cover.a", name="A", status=CoverStatus.AUTO, pause_until=None),
-            ))
+            await self._import(
+                hass,
+                storage,
+                coordinator,
+                self._file(
+                    CoverConfig(entity_id="cover.a", name="A", status=CoverStatus.AUTO, pause_until=None),
+                ),
+            )
 
             raw = storage.get_cover_raw("cover.a")
             assert raw["status"] == CoverStatus.PAUSED.value
@@ -2329,10 +2379,20 @@ class TestImportKeepsRuntimeStatus:
     @pytest.mark.asyncio
     async def test_import_starts_new_cover_without_runtime_status(self, tmp_path) -> None:
         async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
-            await self._import(hass, storage, coordinator, self._file(CoverConfig(
-                entity_id="cover.new", name="New", status=CoverStatus.LOCKED,
-                pause_until=1.0, last_position_change=2.0,
-            )))
+            await self._import(
+                hass,
+                storage,
+                coordinator,
+                self._file(
+                    CoverConfig(
+                        entity_id="cover.new",
+                        name="New",
+                        status=CoverStatus.LOCKED,
+                        pause_until=1.0,
+                        last_position_change=2.0,
+                    )
+                ),
+            )
 
             raw = storage.get_cover_raw("cover.new")
             assert raw["status"] == CoverStatus.AUTO.value
@@ -2343,10 +2403,19 @@ class TestImportKeepsRuntimeStatus:
     async def test_imported_locked_status_does_not_lock_after_restart(self, tmp_path) -> None:
         async with _real_instance(tmp_path, ["cover.a"], []) as (hass, entry, storage, coordinator):
             hass.states.async_set("binary_sensor.window", "unavailable")
-            await self._import(hass, storage, coordinator, self._file(CoverConfig(
-                entity_id="cover.a", name="A", status=CoverStatus.LOCKED,
-                lock_sensor="binary_sensor.window",
-            )))
+            await self._import(
+                hass,
+                storage,
+                coordinator,
+                self._file(
+                    CoverConfig(
+                        entity_id="cover.a",
+                        name="A",
+                        status=CoverStatus.LOCKED,
+                        lock_sensor="binary_sensor.window",
+                    )
+                ),
+            )
 
             restarted = CoverAutomaticCoordinator(hass, storage, 60, config_entry=entry)
             restarted._restore_cover_states()
@@ -2414,9 +2483,7 @@ class TestFileServicesOffTheEventLoop:
             with _disk_calls_from_services_on_loop() as calls:
                 await hass.services.async_call(DOMAIN, "export_config", {}, blocking=True)
                 await storage.async_remove_cover("cover.a")
-                await hass.services.async_call(
-                    DOMAIN, "import_config", {"path": str(backup)}, blocking=True
-                )
+                await hass.services.async_call(DOMAIN, "import_config", {"path": str(backup)}, blocking=True)
                 await hass.async_block_till_done()
 
             assert calls == []
@@ -2464,7 +2531,11 @@ class TestRuleEntitiesTriggerEvaluation:
     @staticmethod
     def _close_rule(condition_type: ConditionType, params: dict) -> Rule:
         return Rule(
-            id="close", name="Close", enabled=True, priority=10, cover_ids=["cover.a"],
+            id="close",
+            name="Close",
+            enabled=True,
+            priority=10,
+            cover_ids=["cover.a"],
             conditions=[Condition(type=condition_type, params=params)],
             target_position=0,
         )
@@ -2487,9 +2558,7 @@ class TestRuleEntitiesTriggerEvaluation:
             ),
         ],
     )
-    async def test_condition_entity_change_moves_cover(
-        self, tmp_path, condition_type, params, before, after
-    ) -> None:
+    async def test_condition_entity_change_moves_cover(self, tmp_path, condition_type, params, before, after) -> None:
         async with _real_instance(tmp_path, ["cover.a"], []) as (hass, _, storage, coordinator):
             calls = self._record_moves(hass)
             entity_id = params["entity_id"]
@@ -2526,7 +2595,10 @@ class TestRuleEntitiesTriggerEvaluation:
             await self._start(hass, coordinator)
 
             msg = {
-                "id": 1, "name": "TV", "cover_ids": ["cover.a"], "target_position": 0,
+                "id": 1,
+                "name": "TV",
+                "cover_ids": ["cover.a"],
+                "target_position": 0,
                 "conditions": [{"type": "state_is", "params": {"entity_id": self.TV, "state": "on"}}],
             }
             await ws_rule_add(hass, MagicMock(), msg, storage, coordinator)
@@ -2547,13 +2619,17 @@ class TestRuleEntitiesTriggerEvaluation:
             calls = self._record_moves(hass)
             hass.states.async_set("input_boolean.guest", "off")
             hass.states.async_set(self.TV, "off")
-            await storage.async_add_rule(self._close_rule(
-                ConditionType.STATE_IS, {"entity_id": "input_boolean.guest", "state": "on"},
-            ))
+            await storage.async_add_rule(
+                self._close_rule(
+                    ConditionType.STATE_IS,
+                    {"entity_id": "input_boolean.guest", "state": "on"},
+                )
+            )
             await self._start(hass, coordinator)
 
             msg = {
-                "id": 1, "rule_id": "close",
+                "id": 1,
+                "rule_id": "close",
                 "conditions": [{"type": "state_is", "params": {"entity_id": self.TV, "state": "on"}}],
             }
             await ws_rule_update(hass, MagicMock(), msg, storage, coordinator)

@@ -1,4 +1,5 @@
 """Sensor platform for CoverAutomatic."""
+
 from __future__ import annotations
 
 import logging
@@ -50,22 +51,14 @@ async def async_setup_entry(
         for entity_id, cover in storage.covers.items():
             if entity_id in known_covers:
                 continue
-            entities.append(
-                CoverAutomaticStatusSensor(coordinator, entity_id, cover.name)
-            )
+            entities.append(CoverAutomaticStatusSensor(coordinator, entity_id, cover.name))
 
         for facade_id, facade in storage.facades.items():
             if facade_id in known_facades:
                 continue
-            entities.append(
-                FacadeSunSensor(coordinator, facade_id, facade.name)
-            )
-            entities.append(
-                FacadeSunTimeSensor(coordinator, facade_id, facade.name, is_entry=True)
-            )
-            entities.append(
-                FacadeSunTimeSensor(coordinator, facade_id, facade.name, is_entry=False)
-            )
+            entities.append(FacadeSunSensor(coordinator, facade_id, facade.name))
+            entities.append(FacadeSunTimeSensor(coordinator, facade_id, facade.name, is_entry=True))
+            entities.append(FacadeSunTimeSensor(coordinator, facade_id, facade.name, is_entry=False))
 
         # Forget removed ones so a re-added cover/facade gets entities again
         known_covers.clear()
@@ -76,9 +69,7 @@ async def async_setup_entry(
             async_add_entities(entities)
 
     _async_add_new_entities()
-    entry.async_on_unload(
-        async_dispatcher_connect(hass, SIGNAL_ENTITIES_CHANGED, _async_add_new_entities)
-    )
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_ENTITIES_CHANGED, _async_add_new_entities))
 
 
 class CoverAutomaticStatusSensor(CoordinatorEntity[CoverAutomaticCoordinator], SensorEntity):

@@ -1,4 +1,5 @@
 """Service handlers for CoverAutomatic."""
+
 from __future__ import annotations
 
 import logging
@@ -45,17 +46,13 @@ def _validate_export_path(path: str, config_dir: str) -> Path | None:
         resolved = candidate.resolve()
 
         if resolved.suffix.lower() not in EXPORT_ALLOWED_SUFFIXES:
-            _LOGGER.warning(
-                "Export path rejected: %s must use a .yaml/.yml extension", path
-            )
+            _LOGGER.warning("Export path rejected: %s must use a .yaml/.yml extension", path)
             return None
 
         try:
             resolved.relative_to(export_root)
         except ValueError:
-            _LOGGER.warning(
-                "Export path rejected: %s is not within %s", path, export_root
-            )
+            _LOGGER.warning("Export path rejected: %s is not within %s", path, export_root)
             return None
 
         return resolved
@@ -82,9 +79,7 @@ def _validate_config_path(path: str, config_dir: str) -> Path | None:
             resolved.relative_to(base)
             return resolved
         except ValueError:
-            _LOGGER.warning(
-                "Path validation failed: %s is not within %s", path, base
-            )
+            _LOGGER.warning("Path validation failed: %s is not within %s", path, base)
             return None
 
     except Exception as err:
@@ -129,9 +124,7 @@ def _read_import_file(path: str, config_dir: str) -> Any:
         raise _ImportFileError(f"file not found: {validated_path}")
     file_size = validated_path.stat().st_size
     if file_size > MAX_IMPORT_FILE_SIZE:
-        raise _ImportFileError(
-            f"file too large ({file_size} bytes, max {MAX_IMPORT_FILE_SIZE})"
-        )
+        raise _ImportFileError(f"file too large ({file_size} bytes, max {MAX_IMPORT_FILE_SIZE})")
     with open(validated_path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
@@ -156,9 +149,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         entity_id = call.data.get("entity_id")
         for entry_data in _get_entries().values():
             if entity_id in entry_data.coordinator.storage.covers:
-                entry_data.coordinator.pause_cover(
-                    entry_data.coordinator.storage.covers[entity_id]
-                )
+                entry_data.coordinator.pause_cover(entry_data.coordinator.storage.covers[entity_id])
                 break
 
     async def handle_resume(call: ServiceCall) -> None:
@@ -220,9 +211,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     async def handle_export_config(call: ServiceCall) -> None:
         """Handle export_config service call."""
         await _require_admin(call)
-        path_str = call.data.get("path") or hass.config.path(
-            EXPORT_SUBDIR, "cover_automatic_backup.yaml"
-        )
+        path_str = call.data.get("path") or hass.config.path(EXPORT_SUBDIR, "cover_automatic_backup.yaml")
 
         for entry_data in _get_entries().values():
             data = entry_data.storage.get_raw_data()
@@ -254,9 +243,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         # Path traversal check, size limit and read all run in the executor
         try:
-            data = await hass.async_add_executor_job(
-                _read_import_file, path_str, hass.config.config_dir
-            )
+            data = await hass.async_add_executor_job(_read_import_file, path_str, hass.config.config_dir)
         except _ImportFileError as err:
             _LOGGER.error("Import rejected: %s", err)
             return
@@ -287,15 +274,9 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     hass.services.async_register(DOMAIN, "resume", handle_resume, schema=schema_entity)
     hass.services.async_register(DOMAIN, "pause_all", handle_pause_all, schema=vol.Schema({}))
     hass.services.async_register(DOMAIN, "resume_all", handle_resume_all, schema=vol.Schema({}))
-    hass.services.async_register(
-        DOMAIN, "set_scenario", handle_set_scenario, schema=schema_scenario
-    )
-    hass.services.async_register(
-        DOMAIN, "export_config", handle_export_config, schema=schema_path_optional
-    )
-    hass.services.async_register(
-        DOMAIN, "import_config", handle_import_config, schema=schema_path_required
-    )
+    hass.services.async_register(DOMAIN, "set_scenario", handle_set_scenario, schema=schema_scenario)
+    hass.services.async_register(DOMAIN, "export_config", handle_export_config, schema=schema_path_optional)
+    hass.services.async_register(DOMAIN, "import_config", handle_import_config, schema=schema_path_required)
 
 
 async def async_unload_services(hass: HomeAssistant) -> None:

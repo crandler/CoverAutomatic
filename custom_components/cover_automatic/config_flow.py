@@ -1,4 +1,5 @@
 """Config flow for CoverAutomatic integration."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,9 +15,7 @@ class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Zero-config: confirm and create entry."""
         if user_input is not None:
             return self.async_create_entry(title="CoverAutomatic", data={})
@@ -34,9 +33,7 @@ class CoverAutomaticConfigFlow(ConfigFlow, domain=DOMAIN):
 class CoverAutomaticOptionsFlow(OptionsFlow):
     """Redirect to config panel."""
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Show link to panel."""
         if user_input is not None:
             return self.async_create_entry(title="", data=self.config_entry.options)
